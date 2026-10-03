@@ -42,3 +42,41 @@ export function calcularPrecioUnitario(precio, cantidad, unidad) {
 
   return null;
 }
+
+/**
+ * Sube una imagen directamente a ImageKit autenticándose con nuestra API interna
+ */
+export async function subirImagenImageKit(file) {
+  if (!file) return null;
+
+  // 1. Obtener parámetros de firma desde nuestro endpoint
+  const authRes = await fetch('/api/imagekit-auth');
+  if (!authRes.ok) {
+    throw new Error('Error al autenticar con el servidor de imágenes.');
+  }
+  const authData = await authRes.json();
+
+  // 2. Preparar los datos para ImageKit
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('fileName', `ticket_${Date.now()}_${file.name.replace(/\s+/g, '_')}`);
+  formData.append('publicKey', process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY);
+  formData.append('signature', authData.signature);
+  formData.append('expire', authData.expire);
+  formData.append('token', authData.token);
+  formData.append('folder', '/bariahorra');
+
+  // 3. Subir la imagen al endpoint de ImageKit
+  const uploadRes = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!uploadRes.ok) {
+    const errorData = await uploadRes.json();
+    throw new Error(errorData.message || 'Error al subir la imagen a ImageKit.');
+  }
+
+  const uploadData = await uploadRes.json();
+  return uploadData.url;
+}

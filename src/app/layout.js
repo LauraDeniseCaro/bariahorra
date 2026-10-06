@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 import BottomNav from "../components/BottomNav";
 
 const geistSans = Geist({
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Bariahorra - Precios en Bariloche",
   description: "Compará y encontrá los mejores precios de supermercados en Bariloche.",
-  manifest: "/manifest.json", // <-- OBLIGATORIO para que el navegador dispare la instalación
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -25,11 +26,9 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#0ea5e9",
+  themeColor: "#0284c7",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({ children }) {
@@ -38,19 +37,18 @@ export default function RootLayout({ children }) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-        <head>
-          <link rel="manifest" href="/manifest.json" />
-          <link rel="apple-touch-icon" href="/icon-192.png" />
-        </head>
-      <body className="min-h-full flex flex-col bg-[#0d131f] select-none text-slate-100">
-        <div className="min-h-screen bg-[#0d131f] flex justify-center selection:bg-sky-500 selection:text-white">
-          <div className="w-full max-w-md bg-[#121826] min-h-screen flex flex-col border-x border-slate-800/80 shadow-2xl relative pb-20">
-            <Header />
-            <div className="flex-1 flex flex-col">
-              {children}
-            </div>
-            <BottomNav />
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
+      <body className="min-h-full flex flex-col bg-[#0b0f17] text-slate-100 selection:bg-sky-500 selection:text-white">
+        <div className="flex-1 flex flex-col w-full max-w-4xl mx-auto border-x border-slate-800/60 shadow-2xl bg-[#0f1523] min-h-screen">
+          <Header />
+          <div className="flex-1 flex flex-col">
+            {children}
           </div>
+          <BottomNav />
+          <Footer />
         </div>
       </body>
     </html>

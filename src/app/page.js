@@ -3,17 +3,73 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+// --- UTILIDADES DE BÚSQUEDA INTELIGENTE ---
+
+// 1. Quitar tildes, diacríticos y pasar a minúsculas
+const limpiarTexto = (str = '') =>
+  str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+// 2. Distancia de Levenshtein para tolerar errores de tipeo
+const calcularDistancia = (a, b) => {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const fila = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let anterior = i;
+    for (let j = 1; j <= b.length; j++) {
+      let valor;
+      if (a[i - 1] === b[j - 1]) {
+        valor = fila[j - 1];
+      } else {
+        valor = Math.min(fila[j - 1] + 1, anterior + 1, fila[j] + 1);
+      }
+      fila[j - 1] = anterior;
+      anterior = valor;
+    }
+    fila[b.length] = anterior;
+  }
+  return fila[b.length];
+};
+
+// 3. Comprobar coincidencia tolerando errores y tildes
+const coincideConTolerancia = (textoCompleto, query) => {
+  const q = limpiarTexto(query);
+  if (!q) return true;
+
+  const target = limpiarTexto(textoCompleto);
+  if (target.includes(q)) return true;
+
+  const palabrasQuery = q.split(/\s+/).filter(Boolean);
+  const palabrasTarget = target.split(/[\s,.-]+/).filter(Boolean);
+
+  return palabrasQuery.every((pQ) => {
+    if (palabrasTarget.some((pT) => pT.includes(pQ))) return true;
+
+    const margenError = pQ.length >= 7 ? 2 : pQ.length >= 4 ? 1 : 0;
+    if (margenError === 0) return false;
+
+    return palabrasTarget.some((pT) => {
+      if (Math.abs(pT.length - pQ.length) <= margenError) {
+        return calcularDistancia(pQ, pT) <= margenError;
+      }
+      return false;
+    });
+  });
+};
+
 export default function Home() {
   const [busqueda, setBusqueda] = useState('');
   const [categoria, setCategoria] = useState('Todos');
-  const [comercioSeleccionado, setComercioSeleccionado] = useState('Todos');
-  const [orden, setOrden] = useState('recientes'); // 'recientes', 'precio_menor', 'mas_votadas'
+  const [orden, setOrden] = useState('recientes');
 
   const [ofertas, setOfertas] = useState([]);
-  const [comercios, setComercios] = useState([]);
   const [cargandoOfertas, setCargandoOfertas] = useState(true);
-
-  // Registro local de votos para evitar spam
   const [votosRealizados, setVotosRealizados] = useState({});
 
   const cargarOfertas = async () => {
@@ -23,7 +79,7 @@ export default function Home() {
         .from('ofertas')
         .select(`
           id, precio, estado, vencimiento, foto_url, votos_positivos, votos_negativos, creado_en,
-          productos ( id, nombre, marca, categoria ),
+          productos ( id, nombre, marca, cantidad, unidad_medida, categoria ),
           comercios ( id, nombre )
         `)
         .order('creado_en', { ascending: false });
@@ -37,33 +93,14 @@ export default function Home() {
     }
   };
 
-  const cargarComercios = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('comercios')
-        .select('*')
-        .order('nombre');
-
-      if (error) throw error;
-      setComercios(data || []);
-    } catch (err) {
-      console.error('Error al cargar comercios:', err.message);
-    }
-  };
-
   useEffect(() => {
     cargarOfertas();
-    cargarComercios();
-
     const votosGuardados = localStorage.getItem('bariahorra_votos');
-    if (votosGuardados) {
-      setVotosRealizados(JSON.parse(votosGuardados));
-    }
+    if (votosGuardados) setVotosRealizados(JSON.parse(votosGuardados));
   }, []);
 
   const handleVotar = async (ofertaId, tipo) => {
     if (votosRealizados[ofertaId]) return alert('Ya votaste en esta oferta.');
-
     const oferta = ofertas.find((o) => o.id === ofertaId);
     if (!oferta) return;
 
@@ -71,11 +108,8 @@ export default function Home() {
       return alert('Esta es una oferta oficial de catálogo.');
     }
 
-    const nuevosPositivos =
-      tipo === 'up' ? (oferta.votos_positivos || 0) + 1 : (oferta.votos_positivos || 0);
-    const nuevosNegativos =
-      tipo === 'down' ? (oferta.votos_negativos || 0) + 1 : (oferta.votos_negativos || 0);
-
+    const nuevosPositivos = tipo === 'up' ? (oferta.votos_positivos || 0) + 1 : (oferta.votos_positivos || 0);
+    const nuevosNegativos = tipo === 'down' ? (oferta.votos_negativos || 0) + 1 : (oferta.votos_negativos || 0);
     let nuevoEstado = oferta.estado;
     if (nuevosNegativos >= 3) nuevoEstado = 'en_revision';
 
@@ -107,22 +141,19 @@ export default function Home() {
     }
   };
 
-  // Filtrado
+  // El buscador rastrea Producto + Marca + Comercio en un solo paso
   let resultadosFiltrados = ofertas.filter((item) => {
     const prod = item.productos;
     const com = item.comercios;
-    const texto = `${prod?.nombre || ''} ${prod?.marca || ''} ${com?.nombre || ''}`.toLowerCase();
+    const textoCompleto = `${prod?.nombre || ''} ${prod?.marca || ''} ${com?.nombre || ''}`;
 
-    const coincideTexto = texto.includes(busqueda.toLowerCase());
+    const coincideBusqueda = coincideConTolerancia(textoCompleto, busqueda);
     const coincideCategoria =
       categoria === 'Todos' || prod?.categoria?.toLowerCase() === categoria.toLowerCase();
-    const coincideComercio =
-      comercioSeleccionado === 'Todos' || com?.id === comercioSeleccionado;
 
-    return coincideTexto && coincideCategoria && coincideComercio;
+    return coincideBusqueda && coincideCategoria;
   });
 
-  // Ordenamiento
   resultadosFiltrados.sort((a, b) => {
     if (orden === 'precio_menor') return a.precio - b.precio;
     if (orden === 'mas_votadas') {
@@ -134,28 +165,41 @@ export default function Home() {
   });
 
   return (
-    <main className="p-4 flex-1">
-      {/* Buscador */}
+    <main className="p-4 md:p-6 flex-1 max-w-4xl mx-auto w-full">
+      {/* 1. Buscador único (Producto, Marca o Comercio) */}
       <div className="relative mb-3">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
         <input
           type="text"
-          placeholder="Buscar producto, marca o súper..."
+          placeholder="Buscar producto, marca o comercio (ej. leche, La Anónima, Diarco)..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full bg-[#1b2333] text-sm text-white placeholder-slate-500 rounded-xl pl-4 pr-4 py-2.5 border border-slate-700/80 focus:outline-none focus:border-sky-400 transition"
+          className="w-full bg-[#161d2b] text-white placeholder-slate-400 rounded-2xl pl-11 pr-10 py-3.5 border border-slate-700/70 focus:outline-none focus:border-orange-500 text-sm shadow-sm transition"
         />
+        {busqueda && (
+          <button
+            onClick={() => setBusqueda('')}
+            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white text-xs font-bold"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
-      {/* Categorías */}
-      <div className="flex gap-1.5 overflow-x-auto pb-2 no-scrollbar text-xs">
-        {['Todos', 'Súper', 'Carnicería', 'Verdulería', 'Lácteos'].map((cat) => (
+      {/* 2. Categorías (Única fila de navegación) */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3">
+        {['Todos', 'Súper', 'Carnicería', 'Verdulería', 'Lácteos', 'Limpieza', 'Bebidas'].map((cat) => (
           <button
             key={cat}
             onClick={() => setCategoria(cat)}
-            className={`px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap border ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
               categoria === cat
-                ? 'bg-sky-500/15 text-sky-400 border-sky-500/40'
-                : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:bg-slate-800'
+                ? 'bg-orange-500 text-white border-orange-400 shadow-sm'
+                : 'bg-[#161d2b] text-slate-300 border-slate-700/60 hover:border-slate-500'
             }`}
           >
             {cat}
@@ -163,136 +207,112 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Comercios */}
-      <div className="flex gap-1.5 overflow-x-auto pb-3 no-scrollbar text-[11px]">
-        <button
-          onClick={() => setComercioSeleccionado('Todos')}
-          className={`px-2.5 py-1 rounded-lg font-medium transition whitespace-nowrap border ${
-            comercioSeleccionado === 'Todos'
-              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
-              : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:bg-slate-800'
-          }`}
-        >
-          Todos los súper
-        </button>
-        {comercios.map((com) => (
-          <button
-            key={com.id}
-            onClick={() => setComercioSeleccionado(com.id)}
-            className={`px-2.5 py-1 rounded-lg font-medium transition whitespace-nowrap border ${
-              comercioSeleccionado === com.id
-                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40'
-                : 'bg-slate-800/40 text-slate-400 border-slate-700/50 hover:bg-slate-800'
-            }`}
-          >
-            {com.nombre}
-          </button>
-        ))}
-      </div>
-
-      {/* Barra de Orden y Conteo */}
-      <div className="flex items-center justify-between text-xs text-slate-400 px-3 py-1.5 mb-3 bg-[#182133] rounded-xl border border-slate-800">
-        <div className="flex items-center gap-2">
-          <span>Ordenar por:</span>
+      {/* 3. Orden y Total de ofertas */}
+      <div className="flex items-center justify-between text-xs text-slate-400 px-1 py-2 mb-3">
+        <div className="flex items-center gap-1.5">
+          <span>Ordenar:</span>
           <select
             value={orden}
             onChange={(e) => setOrden(e.target.value)}
-            className="bg-transparent text-sky-400 font-semibold outline-none cursor-pointer"
+            className="bg-transparent text-orange-400 font-bold outline-none cursor-pointer"
           >
-            <option value="recientes" className="bg-[#182133]">Más recientes</option>
-            <option value="precio_menor" className="bg-[#182133]">Menor precio</option>
-            <option value="mas_votadas" className="bg-[#182133]">Más confiables</option>
+            <option value="recientes" className="bg-[#161d2b]">Más recientes</option>
+            <option value="precio_menor" className="bg-[#161d2b]">Menor precio</option>
+            <option value="mas_votadas" className="bg-[#161d2b]">Más confiables</option>
           </select>
         </div>
-        <span className="text-[11px] text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full font-medium">
-          Total: {resultadosFiltrados.length}
+        <span className="text-[11px] text-slate-300 bg-[#161d2b] border border-slate-700/60 px-2.5 py-0.5 rounded-lg font-semibold">
+          {resultadosFiltrados.length} ofertas
         </span>
       </div>
 
-      {/* Lista de Ofertas */}
-      <div className="space-y-3">
+      {/* 4. Grilla de Ofertas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {cargandoOfertas ? (
-          <div className="text-center py-12 text-slate-400 text-sm">Cargando precios...</div>
+          <div className="col-span-full text-center py-12 text-slate-400 text-sm">Cargando precios...</div>
         ) : resultadosFiltrados.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-sm">No hay ofertas para estos filtros.</div>
+          <div className="col-span-full text-center py-12 text-slate-400 text-sm">
+            No encontramos ofertas para esa búsqueda.
+          </div>
         ) : (
           resultadosFiltrados.map((item) => {
             const prod = item.productos;
             const com = item.comercios;
             const yaVoto = votosRealizados[item.id];
-            const esActiva = item.estado === 'activa';
             const esCatalogo = item.votos_positivos >= 100;
 
             return (
               <article
                 key={item.id}
-                className={`bg-[#182133] rounded-2xl p-4 border transition hover:border-slate-600 shadow-lg ${
-                  esActiva
-                    ? esCatalogo
-                      ? 'border-amber-400/50'
-                      : 'border-emerald-500/30'
-                    : 'border-rose-500/30'
-                }`}
+                className="bg-[#161d2b] rounded-2xl p-4 border border-slate-700/70 hover:border-slate-500 shadow-md flex flex-col justify-between transition"
               >
-                <div className="flex justify-between items-start gap-3">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-base text-white leading-tight">
+                <div className="flex gap-3.5 items-start">
+                  {/* Foto de Góndola */}
+                  {item.foto_url ? (
+                    <a
+                      href={item.foto_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-700 flex-shrink-0"
+                    >
+                      <img
+                        src={`${item.foto_url}?tr=w-160,h-160,fo-auto`}
+                        alt={prod?.nombre}
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[9px] text-white text-center py-0.5 font-bold">
+                        AMPLIAR
+                      </span>
+                    </a>
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl bg-[#0f141f] border border-slate-800 flex flex-col items-center justify-center text-slate-500 flex-shrink-0">
+                      <span className="text-xl">🛒</span>
+                      <span className="text-[9px] mt-1 text-slate-400 font-semibold">Sin foto</span>
+                    </div>
+                  )}
+
+                  {/* Datos del Producto */}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wide bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-md inline-block">
+                      📍 {com?.nombre}
+                    </span>
+                    <h3 className="font-bold text-base text-white leading-tight mt-1 truncate">
                       {prod?.nombre}
                     </h3>
-                    {prod?.marca && (
-                      <p className="text-xs text-slate-400 font-medium mt-0.5">{prod.marca}</p>
-                    )}
-                    <div className="flex items-center gap-1.5 text-xs text-sky-400 mt-1.5 font-medium">
-                      <span>📍 {com?.nombre || 'Comercio'}</span>
-                    </div>
-                  </div>
+                    <p className="text-xs text-slate-400 font-medium">
+                      <span className="text-slate-200 font-semibold">{prod?.marca || 'Genérico'}</span>
+                      {prod?.cantidad ? ` • ${prod.cantidad}${prod.unidad_medida || ''}` : ''}
+                      {prod?.categoria ? ` • ${prod.categoria}` : ''}
+                    </p>
 
-                  <div className="text-right flex flex-col items-end gap-2">
-                    <div className="text-xl font-extrabold text-emerald-400 font-mono tracking-tight leading-none">
+                    <div className="mt-2 text-2xl font-black text-white font-mono tracking-tight">
                       ${item.precio?.toLocaleString('es-AR')}
                     </div>
-                    {item.foto_url && (
-                      <a
-                        href={item.foto_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="relative group block rounded-lg overflow-hidden border border-slate-700/80"
-                      >
-                        <img
-                          src={`${item.foto_url}?tr=w-100,h-100,fo-auto`}
-                          alt="Foto góndola"
-                          className="w-11 h-11 object-cover group-hover:scale-105 transition"
-                        />
-                        <span className="absolute bottom-0 inset-x-0 bg-slate-950/80 text-[8px] text-sky-300 text-center py-0.5 font-bold">
-                          FOTO
-                        </span>
-                      </a>
-                    )}
                   </div>
                 </div>
 
-                {/* Votación o Sello Oficial */}
-                <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                {/* Pie: Votación comunitaria o Catálogo oficial */}
+                <div className="mt-3.5 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
                   {esCatalogo ? (
-                    <div className="w-full flex justify-center py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 font-bold tracking-wide">
-                      ⭐ PRECIO OFICIAL / CATÁLOGO
+                    <div className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 font-bold text-[11px]">
+                      <span>⭐</span> PRECIO OFICIAL DE CATÁLOGO
                     </div>
                   ) : (
                     <>
-                      <div className="flex flex-col text-[11px] text-slate-400">
-                        <span>{item.votos_positivos || 0} confirmaron</span>
+                      <div className="text-[11px] text-slate-400">
+                        <span className="font-semibold text-slate-200">{item.votos_positivos || 0}</span> confirmaron
                         {item.votos_negativos > 0 && (
-                          <span className="text-amber-400">⚠️ {item.votos_negativos} reportaron</span>
+                          <span className="text-rose-400 ml-1 font-semibold">({item.votos_negativos} subió)</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleVotar(item.id, 'up')}
                           disabled={!!yaVoto}
-                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition ${
+                          className={`px-3 py-1 rounded-xl border text-[11px] font-semibold flex items-center gap-1 transition ${
                             yaVoto === 'up'
                               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                              : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                              : 'bg-[#0f141f] text-slate-300 border-slate-700 hover:bg-slate-800'
                           }`}
                         >
                           👍 Sigue
@@ -300,10 +320,10 @@ export default function Home() {
                         <button
                           onClick={() => handleVotar(item.id, 'down')}
                           disabled={!!yaVoto}
-                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 transition ${
+                          className={`px-3 py-1 rounded-xl border text-[11px] font-semibold flex items-center gap-1 transition ${
                             yaVoto === 'down'
                               ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                              : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                              : 'bg-[#0f141f] text-slate-300 border-slate-700 hover:bg-slate-800'
                           }`}
                         >
                           👎 Subió

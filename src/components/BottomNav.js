@@ -5,51 +5,42 @@ import { usePathname } from 'next/navigation';
 
 export default function BottomNav() {
   const pathname = usePathname();
-
   const esInicio = pathname === '/';
   const esCargar = pathname === '/cargar';
-  const esAdmin = pathname.startsWith('/admin');
+
+  if (pathname.startsWith('/admin')) return null;
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md h-16 bg-[#121826]/95 backdrop-blur-md border-t border-slate-800 flex justify-around items-center px-6 z-40">
-      {/* Botón Inicio */}
-      <Link
-        href="/"
-        className={`flex flex-col items-center gap-1 transition ${
-          esInicio ? 'text-sky-400' : 'text-slate-400 hover:text-slate-200'
-        }`}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-        <span className="text-[10px] font-semibold">Inicio</span>
-      </Link>
+    <nav className="w-full bg-[#111827] border-t border-slate-800/80 py-3 px-4 mt-auto">
+      <div className="max-w-md mx-auto flex items-center justify-center gap-4">
+        {/* Enlace Inicio / Precios */}
+        <Link
+          href="/"
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition border ${
+            esInicio
+              ? 'bg-slate-800 text-sky-400 border-sky-500/40 shadow-sm'
+              : 'text-slate-400 border-slate-800 hover:bg-slate-800/60 hover:text-slate-200'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span>Ver Precios</span>
+        </Link>
 
-      {/* Botón Cargar (+) */}
-      <Link
-        href="/cargar"
-        className={`flex flex-col items-center justify-center -mt-5 bg-gradient-to-tr from-sky-500 to-indigo-500 text-white rounded-full h-12 w-12 shadow-lg shadow-sky-500/30 active:scale-95 transition ${
-          esCargar ? 'ring-2 ring-sky-300' : ''
-        }`}
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-        </svg>
-      </Link>
-
-      {/* Botón Admin */}
-      <Link
-        href="/admin"
-        className={`flex flex-col items-center gap-1 transition ${
-          esAdmin ? 'text-sky-400' : 'text-slate-400 hover:text-slate-200'
-        }`}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        <span className="text-[10px] font-semibold">Admin</span>
-      </Link>
+        {/* Botón Central Sumar Oferta */}
+        <Link
+          href="/cargar"
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs transition border shadow-md active:scale-95 ${
+            esCargar
+              ? 'bg-sky-500 text-slate-950 border-sky-400'
+              : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-emerald-500/10'
+          }`}
+        >
+          <span className="text-base font-black leading-none">+</span>
+          <span>Sumar Oferta</span>
+        </Link>
+      </div>
     </nav>
   );
 }

@@ -3,7 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ocultar barra de scroll en carruseles horizontales */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -11,3 +10,132 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+:root {
+  --bg-app: #0b0f17;
+  --bg-shell: #0f1523;
+  --bg-card: #151d2e;
+  --bg-card-sub: #101725;
+  --border-shell: rgba(30, 41, 59, 0.7);
+  --border-card: #1e293b;
+  --border-sub: #334155;
+  --text-main: #f8fafc;
+  --text-sub: #cbd5e1;
+  --text-muted: #94a3b8;
+  --btn-sec-bg: rgba(30, 41, 59, 0.85);
+  --btn-sec-hover: #334155;
+  --btn-sec-text: #e2e8f0;
+}
+
+html.light-mode {
+  --bg-app: #e2e8f0;
+  --bg-shell: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-sub: #f1f5f9;
+  --border-shell: #cbd5e1;
+  --border-card: #e2e8f0;
+  --border-sub: #cbd5e1;
+  --text-main: #0f172a;
+  --text-sub: #1e293b;
+  --text-muted: #475569;
+  --btn-sec-bg: #f8fafc;
+  --btn-sec-hover: #e2e8f0;
+  --btn-sec-text: #0f172a;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.theme-shell {
+  background-color: var(--bg-shell);
+  border-color: var(--border-shell);
+}
+
+.theme-card {
+  background-color: var(--bg-card);
+  border-color: var(--border-card);
+  color: var(--text-main);
+}
+
+.theme-card-sub {
+  background-color: var(--bg-card-sub);
+  border-color: var(--border-card);
+}
+
+.theme-input {
+  background-color: var(--bg-card);
+  border-color: var(--border-sub);
+  color: var(--text-main);
+}
+
+.theme-btn-sec {
+  background-color: var(--btn-sec-bg);
+  border-color: var(--border-sub);
+  color: var(--btn-sec-text);
+}
+.theme-btn-sec:hover {
+  background-color: var(--btn-sec-hover);
+}
+
+.theme-title {
+  color: var(--text-main);
+}
+
+.theme-subtitle {
+  color: var(--text-sub);
+}
+
+.theme-muted {
+  color: var(--text-muted);
+}
+
+/* ========================================================
+   REGLAS DE ALTO CONTRASTE EN MODO CLARO (INSPECCIONADAS)
+   ======================================================== */
+
+/* Insignias de Supermercados */
+.badge-com-anonima { background-color: rgba(14, 165, 233, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+.badge-com-todo { background-color: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.3); }
+.badge-com-chango { background-color: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+.badge-com-diarco { background-color: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+.badge-com-coop { background-color: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(251, 146, 60, 0.3); }
+.badge-com-carrefour { background-color: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.3); }
+.badge-com-default { background-color: rgba(30, 41, 59, 0.85); color: #cbd5e1; border: 1px solid #334155; }
+
+html.light-mode .badge-com-anonima { background-color: #e0f2fe; color: #0284c7; border: 1px solid #7dd3fc; font-weight: 800; }
+html.light-mode .badge-com-todo { background-color: #ffe4e6; color: #e11d48; border: 1px solid #fda4af; font-weight: 800; }
+html.light-mode .badge-com-chango { background-color: #d1fae5; color: #059669; border: 1px solid #6ee7b7; font-weight: 800; }
+html.light-mode .badge-com-diarco { background-color: #fef3c7; color: #d97706; border: 1px solid #fcd34d; font-weight: 800; }
+html.light-mode .badge-com-coop { background-color: #ffedd5; color: #ea580c; border: 1px solid #fdba74; font-weight: 800; }
+html.light-mode .badge-com-carrefour { background-color: #e0e7ff; color: #4f46e5; border: 1px solid #a5b4fc; font-weight: 800; }
+html.light-mode .badge-com-default { background-color: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; font-weight: 800; }
+
+/* Precio unitario (x Kg / Litro) */
+.precio-ref-unitario { color: #34d399; font-weight: 700; }
+html.light-mode .precio-ref-unitario { color: #047857; font-weight: 800; }
+
+/* Botón + Mi Lista */
+.btn-changuito-add { background-color: rgba(30, 41, 59, 0.85); border: 1px solid #334155; color: #cbd5e1; }
+html.light-mode .btn-changuito-add { background-color: #f8fafc; border: 1px solid #cbd5e1; color: #0369a1; font-weight: 800; }
+
+/* Botones de Votación */
+.btn-voto-accion { background-color: rgba(30, 41, 59, 0.85); border: 1px solid #334155; color: #cbd5e1; }
+html.light-mode .btn-voto-accion { background-color: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; font-weight: 800; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+/* Rubros en tarjetas */
+.rubro-tag-Carnicería { color: #fb7185; }
+.rubro-tag-Súper { color: #34d399; }
+.rubro-tag-Verdulería { color: #a3e635; }
+.rubro-tag-Lácteos { color: #38bdf8; }
+.rubro-tag-Limpieza { color: #a78bfa; }
+.rubro-tag-Bebidas { color: #fb923c; }
+
+html.light-mode .rubro-tag-Carnicería { color: #e11d48; font-weight: 800; }
+html.light-mode .rubro-tag-Súper { color: #059669; font-weight: 800; }
+html.light-mode .rubro-tag-Verdulería { color: #4d7c0f; font-weight: 800; }
+html.light-mode .rubro-tag-Lácteos { color: #0284c7; font-weight: 800; }
+html.light-mode .rubro-tag-Limpieza { color: #7c3aed; font-weight: 800; }
+html.light-mode .rubro-tag-Bebidas { color: #ea580c; font-weight: 800; }

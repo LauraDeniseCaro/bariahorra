@@ -37,11 +37,11 @@ const AVATARES_DISPONIBLES = [
 const AVATAR_DEFAULT = AVATARES_DISPONIBLES[0];
 
 function calcularRango(puntos = 0) {
-  if (puntos >= 1000) return { nombre: 'Héroe Comunitario', icono: Crown, color: 'text-amber-400' };
-  if (puntos >= 400) return { nombre: 'Defensor del Bolsillo', icono: ShieldCheck, color: 'text-sky-400' };
-  if (puntos >= 150) return { nombre: 'Vecino Activo de Bariloche', icono: Award, color: 'text-emerald-400' };
-  if (puntos >= 50) return { nombre: 'Cazador de Ofertas', icono: Flame, color: 'text-indigo-400' };
-  return { nombre: 'Vecino Observador', icono: User, color: 'text-slate-400' };
+  if (puntos >= 1000) return { nombre: 'Héroe Comunitario', icono: Crown, color: 'text-amber-500 dark:text-amber-400' };
+  if (puntos >= 400) return { nombre: 'Defensor del Bolsillo', icono: ShieldCheck, color: 'text-sky-500 dark:text-sky-400' };
+  if (puntos >= 150) return { nombre: 'Vecino Activo de Bariloche', icono: Award, color: 'text-emerald-500 dark:text-emerald-400' };
+  if (puntos >= 50) return { nombre: 'Cazador de Ofertas', icono: Flame, color: 'text-indigo-500 dark:text-indigo-400' };
+  return { nombre: 'Vecino Observador', icono: User, color: 'theme-muted' };
 }
 
 export default function PerfilPage() {
@@ -262,7 +262,7 @@ export default function PerfilPage() {
 
   if (cargando) {
     return (
-      <div className="min-h-screen bg-[#0d131f] text-slate-300 flex items-center justify-center text-xs">
+      <div className="min-h-screen theme-muted flex items-center justify-center text-xs">
         Cargando tu perfil...
       </div>
     );
@@ -275,13 +275,13 @@ export default function PerfilPage() {
   const totalConfirmaciones = misOfertas.reduce((acc, curr) => acc + (curr._votosPositivos || 0), 0);
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 space-y-4 selection:bg-sky-500 selection:text-white">
+    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 space-y-4 selection:bg-sky-500 selection:text-white pb-24">
       
       {/* NAVEGACIÓN SUPERIOR */}
       <div className="flex items-center justify-between px-1">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition font-medium"
+          className="inline-flex items-center gap-1.5 text-xs theme-muted hover:text-sky-400 transition font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Volver a las ofertas</span>
@@ -290,7 +290,7 @@ export default function PerfilPage() {
         <button
           type="button"
           onClick={handleCerrarSesion}
-          className="inline-flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1.5 rounded-xl transition font-bold cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs text-rose-500 dark:text-rose-400 hover:text-rose-600 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 px-3 py-1.5 rounded-xl transition font-bold cursor-pointer"
         >
           <LogOut className="w-3.5 h-3.5" />
           <span>Cerrar sesión</span>
@@ -298,28 +298,28 @@ export default function PerfilPage() {
       </div>
 
       {/* TARJETA DE PERFIL */}
-      <div className="bg-[#121826] border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl relative">
+      <div className="theme-card border rounded-3xl p-5 sm:p-6 shadow-2xl relative">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <img
               src={perfil?.avatar_url || AVATAR_DEFAULT}
               alt={perfil?.apodo}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-900 border-2 border-slate-700 object-cover shadow-inner"
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl theme-card-sub border-2 object-cover shadow-inner"
             />
             <div>
-              <h1 className="text-base sm:text-lg font-black text-white">
+              <h1 className="text-base sm:text-lg font-black theme-title">
                 @{perfil?.apodo || usuario?.email?.split('@')[0] || 'vecino'}
               </h1>
-              <p className="text-xs text-slate-400 font-mono">
+              <p className="text-xs theme-muted font-mono">
                 {usuario?.email}
               </p>
 
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 bg-slate-800/80 border border-slate-700/60 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-200">
+                <span className="inline-flex items-center gap-1 theme-btn-sec border px-2.5 py-1 rounded-full text-[10px] font-bold theme-subtitle">
                   <IconoRango className={`w-3 h-3 ${rangoInfo.color}`} />
                   <span>{rangoInfo.nombre}</span>
                 </span>
-                <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full text-[10px] font-black text-amber-400 font-mono">
+                <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full text-[10px] font-black text-amber-500 dark:text-amber-400 font-mono">
                   <Sparkles className="w-3 h-3" />
                   <span>{perfil?.puntos || 0} Puntos</span>
                 </span>
@@ -330,7 +330,7 @@ export default function PerfilPage() {
           <button
             type="button"
             onClick={() => setEditando(true)}
-            className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer"
+            className="inline-flex items-center gap-1.5 theme-btn-sec border px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-sm"
           >
             <Pencil className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Editar personaje</span>
@@ -339,23 +339,23 @@ export default function PerfilPage() {
 
         {/* MÉTRICAS */}
         <div className="grid grid-cols-3 gap-2.5 mt-6">
-          <div className="bg-[#182133] p-3 rounded-2xl border border-slate-800 text-center">
-            <p className="text-base sm:text-lg font-black text-white font-mono">
+          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-sm">
+            <p className="text-base sm:text-lg font-black theme-title font-mono">
               {perfil?.precios_aportados || misOfertas.length}
             </p>
-            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Precios aportados</p>
+            <p className="text-[10px] theme-muted leading-tight mt-0.5">Precios aportados</p>
           </div>
-          <div className="bg-[#182133] p-3 rounded-2xl border border-slate-800 text-center">
-            <p className="text-base sm:text-lg font-black text-white font-mono">
+          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-sm">
+            <p className="text-base sm:text-lg font-black theme-title font-mono">
               {totalConfirmaciones}
             </p>
-            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Confirmaciones</p>
+            <p className="text-[10px] theme-muted leading-tight mt-0.5">Confirmaciones</p>
           </div>
-          <div className="bg-[#182133] p-3 rounded-2xl border border-slate-800 text-center">
-            <p className="text-base sm:text-lg font-black text-amber-400 font-mono">
+          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-sm">
+            <p className="text-base sm:text-lg font-black text-amber-500 dark:text-amber-400 font-mono">
               {perfil?.puntos || 0}
             </p>
-            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">Puntos comunitarios</p>
+            <p className="text-[10px] theme-muted leading-tight mt-0.5">Puntos comunitarios</p>
           </div>
         </div>
       </div>
@@ -364,17 +364,17 @@ export default function PerfilPage() {
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between px-1">
           <div>
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-300">
+            <h2 className="text-xs font-black uppercase tracking-wider theme-subtitle">
               Mis aportes a la comunidad
             </h2>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] theme-muted">
               {misOfertas.length} {misOfertas.length === 1 ? 'activa' : 'activas'}
             </span>
           </div>
 
           <Link
             href="/cargar"
-            className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20"
+            className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20 active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Aportar precio</span>
@@ -382,7 +382,7 @@ export default function PerfilPage() {
         </div>
 
         {misOfertas.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-[#121826] border border-slate-800 text-center text-xs text-slate-400 space-y-3">
+          <div className="p-8 rounded-2xl theme-card border text-center text-xs theme-muted space-y-3 shadow-sm">
             <p>Todavía no cargaste ningún precio.</p>
             <Link
               href="/cargar"
@@ -397,20 +397,20 @@ export default function PerfilPage() {
             {misOfertas.map((item) => (
               <div
                 key={item.id}
-                className="p-3.5 rounded-2xl bg-[#121826] border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition"
+                className="p-3.5 rounded-2xl theme-card border flex items-center justify-between gap-3 transition shadow-sm hover:border-slate-500"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                      <Store className="w-3 h-3 text-amber-400" />
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                      <Store className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                       <span>{item._comercio}</span>
                     </span>
-                    <span className="text-xs font-bold text-white truncate">
+                    <span className="text-xs font-bold theme-title truncate">
                       {item._producto}
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-200">
+                  <div className="text-[11px] theme-muted mt-1 flex items-center gap-2">
+                    <span className="font-mono font-bold theme-subtitle">
                       ${Number(item._precio || 0).toLocaleString('es-AR')}
                     </span>
                     <span>•</span>
@@ -421,7 +421,7 @@ export default function PerfilPage() {
                 <button
                   type="button"
                   onClick={() => handleEliminarOferta(item.id)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition shrink-0 cursor-pointer"
+                  className="p-2 rounded-xl theme-muted hover:text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition shrink-0 cursor-pointer"
                   title="Eliminar oferta"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -434,14 +434,14 @@ export default function PerfilPage() {
 
       {/* MODAL DE EDICIÓN */}
       {editando && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#121826] border border-slate-800 rounded-3xl p-5 max-w-sm w-full shadow-2xl relative space-y-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="theme-card border rounded-3xl p-5 max-w-sm w-full shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-white">Editar personaje</h3>
+              <h3 className="text-sm font-black theme-title">Editar personaje</h3>
               <button
                 type="button"
                 onClick={() => setEditando(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+                className="p-1 rounded-lg theme-muted hover:theme-title cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -449,23 +449,23 @@ export default function PerfilPage() {
 
             <form onSubmit={handleGuardarCambios} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-xs font-bold theme-subtitle mb-1">
                   Tu apodo único
                 </label>
                 <div className="relative">
-                  <span className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold">@</span>
+                  <span className="theme-muted absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold">@</span>
                   <input
                     type="text"
                     value={nuevoApodo}
                     onChange={(e) => setNuevoApodo(e.target.value)}
                     placeholder="lauchiña"
-                    className="w-full bg-[#182133] border border-slate-700 rounded-xl pl-7 pr-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500 transition font-bold"
+                    className="w-full theme-input border rounded-xl pl-7 pr-3 py-2 text-xs focus:outline-none focus:border-sky-500 transition font-bold shadow-sm"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-2">
+                <label className="block text-xs font-bold theme-subtitle mb-2">
                   Elegí tu avatar de Bariloche
                 </label>
                 <div className="grid grid-cols-5 gap-2">
@@ -476,10 +476,10 @@ export default function PerfilPage() {
                         key={avatar}
                         type="button"
                         onClick={() => setNuevoAvatar(avatar)}
-                        className={`rounded-xl overflow-hidden border-2 p-1 bg-slate-900 transition cursor-pointer ${
+                        className={`rounded-xl overflow-hidden border-2 p-1 theme-card-sub transition cursor-pointer ${
                           seleccionado
                             ? 'border-sky-400 ring-2 ring-sky-500/20'
-                            : 'border-slate-800 hover:border-slate-700'
+                            : 'border-transparent hover:border-slate-500'
                         }`}
                       >
                         <img src={avatar} alt="Avatar" className="w-full h-full object-cover rounded-lg" />
@@ -490,7 +490,7 @@ export default function PerfilPage() {
               </div>
 
               {mensajeError && (
-                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{mensajeError}</span>
                 </div>
@@ -500,14 +500,14 @@ export default function PerfilPage() {
                 <button
                   type="button"
                   onClick={() => setEditando(false)}
-                  className="w-1/2 py-2 rounded-xl border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-800 transition cursor-pointer"
+                  className="w-1/2 py-2 rounded-xl border theme-btn-sec text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="w-1/2 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 text-xs font-black transition shadow-lg shadow-sky-500/20 cursor-pointer"
+                  className="w-1/2 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 text-xs font-black transition shadow-lg shadow-sky-500/20 cursor-pointer active:scale-95"
                 >
                   {guardando ? 'Guardando...' : 'Guardar'}
                 </button>

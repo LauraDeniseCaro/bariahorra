@@ -1,24 +1,96 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import {
   Search,
   Plus,
   ThumbsUp,
-  TrendingUp,
-  Image as ImageIcon,
   User,
   Store,
   Scale,
   Smartphone,
   Download,
   X,
-  Check
+  Check,
+  LayoutGrid,
+  ShoppingCart,
+  Beef,
+  Apple,
+  Milk,
+  Sparkles,
+  Wine,
+  Layers,
+  ListFilter,
+  Clock,
+  Award,
+  RefreshCw,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  ShoppingBag,
+  Trash2,
+  Calculator,
+  ListChecks,
+  ShieldCheck,
+  AlertTriangle,
+  Share2
 } from 'lucide-react';
 
-const CATEGORIAS = ['Todos', 'Súper', 'Carnicería', 'Verdulería', 'Lácteos', 'Limpieza', 'Bebidas'];
+const CONFIG_CATEGORIAS = {
+  Todos: {
+    icono: LayoutGrid,
+    pillActiva: 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 border-amber-400',
+    acento: 'rubro-tag-Todos',
+    cajaIcono: 'bg-amber-500/10 border-amber-500/30 text-amber-500',
+    bordeBuscador: 'focus:border-amber-500/60'
+  },
+  Súper: {
+    icono: ShoppingCart,
+    pillActiva: 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 border-emerald-400',
+    acento: 'rubro-tag-Súper',
+    cajaIcono: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500',
+    bordeBuscador: 'focus:border-emerald-500/60'
+  },
+  Carnicería: {
+    icono: Beef,
+    pillActiva: 'bg-rose-500 text-white shadow-lg shadow-rose-500/25 border-rose-400',
+    acento: 'rubro-tag-Carnicería',
+    cajaIcono: 'bg-rose-500/10 border-rose-500/25 text-rose-500',
+    bordeBuscador: 'focus:border-rose-500/60'
+  },
+  Verdulería: {
+    icono: Apple,
+    pillActiva: 'bg-lime-400 text-slate-950 shadow-lg shadow-lime-400/20 border-lime-300',
+    acento: 'rubro-tag-Verdulería',
+    cajaIcono: 'bg-lime-500/10 border-lime-500/25 text-lime-600',
+    bordeBuscador: 'focus:border-lime-400/60'
+  },
+  Lácteos: {
+    icono: Milk,
+    pillActiva: 'bg-sky-400 text-slate-950 shadow-lg shadow-sky-400/20 border-sky-300',
+    acento: 'rubro-tag-Lácteos',
+    cajaIcono: 'bg-sky-500/10 border-sky-500/25 text-sky-500',
+    bordeBuscador: 'focus:border-sky-400/60'
+  },
+  Limpieza: {
+    icono: Sparkles,
+    pillActiva: 'bg-violet-500 text-white shadow-lg shadow-violet-500/25 border-violet-400',
+    acento: 'rubro-tag-Limpieza',
+    cajaIcono: 'bg-violet-500/10 border-violet-500/25 text-violet-500',
+    bordeBuscador: 'focus:border-violet-500/60'
+  },
+  Bebidas: {
+    icono: Wine,
+    pillActiva: 'bg-orange-500 text-slate-950 shadow-lg shadow-orange-500/20 border-orange-400',
+    acento: 'rubro-tag-Bebidas',
+    cajaIcono: 'bg-orange-500/10 border-orange-500/25 text-orange-500',
+    bordeBuscador: 'focus:border-orange-500/60'
+  }
+};
+
+const CATEGORIAS = Object.keys(CONFIG_CATEGORIAS);
 
 const DICCIONARIO_RUBROS = {
   Carnicería: ['lomo', 'bola de lomo', 'asado', 'vacio', 'picada', 'carne', 'pollo', 'milanesa', 'nalga', 'peceto', 'bife', 'matambre', 'costilla', 'pechuga'],
@@ -30,10 +102,36 @@ const DICCIONARIO_RUBROS = {
 
 function limpiarTexto(str = '') {
   return String(str)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function obtenerEstiloComercio(nombre = '') {
+  const n = limpiarTexto(nombre);
+  if (n.includes('anonima')) return 'badge-com-anonima';
+  if (n.includes('todo')) return 'badge-com-todo';
+  if (n.includes('chango')) return 'badge-com-chango';
+  if (n.includes('diarco')) return 'badge-com-diarco';
+  if (n.includes('cooperativa')) return 'badge-com-coop';
+  if (n.includes('carrefour')) return 'badge-com-carrefour';
+  return 'badge-com-default';
+}
+
+function tiempoRelativo(fechaStr) {
+  if (!fechaStr) return 'Reciente';
+  const fecha = new Date(fechaStr).getTime();
+  if (isNaN(fecha)) return 'Reciente';
+  const diffMin = Math.floor((Date.now() - fecha) / 60000);
+  if (diffMin < 5) return 'Recién';
+  if (diffMin < 60) return `Hace ${diffMin}m`;
+  const diffHoras = Math.floor(diffMin / 60);
+  if (diffHoras < 24) return `Hace ${diffHoras}h`;
+  const diffDias = Math.floor(diffHoras / 24);
+  if (diffDias === 1) return 'Ayer';
+  if (diffDias < 7) return `Hace ${diffDias}d`;
+  return new Date(fechaStr).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
 }
 
 function formatearPresentacion(tamanoRaw, unidadRaw) {
@@ -102,26 +200,80 @@ function calcularPrecioPorUnidad(precioNum, tamanoRaw, unidadRaw, nombreProd = '
 
   if (['gr', 'g', 'gramos', 'grs'].includes(u)) {
     const porKilo = (precioNum / cantNum) * 1000;
-    return { valor: `$${Math.round(porKilo).toLocaleString('es-AR')}`, unidad: 'Kg' };
+    return { valor: `$${Math.round(porKilo).toLocaleString('es-AR')}`, num: porKilo, unidad: 'Kg' };
   }
   if (['kg', 'kilo', 'kilos', 'kgs'].includes(u)) {
     const porKilo = precioNum / cantNum;
-    return { valor: `$${Math.round(porKilo).toLocaleString('es-AR')}`, unidad: 'Kg' };
+    return { valor: `$${Math.round(porKilo).toLocaleString('es-AR')}`, num: porKilo, unidad: 'Kg' };
   }
   if (['ml', 'cc', 'cm3'].includes(u)) {
     const porLitro = (precioNum / cantNum) * 1000;
-    return { valor: `$${Math.round(porLitro).toLocaleString('es-AR')}`, unidad: 'Litro' };
+    return { valor: `$${Math.round(porLitro).toLocaleString('es-AR')}`, num: porLitro, unidad: 'Litro' };
   }
   if (['l', 'lt', 'litro', 'litros', 'lts'].includes(u)) {
     const porLitro = precioNum / cantNum;
-    return { valor: `$${Math.round(porLitro).toLocaleString('es-AR')}`, unidad: 'Litro' };
+    return { valor: `$${Math.round(porLitro).toLocaleString('es-AR')}`, num: porLitro, unidad: 'Litro' };
   }
   if (['u', 'un', 'unidad', 'unidades'].includes(u) && cantNum > 1) {
     const porUnidad = precioNum / cantNum;
-    return { valor: `$${Math.round(porUnidad).toLocaleString('es-AR')}`, unidad: 'Unidad' };
+    return { valor: `$${Math.round(porUnidad).toLocaleString('es-AR')}`, num: porUnidad, unidad: 'Unidad' };
   }
 
   return null;
+}
+
+function obtenerClaveVoto(ofertaId, precioActual) {
+  return `${ofertaId}_${Math.round(Number(precioActual || 0))}`;
+}
+
+// Ícono SVG de WhatsApp
+function WhatsAppIcon({ className = 'w-3.5 h-3.5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 11.66c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43s-.56-1.34-.76-1.84c-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.44.06-.66.31-.23.25-.87.85-.87 2.07s.89 2.4 1.02 2.57c.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.53.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28" />
+    </svg>
+  );
+}
+
+// Funciones para compartir
+function compartirOfertaWhatsApp(item) {
+  const precioFormateado = Number(item._precio || 0).toLocaleString('es-AR');
+  const unitario = item._refUnitario ? ` ($${item._refUnitario.valor} x ${item._refUnitario.unidad})` : '';
+
+  const mensaje =
+    `🛒 *¡Mirá este precio en Bariloche!*
+
+*${item._producto}* (${item._marca})
+🏪 *${item._comercio}*
+💵 *$${precioFormateado}*${unitario}
+
+Encontrá más precios y compará en 👇
+https://bariahorra.com.ar`;
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+}
+
+function compartirListaWhatsApp(simulacion, totalItems) {
+  if (!simulacion || !simulacion.productosElegidos) return;
+
+  const lineasProds = simulacion.productosElegidos
+    .map((p) => `• *${p.nombre}*: $${p.minPrecio.toLocaleString('es-AR')} (${p.mejorComercio})`)
+    .join('\n');
+
+  const ganadorTxt = simulacion.ganador
+    ? `\n🏆 *El súper más económico*: ${simulacion.ganador.comercio} (Total aprox: $${simulacion.ganador.totalEstimado.toLocaleString('es-AR')})`
+    : '';
+
+  const mensaje =
+    `📋 *Mi Lista de Compras en BariAhorra* (${totalItems} productos):
+
+${lineasProds}
+${ganadorTxt}
+
+Calculá tu lista de supermercado en 👇
+https://bariahorra.com.ar`;
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
 
 export default function HomePage() {
@@ -130,20 +282,35 @@ export default function HomePage() {
   const [busqueda, setBusqueda] = useState('');
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const [orden, setOrden] = useState('recientes');
+  const [modoVista, setModoVista] = useState('gondola');
 
   const [usuario, setUsuario] = useState(null);
   const [confirmandoId, setConfirmandoId] = useState(null);
-
-  // Registro en memoria de votos hechos en este navegador
   const [votosRealizados, setVotosRealizados] = useState({});
 
-  // PWA
+  const [editandoPrecioId, setEditandoPrecioId] = useState(null);
+  const [nuevoPrecioInput, setNuevoPrecioInput] = useState('');
+  const [guardandoPrecio, setGuardandoPrecio] = useState(false);
+  const [avisoFeedback, setAvisoFeedback] = useState(null);
+
+  const [changuito, setChanguito] = useState([]);
+
+  const categoriasRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [mostrarBannerInstalar, setMostrarBannerInstalar] = useState(false);
 
   useEffect(() => {
     obtenerSesionYOfertas();
     cargarVotosDesdeStorage();
+
+    try {
+      const changuitoGuardado = localStorage.getItem('bariahorra_changuito');
+      if (changuitoGuardado) setChanguito(JSON.parse(changuitoGuardado));
+    } catch (e) { }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUsuario(session?.user || null);
@@ -168,20 +335,65 @@ export default function HomePage() {
     };
   }, []);
 
+  const mostrarToast = (texto) => {
+    setAvisoFeedback(texto);
+    setTimeout(() => setAvisoFeedback(null), 3500);
+  };
+
+  const desplazarCategorias = (direccion) => {
+    if (!categoriasRef.current) return;
+    const monto = direccion === 'izq' ? -180 : 180;
+    categoriasRef.current.scrollBy({ left: monto, behavior: 'smooth' });
+  };
+
+  const handleMouseDownCat = (e) => {
+    if (!categoriasRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - categoriasRef.current.offsetLeft);
+    setScrollLeft(categoriasRef.current.scrollLeft);
+  };
+
+  const handleMouseMoveCat = (e) => {
+    if (!isDragging || !categoriasRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - categoriasRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    categoriasRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const detenerDragCat = () => setIsDragging(false);
+
+  const toggleProductoChanguito = (nombreProducto) => {
+    const clave = limpiarTexto(nombreProducto);
+    setChanguito((prev) => {
+      const existe = prev.includes(clave);
+      const nuevo = existe ? prev.filter((item) => item !== clave) : [...prev, clave];
+      try {
+        localStorage.setItem('bariahorra_changuito', JSON.stringify(nuevo));
+      } catch (e) { }
+      return nuevo;
+    });
+  };
+
+  const limpiarChanguito = () => {
+    setChanguito([]);
+    try {
+      localStorage.removeItem('bariahorra_changuito');
+    } catch (e) { }
+  };
+
   const cargarVotosDesdeStorage = () => {
     try {
       const guardados = {};
       for (let i = 0; i < localStorage.length; i++) {
         const clave = localStorage.key(i);
         if (clave && clave.startsWith('bariahorra_voto_')) {
-          const id = clave.replace('bariahorra_voto_', '');
-          guardados[id] = localStorage.getItem(clave);
+          const idCompuesto = clave.replace('bariahorra_voto_', '');
+          guardados[idCompuesto] = localStorage.getItem(clave);
         }
       }
       setVotosRealizados(guardados);
-    } catch (e) {
-      console.warn('No se pudo acceder al localStorage:', e);
-    }
+    } catch (e) { }
   };
 
   const handleInstalarApp = async () => {
@@ -251,7 +463,6 @@ export default function HomePage() {
       const mapPerf = new Map();
       perfilesList.forEach((u) => {
         if (u.id) mapPerf.set(String(u.id).toLowerCase(), u);
-        if (u.user_id) mapPerf.set(String(u.user_id).toLowerCase(), u);
       });
 
       const listaProcesada = rawOfertas.map((item) => {
@@ -264,27 +475,12 @@ export default function HomePage() {
         const userId = String(item.usuario_id || '').toLowerCase();
         const perfRel = mapPerf.get(userId);
 
-        const productoNombre =
-          prodRel?.nombre ||
-          'Producto en góndola';
+        const productoNombre = prodRel?.nombre || 'Producto en góndola';
+        const marca = prodRel?.marca || 'Genérica';
+        const tamano = prodRel?.cantidad || prodRel?.tamano || '';
+        const unidad = prodRel?.unidad_medida || prodRel?.unidad || '';
 
-        const marca =
-          prodRel?.marca ||
-          'Genérica';
-
-        const tamano =
-          prodRel?.cantidad ||
-          prodRel?.tamano ||
-          '';
-
-        const unidad =
-          prodRel?.unidad ||
-          '';
-
-        let rubro =
-          prodRel?.categoria ||
-          prodRel?.rubro ||
-          '';
+        let rubro = prodRel?.categoria || prodRel?.rubro || '';
 
         if (!rubro || limpiarTexto(rubro) === 'super') {
           const textoBusqueda = `${productoNombre} ${marca}`.toLowerCase();
@@ -297,33 +493,36 @@ export default function HomePage() {
           if (!rubro) rubro = 'Súper';
         }
 
-        const comercioNombre =
-          comRel?.nombre ||
-          'Comercio Bariloche';
-
-        let apodoAutor = perfRel?.apodo || perfRel?.nombre || perfRel?.username || '';
+        const comercioNombre = comRel?.nombre || 'Comercio Bariloche';
+        let apodoAutor = perfRel?.username || perfRel?.apodo || perfRel?.nombre || '';
 
         if (!apodoAutor && userActual && String(userActual.id).toLowerCase() === userId) {
           apodoAutor =
+            userActual.user_metadata?.username ||
             userActual.user_metadata?.apodo ||
             userActual.user_metadata?.full_name ||
-            userActual.user_metadata?.name ||
             userActual.email?.split('@')[0] ||
             '';
         }
 
-        if (!apodoAutor) {
-          apodoAutor = 'Vecino anónimo';
-        }
+        if (!apodoAutor) apodoAutor = 'Vecino anónimo';
 
         const precioFinal = Number(item.precio || 0);
+        const votosPos = Number(item.votos_positivos || 0);
+        const votosNeg = Number(item.votos_negativos || 0);
+
+        const esCatalogoOficial = Boolean(item.es_catalogo) || item.estado === 'catalogo' || votosPos >= 100;
+
         const refUnitario = calcularPrecioPorUnidad(precioFinal, tamano, unidad, productoNombre);
         const presentacionFormateada = formatearPresentacion(tamano, unidad);
 
         return {
           ...item,
           _producto: productoNombre,
+          _claveProducto: limpiarTexto(productoNombre),
           _marca: marca,
+          _tamanoRaw: tamano,
+          _unidadRaw: unidad,
           _presentacion: presentacionFormateada,
           _rubro: rubro,
           _comercio: comercioNombre,
@@ -331,8 +530,9 @@ export default function HomePage() {
           _foto: item.foto_url || prodRel?.foto_url || null,
           _precio: precioFinal,
           _refUnitario: refUnitario,
-          _votosPositivos: Number(item.votos_positivos || 0),
-          _votosNegativos: Number(item.votos_negativos || 0),
+          _esCatalogo: esCatalogoOficial,
+          _votosPositivos: votosPos,
+          _votosNegativos: votosNeg,
         };
       });
 
@@ -344,47 +544,168 @@ export default function HomePage() {
     }
   };
 
-  const handleConfirmar = async (ofertaId, tipo) => {
-    if (votosRealizados[ofertaId]) return;
+  const handleConfirmar = async (oferta, tipo) => {
+    const claveVoto = obtenerClaveVoto(oferta.id, oferta._precio);
+    if (votosRealizados[claveVoto]) return;
 
-    setConfirmandoId(ofertaId);
+    setConfirmandoId(oferta.id);
     try {
-      const oferta = ofertas.find((o) => o.id === ofertaId);
-      if (!oferta) return;
-
       const nuevoPositivo = tipo === 'sigue' ? (oferta._votosPositivos || 0) + 1 : (oferta._votosPositivos || 0);
       const nuevoNegativo = tipo === 'subio' ? (oferta._votosNegativos || 0) + 1 : (oferta._votosNegativos || 0);
 
+      const pasaARevision = tipo === 'subio' && (oferta._esCatalogo || nuevoNegativo >= 3);
+      const payloadUpdate = {
+        votos_positivos: nuevoPositivo,
+        votos_negativos: nuevoNegativo,
+      };
+      if (pasaARevision) {
+        payloadUpdate.estado = 'en_revision';
+        payloadUpdate.motivo_revision = 'Reportado como aumentado por varios vecinos';
+      }
+
       const { error } = await supabase
         .from('ofertas')
-        .update({
-          votos_positivos: nuevoPositivo,
-          votos_negativos: nuevoNegativo,
-        })
-        .eq('id', ofertaId);
+        .update(payloadUpdate)
+        .eq('id', oferta.id);
 
       if (!error) {
         try {
-          localStorage.setItem(`bariahorra_voto_${ofertaId}`, tipo);
-          setVotosRealizados((prev) => ({ ...prev, [ofertaId]: tipo }));
-        } catch (e) {
-          console.warn('Error al guardar en storage:', e);
-        }
+          localStorage.setItem(`bariahorra_voto_${claveVoto}`, tipo);
+          setVotosRealizados((prev) => ({ ...prev, [claveVoto]: tipo }));
+        } catch (e) { }
 
         setOfertas((prev) =>
           prev.map((o) =>
-            o.id === ofertaId
-              ? { ...o, _votosPositivos: nuevoPositivo, _votosNegativos: nuevoNegativo }
+            o.id === oferta.id
+              ? {
+                ...o,
+                _votosPositivos: nuevoPositivo,
+                _votosNegativos: nuevoNegativo,
+                estado: pasaARevision ? 'en_revision' : o.estado
+              }
               : o
           )
         );
-      } else {
-        console.error('Error al actualizar voto en Supabase:', error.message);
+
+        if (tipo === 'sigue') {
+          mostrarToast('¡Gracias! Confirmaste que el precio sigue vigente.');
+        } else {
+          mostrarToast('Aviso registrado. Gracias por colaborar.');
+        }
       }
     } catch (err) {
       console.error('Error al procesar voto:', err);
     } finally {
       setConfirmandoId(null);
+    }
+  };
+
+  const handleProponerNuevoPrecio = async (oferta) => {
+    const valorNum = Number(nuevoPrecioInput);
+    if (!valorNum || isNaN(valorNum) || valorNum <= 0) return;
+
+    if (Math.round(valorNum) === Math.round(oferta._precio)) {
+      setEditandoPrecioId(null);
+      return;
+    }
+
+    setGuardandoPrecio(true);
+    try {
+      const diferenciaPorcentual = Math.abs(valorNum - oferta._precio) / oferta._precio;
+
+      if (diferenciaPorcentual > 0.50) {
+        await supabase
+          .from('ofertas')
+          .update({
+            precio_propuesto: valorNum,
+            estado: 'en_revision',
+            motivo_revision: `Variación inusual (${Math.round(diferenciaPorcentual * 100)}% de diferencia vs $${oferta._precio})`
+          })
+          .eq('id', oferta.id);
+
+        mostrarToast(`Precio en revisión por variación inusual ($${valorNum.toLocaleString('es-AR')}). El Admin lo verificará.`);
+        setEditandoPrecioId(null);
+        setNuevoPrecioInput('');
+        return;
+      }
+
+      if (oferta._esCatalogo) {
+        const propuestaPrevia = Number(oferta.precio_propuesto || 0);
+
+        if (propuestaPrevia > 0 && Math.abs(propuestaPrevia - valorNum) < 10) {
+          const ahoraISO = new Date().toISOString();
+          await supabase
+            .from('ofertas')
+            .update({
+              precio: valorNum,
+              precio_propuesto: null,
+              votos_propuesto: 0,
+              votos_positivos: 2,
+              votos_negativos: 0,
+              creado_en: ahoraISO
+            })
+            .eq('id', oferta.id);
+
+          setOfertas((prev) =>
+            prev.map((o) => (o.id === oferta.id ? { ...o, precio: valorNum, _precio: valorNum, _votosPositivos: 2, creado_en: ahoraISO } : o))
+          );
+          mostrarToast('¡Precio de catálogo actualizado por consenso de vecinos!');
+        } else {
+          await supabase
+            .from('ofertas')
+            .update({
+              precio_propuesto: valorNum,
+              votos_propuesto: 1,
+              motivo_revision: `Propuesta de cambio a $${valorNum}`
+            })
+            .eq('id', oferta.id);
+
+          mostrarToast('Aviso guardado. Se actualizará cuando otro vecino lo valide.');
+        }
+      } else {
+        const ahoraISO = new Date().toISOString();
+        const { error } = await supabase
+          .from('ofertas')
+          .update({
+            precio: valorNum,
+            votos_positivos: 1,
+            votos_negativos: 0,
+            precio_propuesto: null,
+            motivo_revision: null,
+            creado_en: ahoraISO
+          })
+          .eq('id', oferta.id);
+
+        if (!error) {
+          const nuevaClaveVoto = obtenerClaveVoto(oferta.id, valorNum);
+          localStorage.setItem(`bariahorra_voto_${nuevaClaveVoto}`, 'sigue');
+          setVotosRealizados((prev) => ({ ...prev, [nuevaClaveVoto]: 'sigue' }));
+
+          setOfertas((prev) =>
+            prev.map((o) => {
+              if (o.id !== oferta.id) return o;
+              const nuevaRef = calcularPrecioPorUnidad(valorNum, o._tamanoRaw, o._unidadRaw, o._producto);
+              return {
+                ...o,
+                precio: valorNum,
+                _precio: valorNum,
+                _refUnitario: nuevaRef,
+                _votosPositivos: 1,
+                _votosNegativos: 0,
+                creado_en: ahoraISO
+              };
+            })
+          );
+          mostrarToast('¡Precio actualizado! Se reinició la votación para este nuevo monto.');
+        }
+      }
+
+      setEditandoPrecioId(null);
+      setNuevoPrecioInput('');
+    } catch (err) {
+      console.error('Error actualizando precio:', err);
+    } finally {
+      setGuardandoPrecio(false);
     }
   };
 
@@ -415,120 +736,562 @@ export default function HomePage() {
       });
   }, [ofertas, categoriaActiva, busqueda, orden]);
 
-  return (
-    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 space-y-4">
+  const mejoresPreciosIds = useMemo(() => {
+    const grupos = {};
+    ofertas.forEach((o) => {
+      const clave = o._claveProducto;
+      if (!grupos[clave]) grupos[clave] = [];
+      grupos[clave].push(o);
+    });
 
-      {/* BANNER INSTALACIÓN PWA */}
+    const ganadores = new Set();
+    Object.values(grupos).forEach((lista) => {
+      if (lista.length > 1) {
+        const ordenados = [...lista].sort((a, b) => a._precio - b._precio);
+        if (ordenados[0]._precio < ordenados[ordenados.length - 1]._precio) {
+          ganadores.add(ordenados[0].id);
+        }
+      }
+    });
+    return ganadores;
+  }, [ofertas]);
+
+  const productosComparados = useMemo(() => {
+    const mapa = new Map();
+    ofertasFiltradas.forEach((o) => {
+      const clave = `${o._claveProducto}_${limpiarTexto(o._marca)}`;
+      if (!mapa.has(clave)) {
+        mapa.set(clave, {
+          clave,
+          claveProd: o._claveProducto,
+          producto: o._producto,
+          marca: o._marca,
+          rubro: o._rubro,
+          foto: o._foto,
+          items: []
+        });
+      }
+      const grupo = mapa.get(clave);
+      if (!grupo.foto && o._foto) grupo.foto = o._foto;
+      grupo.items.push(o);
+    });
+
+    return Array.from(mapa.values())
+      .map((g) => {
+        g.items.sort((a, b) => a._precio - b._precio);
+        const min = g.items[0]?._precio || 0;
+        const max = g.items[g.items.length - 1]?._precio || 0;
+        const ahorro = max > min ? max - min : 0;
+        return { ...g, minPrecio: min, maxPrecio: max, ahorro };
+      })
+      .sort((a, b) => b.items.length - a.items.length || a.minPrecio - b.minPrecio);
+  }, [ofertasFiltradas]);
+
+  const simulacionChanguito = useMemo(() => {
+    if (changuito.length === 0) return null;
+
+    const productosElegidos = changuito.map((clave) => {
+      const coincidencias = ofertas.filter((o) => o._claveProducto === clave);
+      coincidencias.sort((a, b) => a._precio - b._precio);
+      const mejor = coincidencias[0];
+      return {
+        clave,
+        nombre: mejor?._producto || clave,
+        minPrecio: mejor?._precio || 0,
+        mejorComercio: mejor?._comercio || '',
+        ofertasPorComercio: coincidencias
+      };
+    });
+
+    const totalCompraCombinada = productosElegidos.reduce((acc, p) => acc + p.minPrecio, 0);
+
+    const mapaComercios = {};
+    ofertas.forEach((o) => {
+      if (!changuito.includes(o._claveProducto)) return;
+      const com = o._comercio;
+      if (!mapaComercios[com]) {
+        mapaComercios[com] = {
+          comercio: com,
+          preciosPorProd: {}
+        };
+      }
+      const actual = mapaComercios[com].preciosPorProd[o._claveProducto];
+      if (!actual || o._precio < actual) {
+        mapaComercios[com].preciosPorProd[o._claveProducto] = o._precio;
+      }
+    });
+
+    const rankingSupermercados = Object.values(mapaComercios)
+      .map((entry) => {
+        const encontrados = Object.keys(entry.preciosPorProd).length;
+        const subtotalReal = Object.values(entry.preciosPorProd).reduce((a, b) => a + b, 0);
+
+        let totalEstimado = subtotalReal;
+        productosElegidos.forEach((p) => {
+          if (!entry.preciosPorProd[p.clave]) {
+            totalEstimado += p.minPrecio;
+          }
+        });
+
+        return {
+          comercio: entry.comercio,
+          encontrados,
+          totalProductos: changuito.length,
+          subtotalReal,
+          totalEstimado
+        };
+      })
+      .sort((a, b) => b.encontrados - a.encontrados || a.totalEstimado - b.totalEstimado);
+
+    return {
+      productosElegidos,
+      totalCompraCombinada,
+      rankingSupermercados,
+      ganador: rankingSupermercados[0] || null
+    };
+  }, [changuito, ofertas]);
+
+  const estiloCatActiva = CONFIG_CATEGORIAS[categoriaActiva] || CONFIG_CATEGORIAS.Todos;
+
+  return (
+    <div className="w-full max-w-4xl mx-auto p-3.5 sm:p-6 space-y-3.5 pb-24">
+
+      {/* TOAST FLOTANTE */}
+      {avisoFeedback && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 theme-card border border-sky-500/40 theme-title px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold">
+          <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+          <span>{avisoFeedback}</span>
+        </div>
+      )}
+
+      {/* BANNER PWA ULTRA-COMPACTO */}
       {mostrarBannerInstalar && (
-        <div className="bg-gradient-to-r from-sky-500/15 via-[#182133] to-[#182133] border border-sky-500/30 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center shrink-0 text-sky-400">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-black text-white leading-tight">
-                Instalá BariAhorra en tu celular
-              </p>
-              <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                Acceso rápido desde la pantalla de inicio sin ocupar espacio.
-              </p>
-            </div>
+        <div className="bg-gradient-to-r from-sky-500/15 via-sky-500/5 to-transparent border border-sky-500/30 rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <Smartphone className="w-4 h-4 text-sky-500 shrink-0" />
+            <p className="text-[11px] sm:text-xs font-bold theme-subtitle truncate">
+              Instalá <span className="text-sky-600 font-black">BariAhorra</span> en tu pantalla de inicio
+            </p>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={handleInstalarApp}
-              className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs px-3 py-1.5 rounded-xl transition shadow-md shadow-sky-500/20 cursor-pointer active:scale-95"
+              className="flex items-center gap-1 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg transition cursor-pointer active:scale-95 shadow"
             >
-              <Download className="w-3.5 h-3.5 stroke-[3]" />
+              <Download className="w-3 h-3 stroke-[3]" />
               <span>Instalar</span>
             </button>
             <button
               type="button"
               onClick={cerrarBanner}
-              className="p-1 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+              className="p-1 rounded-lg theme-muted hover:theme-title transition cursor-pointer"
               title="Cerrar aviso"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       )}
 
-      {/* BUSCADOR */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar producto, marca o comercio..."
-          className="w-full bg-[#182133] border border-slate-700/80 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-inner"
-        />
-      </div>
-
-      {/* CATEGORÍAS */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-        {CATEGORIAS.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategoriaActiva(cat)}
-            className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-bold transition text-[11px] cursor-pointer ${
-              categoriaActiva === cat
-                ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                : 'bg-[#182133] text-slate-300 border border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {/* ORDEN Y BOTÓN SUMAR OFERTA */}
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <div className="flex items-center gap-1.5 text-xs text-slate-400">
-          <span>Ordenar:</span>
-          <select
-            value={orden}
-            onChange={(e) => setOrden(e.target.value)}
-            className="bg-transparent text-amber-400 font-bold focus:outline-none cursor-pointer"
-          >
-            <option value="recientes" className="bg-[#182133] text-white">Más recientes</option>
-            <option value="precio_asc" className="bg-[#182133] text-white">Menor precio</option>
-            <option value="precio_desc" className="bg-[#182133] text-white">Mayor precio</option>
-          </select>
-          <span className="font-mono text-[11px] bg-slate-800/60 px-2 py-0.5 rounded-md border border-slate-700/50 ml-1">
-            {ofertasFiltradas.length} {ofertasFiltradas.length === 1 ? 'oferta' : 'ofertas'}
-          </span>
+      {/* BUSCADOR + BOTÓN "CARGAR PRECIO" */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${estiloCatActiva.acento}`} />
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar producto, marca o súper..."
+            className={`w-full theme-input border rounded-2xl pl-10 pr-8 py-2.5 text-xs sm:text-sm placeholder-slate-400 focus:outline-none ${estiloCatActiva.bordeBuscador} transition shadow-sm font-medium`}
+          />
+          {busqueda && (
+            <button
+              type="button"
+              onClick={() => setBusqueda('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg theme-muted hover:theme-title"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <Link
           href="/cargar"
-          className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20 shrink-0"
+          className="flex items-center justify-center gap-1.5 bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950 border-t border-white/30 font-black px-4 py-2.5 rounded-2xl text-xs transition shadow-lg shadow-sky-500/20 shrink-0 active:scale-95 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Sumar Oferta</span>
+          <span>Cargar precio</span>
         </Link>
       </div>
 
-      {/* GRILLA DE OFERTAS */}
+      {/* CARRUSEL DE CATEGORÍAS */}
+      <div className="relative flex items-center group">
+        <button
+          type="button"
+          onClick={() => desplazarCategorias('izq')}
+          className="hidden sm:flex items-center justify-center w-7 h-7 rounded-full theme-btn-sec border shadow-md mr-1.5 shrink-0 cursor-pointer transition"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        <div
+          ref={categoriasRef}
+          onMouseDown={handleMouseDownCat}
+          onMouseLeave={detenerDragCat}
+          onMouseUp={detenerDragCat}
+          onMouseMove={handleMouseMoveCat}
+          onWheel={(e) => {
+            if (e.deltaY !== 0 && categoriasRef.current) {
+              categoriasRef.current.scrollLeft += e.deltaY;
+            }
+          }}
+          className={`flex gap-2 overflow-x-auto py-1 scrollbar-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+        >
+          {CATEGORIAS.map((cat) => {
+            const conf = CONFIG_CATEGORIAS[cat] || CONFIG_CATEGORIAS.Todos;
+            const IconoCat = conf.icono;
+            const activa = categoriaActiva === cat;
+
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoriaActiva(cat)}
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap font-bold transition text-xs cursor-pointer flex items-center gap-1.5 border shrink-0 ${activa
+                  ? conf.pillActiva
+                  : 'theme-btn-sec hover:border-slate-400'
+                  }`}
+              >
+                <IconoCat className={`w-3.5 h-3.5 ${activa ? 'stroke-[2.5]' : conf.acento}`} />
+                <span>{cat}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => desplazarCategorias('der')}
+          className="hidden sm:flex items-center justify-center w-7 h-7 rounded-full theme-btn-sec border shadow-md ml-1.5 shrink-0 cursor-pointer transition"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* BARRA DE CONTROLES SUPERIOR */}
+      <div className="flex items-center justify-between gap-2 theme-card border rounded-2xl p-1.5 px-2.5 shadow-sm">
+        <div className="flex items-center gap-1 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setModoVista('gondola')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'gondola'
+              ? 'bg-amber-500/15 text-amber-600 border border-amber-500/40 shadow-sm'
+              : 'theme-muted hover:theme-title'
+              }`}
+          >
+            <ListFilter className="w-3.5 h-3.5 text-amber-500" />
+            <span>Góndola</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setModoVista('comparar')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'comparar'
+              ? 'bg-sky-500/15 text-sky-600 border border-sky-500/40 shadow-sm'
+              : 'theme-muted hover:theme-title'
+              }`}
+          >
+            <Layers className="w-3.5 h-3.5 text-sky-500" />
+            <span>Comparar</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setModoVista('milista')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'milista'
+              ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/40 shadow-sm'
+              : 'theme-muted hover:theme-title'
+              }`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Mi Lista ({changuito.length})</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {modoVista === 'gondola' && (
+            <select
+              value={orden}
+              onChange={(e) => setOrden(e.target.value)}
+              className="theme-btn-sec font-bold px-2.5 py-1 rounded-lg border focus:outline-none cursor-pointer text-[11px]"
+            >
+              <option value="recientes">Más recientes</option>
+              <option value="precio_asc">Menor precio</option>
+              <option value="precio_desc">Mayor precio</option>
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* CONTENIDO PRINCIPAL */}
       {cargando ? (
-        <div className="text-center py-20 text-slate-400 text-xs">
-          Cargando góndolas de Bariloche...
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="theme-card border rounded-2xl p-4 h-36 animate-pulse flex flex-col justify-between">
+              <div className="flex gap-3">
+                <div className="w-14 h-14 rounded-xl bg-slate-300" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-28 h-4 bg-slate-300 rounded-full" />
+                  <div className="w-40 h-4 bg-slate-300 rounded-full" />
+                  <div className="w-24 h-3 bg-slate-300 rounded-full" />
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t theme-card-sub">
+                <div className="w-20 h-6 bg-slate-300 rounded-lg" />
+                <div className="w-28 h-7 bg-slate-300 rounded-xl" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : ofertasFiltradas.length === 0 ? (
-        <div className="text-center py-16 text-slate-400 text-xs bg-[#182133] rounded-2xl border border-slate-800 space-y-3">
-          <p>No se encontraron ofertas en "{categoriaActiva}".</p>
+        <div className="text-center py-16 theme-muted text-xs theme-card rounded-3xl border space-y-3 shadow-sm">
+          <p>No encontramos precios cargados en "{categoriaActiva}".</p>
           <Link
             href="/cargar"
-            className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition"
+            className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 px-4 py-2 rounded-xl text-xs font-bold transition"
           >
             <Plus className="w-3.5 h-3.5" />
-            Cargar la primera oferta
+            Cargar el primer precio
           </Link>
         </div>
+      ) : modoVista === 'milista' ? (
+        /* --- VISTA MI LISTA --- */
+        <div className="space-y-4">
+          {changuito.length === 0 ? (
+            <div className="text-center py-16 theme-card rounded-3xl border p-6 space-y-3 shadow-sm">
+              <div className="w-12 h-12 bg-sky-500/10 text-sky-600 rounded-2xl flex items-center justify-center mx-auto">
+                <ShoppingBag className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-black theme-title">Tu lista de compras está vacía</h3>
+              <p className="text-xs theme-muted max-w-sm mx-auto">
+                Tocá <strong className="text-sky-600">+ Mi lista</strong> en los productos que necesitás comprar y te calculamos en qué supermercado de Bariloche gastás menos.
+              </p>
+              <button
+                type="button"
+                onClick={() => setModoVista('gondola')}
+                className="mt-2 bg-sky-500 text-slate-950 font-black text-xs px-4 py-2 rounded-xl cursor-pointer shadow-md"
+              >
+                Ver góndola de productos
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="theme-card border rounded-2xl p-4 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h3 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-2">
+                    <ListChecks className="w-4 h-4 text-emerald-600" />
+                    Resumen de tu lista ({changuito.length} ítems)
+                  </h3>
+
+                  {/* Acciones de Mi Lista: Compartir y Vaciar */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => compartirListaWhatsApp(simulacionChanguito, changuito.length)}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                    >
+                      <WhatsAppIcon className="w-3.5 h-3.5" />
+                      <span>Compartir Lista</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={limpiarChanguito}
+                      className="text-[11px] text-rose-500 hover:text-rose-600 font-bold cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Vaciar lista
+                    </button>
+                  </div>
+                </div>
+
+                <div className="divide-y theme-card-sub rounded-xl border overflow-hidden">
+                  {simulacionChanguito?.productosElegidos.map((prod) => (
+                    <div key={prod.clave} className="p-3 flex items-center justify-between gap-3 text-xs">
+                      <div className="min-w-0">
+                        <p className="font-bold theme-title truncate">{prod.nombre}</p>
+                        <p className="text-[10px] theme-muted">
+                          Mejor precio en <strong className="text-emerald-600">{prod.mejorComercio}</strong>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-mono font-black theme-title">
+                          ${prod.minPrecio.toLocaleString('es-AR')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleProductoChanguito(prod.nombre)}
+                          className="p-1 theme-muted hover:text-rose-500 cursor-pointer"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="theme-card border rounded-2xl p-4 space-y-3 shadow-lg">
+                <h3 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-sky-600" />
+                  Comparativa por Supermercado
+                </h3>
+                <div className="space-y-2.5">
+                  {simulacionChanguito?.rankingSupermercados.map((sup, idx) => {
+                    const esGanador = idx === 0;
+                    const estiloCom = obtenerEstiloComercio(sup.comercio);
+                    return (
+                      <div
+                        key={sup.comercio}
+                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${esGanador ? 'bg-emerald-500/10 border-emerald-500/40' : 'theme-card-sub'
+                          }`}
+                      >
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${esGanador ? 'bg-emerald-500 text-slate-950' : 'theme-btn-sec border'
+                              }`}>
+                              {idx + 1}
+                            </span>
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${estiloCom}`}>
+                              <Store className="w-3 h-3" />
+                              {sup.comercio}
+                            </span>
+                            {esGanador && (
+                              <span className="text-[10px] font-black text-emerald-600">¡Más económico!</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] theme-muted pl-7">
+                            Encontrados {sup.encontrados} de {sup.totalProductos} productos
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className="text-sm sm:text-base font-black font-mono theme-title">
+                            ${sup.totalEstimado.toLocaleString('es-AR')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : modoVista === 'comparar' ? (
+        /* --- VISTA COMPARADOR --- */
+        <div className="space-y-3.5">
+          {productosComparados.map((grupo) => {
+            const confRubro = CONFIG_CATEGORIAS[grupo.rubro] || CONFIG_CATEGORIAS.Súper;
+            const IconoRubro = confRubro.icono;
+            const enChanguito = changuito.includes(grupo.claveProd);
+
+            return (
+              <section
+                key={grupo.clave}
+                className="theme-card border rounded-2xl p-4 space-y-3 shadow-sm hover:shadow-md transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-12 h-12 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center ${confRubro.cajaIcono}`}>
+                      {grupo.foto ? (
+                        <img src={grupo.foto} alt={grupo.producto} className="w-full h-full object-cover" />
+                      ) : (
+                        <IconoRubro className="w-6 h-6" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-black theme-title truncate">{grupo.producto}</h3>
+                      <p className="text-xs theme-muted truncate mt-0.5">
+                        <span className="theme-subtitle font-bold">{grupo.marca}</span> • <span className={`font-bold ${confRubro.acento}`}>{grupo.rubro}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {grupo.ahorro > 0 && (
+                      <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-[10px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1">
+                        <Award className="w-3.5 h-3.5 text-emerald-600" />
+                        Ahorrás ${grupo.ahorro.toLocaleString('es-AR')}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleProductoChanguito(grupo.producto)}
+                      className={`px-2.5 py-1 rounded-xl border text-[10px] font-black flex items-center gap-1 transition cursor-pointer ${enChanguito
+                        ? 'bg-sky-500 text-slate-950 border-sky-400'
+                        : 'btn-changuito-add hover:border-sky-500'
+                        }`}
+                    >
+                      <ShoppingBag className="w-3 h-3" />
+                      <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="divide-y theme-card-sub rounded-xl border overflow-hidden">
+                  {grupo.items.map((item, idx) => {
+                    const esMasBarato = idx === 0 && grupo.items.length > 1;
+                    const estiloCom = obtenerEstiloComercio(item._comercio);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-3 flex items-center justify-between gap-3 ${esMasBarato ? 'bg-emerald-500/10' : ''
+                          }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${esMasBarato ? 'bg-emerald-500 text-slate-950' : 'theme-btn-sec border'
+                            }`}>
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${estiloCom}`}>
+                                <Store className="w-2.5 h-2.5" />
+                                {item._comercio}
+                              </span>
+                              {esMasBarato && (
+                                <span className="text-[10px] font-bold text-emerald-600">
+                                  Más barato
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] theme-muted mt-1 flex items-center gap-2">
+                              <span>{tiempoRelativo(item.creado_en)}</span>
+                              {item._refUnitario && (
+                                <span>• <strong className="precio-ref-unitario">{item._refUnitario.valor} x {item._refUnitario.unidad}</strong></span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <p className={`text-sm sm:text-base font-black font-mono ${esMasBarato ? 'text-emerald-600' : 'theme-title'
+                            }`}>
+                            ${Number(item._precio || 0).toLocaleString('es-AR')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       ) : (
+        /* --- VISTA GÓNDOLA (TARJETAS INDIVIDUALES) --- */
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {ofertasFiltradas.map((item) => {
             const tieneFoto = Boolean(item._foto);
@@ -536,20 +1299,77 @@ export default function HomePage() {
             const formatoUsuario = esAnonimo
               ? 'Vecino anónimo'
               : item._usuario.startsWith('@')
-              ? item._usuario
-              : `@${item._usuario}`;
+                ? item._usuario
+                : `@${item._usuario}`;
 
-            const votoActual = votosRealizados[item.id];
+            const claveVoto = obtenerClaveVoto(item.id, item._precio);
+            const votoActual = votosRealizados[claveVoto];
             const yaVoto = Boolean(votoActual);
+
+            const confRubro = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Súper;
+            const IconoRubro = confRubro.icono;
+            const estiloComercio = obtenerEstiloComercio(item._comercio);
+            const esMejorPrecio = mejoresPreciosIds.has(item.id);
+            const enChanguito = changuito.includes(item._claveProducto);
+
+            const verificadoComunidad = !item._esCatalogo && item._votosPositivos >= 3 && item._votosNegativos === 0;
+            const enDuda = item._votosNegativos >= 2;
 
             return (
               <article
                 key={item.id}
-                className="bg-[#182133] border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between hover:border-slate-700 transition gap-3"
+                className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${esMejorPrecio
+                  ? 'border-emerald-500/50 shadow-emerald-500/10'
+                  : 'hover:border-slate-400'
+                  }`}
               >
-                {/* PARTE SUPERIOR */}
-                <div className="flex gap-3">
-                  <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0 flex items-center justify-center">
+                {/* PISO 1: CABECERA SUPERIOR (Comercio expansivo a la izq | Acciones a la der) */}
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--border-card)] pb-2.5">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 ${estiloComercio}`}>
+                      <Store className="w-3 h-3 shrink-0" />
+                      <span className="truncate max-w-[220px] sm:max-w-none">{item._comercio}</span>
+                    </span>
+
+                    {esMejorPrecio && (
+                      <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
+                        <Award className="w-2.5 h-2.5 text-emerald-600" />
+                        Mejor Precio
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Acciones superiores: Compartir por WhatsApp + Mi Lista */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => compartirOfertaWhatsApp(item)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-slate-950 transition cursor-pointer text-[10px] font-bold"
+                      title="Compartir oferta por WhatsApp"
+                    >
+                      <Share2 className="w-3 h-3 stroke-[2.5]" />
+                      <WhatsAppIcon className="w-3 h-3" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleProductoChanguito(item._producto)}
+                      className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${enChanguito
+                        ? 'bg-sky-500 text-slate-950 border-sky-400'
+                        : 'btn-changuito-add hover:border-sky-500'
+                        }`}
+                      title="Sumar a mi lista para calcular en qué súper conviene comprar"
+                    >
+                      <ShoppingCart className="w-3 h-3" />
+                      <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* PISO 2: CUERPO DEL PRODUCTO (Foto + Título + Datos de comunidad) */}
+                <div className="flex gap-3 items-start flex-1 py-0.5">
+                  <div className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center ${tieneFoto ? 'theme-card-sub' : confRubro.cajaIcono
+                    }`}>
                     {tieneFoto ? (
                       <img
                         src={item._foto}
@@ -558,108 +1378,193 @@ export default function HomePage() {
                         loading="lazy"
                       />
                     ) : (
-                      <ImageIcon className="w-6 h-6 text-slate-700" />
+                      <IconoRubro className="w-7 h-7 stroke-[1.75]" />
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 truncate flex items-center gap-1">
-                        <Store className="w-3 h-3 text-amber-400" />
-                        <span>{item._comercio}</span>
-                      </span>
-                    </div>
-
-                    <h3 className="text-xs font-black text-white leading-snug truncate">
+                    <h3 className="text-xs sm:text-sm font-black theme-title leading-snug line-clamp-2">
                       {item._producto}
                     </h3>
 
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                      {item._marca}
-                      {item._presentacion ? ` • ${item._presentacion}` : ''}
-                      {item._rubro ? ` • ${item._rubro}` : ''}
-                    </p>
-
-                    <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                      <User className="w-3 h-3 text-slate-400" />
-                      <span className={!esAnonimo ? 'text-sky-300 font-bold' : ''}>
-                        {formatoUsuario}
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[11px] font-bold theme-subtitle">
+                        {item._marca}
                       </span>
-                    </p>
+                      {item._presentacion && (
+                        <span className="text-[11px] theme-muted">• {item._presentacion}</span>
+                      )}
+                      <span className={`text-[10px] font-bold ${confRubro.acento}`}>
+                        • {item._rubro}
+                      </span>
+                    </div>
+
+                    {/* SELLO DE AUTORIDAD Y TIEMPO */}
+                    <div className="flex items-center gap-2 mt-1.5 text-[10px] theme-muted flex-wrap">
+                      {item._esCatalogo ? (
+                        <span className="flex items-center gap-1 text-amber-600 font-bold bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
+                          <ShieldCheck className="w-3 h-3 text-amber-500 shrink-0" />
+                          <span>Catálogo Oficial</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 truncate">
+                          <User className="w-3 h-3 theme-muted shrink-0" />
+                          <span className={!esAnonimo ? 'text-sky-600 font-bold truncate' : 'truncate'}>
+                            {formatoUsuario}
+                          </span>
+                        </span>
+                      )}
+
+                      {verificadoComunidad && (
+                        <span className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded-md">
+                          <Check className="w-2.5 h-2.5 text-emerald-600" />
+                          <span>Verificado</span>
+                        </span>
+                      )}
+
+                      <span className="flex items-center gap-1 theme-muted shrink-0">
+                        <Clock className="w-2.5 h-2.5" />
+                        {tiempoRelativo(item.creado_en)}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* PARTE INFERIOR: PRECIOS Y CONFIRMACIONES */}
-                <div className="pt-2.5 border-t border-slate-800/80 flex items-end justify-between gap-2">
-                  <div className="space-y-0.5">
-                    <span className="text-lg font-black text-white font-mono tracking-tight leading-none">
-                      ${Number(item._precio || 0).toLocaleString('es-AR')}
-                    </span>
+                {/* PISO 3: PRECIOS Y VALIDACIÓN */}
+                <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none">
+                        ${Number(item._precio || 0).toLocaleString('es-AR')}
+                      </span>
 
-                    {item._refUnitario && (
-                      <p className="text-[10px] text-slate-400 flex items-center gap-1 leading-tight">
-                        <Scale className="w-3 h-3 text-emerald-400 shrink-0" />
+                      {item._refUnitario && (
+                        <p className="text-[10px] theme-muted flex items-center gap-1 leading-tight pt-0.5">
+                          <Scale className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span>
+                            x {item._refUnitario.unidad}:{' '}
+                            <strong className="precio-ref-unitario font-mono font-bold">
+                              {item._refUnitario.valor}
+                            </strong>
+                          </span>
+                        </p>
+                      )}
+
+                      {item._esCatalogo ? (
+                        <p className="text-[10px] theme-muted pt-0.5">
+                          Precio de referencia oficial
+                          {item._votosNegativos > 0 && (
+                            <span className="text-amber-600 font-semibold ml-1">
+                              ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso de cambio' : 'avisos de cambio'})
+                            </span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] theme-muted pt-0.5 flex items-center gap-1">
+                          {enDuda && <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />}
+                          <span>
+                            {item._votosPositivos} {item._votosPositivos === 1 ? 'confirmación' : 'confirmaciones'}
+                          </span>
+                          {item._votosNegativos > 0 && (
+                            <span className="text-amber-600 font-semibold">
+                              ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso' : 'avisos'})
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* BOTONES DE VOTACIÓN */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!item._esCatalogo && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmar(item, 'sigue')}
+                          disabled={confirmandoId === item.id || yaVoto}
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 ${votoActual === 'sigue'
+                            ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-600'
+                            : yaVoto
+                              ? 'btn-voto-accion opacity-60 cursor-not-allowed'
+                              : 'btn-voto-accion cursor-pointer'
+                            }`}
+                        >
+                          {votoActual === 'sigue' ? (
+                            <Check className="w-3 h-3 text-emerald-600" />
+                          ) : (
+                            <ThumbsUp className="w-3 h-3 text-emerald-600" />
+                          )}
+                          <span>{votoActual === 'sigue' ? 'Confirmado' : 'Sigue igual'}</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editandoPrecioId === item.id) {
+                            setEditandoPrecioId(null);
+                          } else {
+                            setEditandoPrecioId(item.id);
+                            setNuevoPrecioInput('');
+                          }
+                        }}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 cursor-pointer ${editandoPrecioId === item.id || votoActual === 'reportado' || votoActual === 'subio'
+                          ? 'bg-amber-500/20 border border-amber-500 text-amber-600'
+                          : 'btn-voto-accion'
+                          }`}
+                      >
+                        <RefreshCw className="w-3 h-3 text-amber-500" />
                         <span>
-                          Precio x {item._refUnitario.unidad}:{' '}
-                          <strong className="text-emerald-400 font-mono font-bold">
-                            {item._refUnitario.valor}
-                          </strong>
+                          {item._esCatalogo ? '¿Cambió? Avisar' : 'Cambió'}
                         </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* DESPLEGABLE PARA CAMBIAR PRECIO */}
+                  {editandoPrecioId === item.id && (
+                    <div className="theme-card-sub border border-amber-500/40 rounded-xl p-2.5 space-y-2">
+                      <p className="text-[10px] theme-muted leading-tight">
+                        {item._esCatalogo
+                          ? 'Avisanos si cambió el precio oficial. Si otro vecino coincide, se actualizará solo:'
+                          : 'Ingresá el nuevo valor visto en góndola (se reiniciará la votación para este nuevo precio):'}
                       </p>
-                    )}
-
-                    <p className="text-[10px] text-slate-400 pt-0.5">
-                      {item._votosPositivos} confirmaciones
-                      {item._votosNegativos > 0 && (
-                        <span className="text-amber-400 ml-1">({item._votosNegativos} subió)</span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* BOTONES DE VOTO CON BLOQUEO LOCALSTORAGE */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => handleConfirmar(item.id, 'sigue')}
-                      disabled={confirmandoId === item.id || yaVoto}
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition active:scale-95 ${
-                        votoActual === 'sigue'
-                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                          : yaVoto
-                          ? 'bg-slate-800/40 border-slate-800 text-slate-500 opacity-60 cursor-not-allowed'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 cursor-pointer'
-                      }`}
-                      title={yaVoto ? 'Ya votaste esta oferta' : 'Confirmar que sigue a este precio'}
-                    >
-                      {votoActual === 'sigue' ? (
-                        <Check className="w-3 h-3 text-emerald-400" />
-                      ) : (
-                        <ThumbsUp className="w-3 h-3 text-emerald-400" />
-                      )}
-                      <span>{votoActual === 'sigue' ? 'Votado' : 'Sigue'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleConfirmar(item.id, 'subio')}
-                      disabled={confirmandoId === item.id || yaVoto}
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition active:scale-95 ${
-                        votoActual === 'subio'
-                          ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                          : yaVoto
-                          ? 'bg-slate-800/40 border-slate-800 text-slate-500 opacity-60 cursor-not-allowed'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 cursor-pointer'
-                      }`}
-                      title={yaVoto ? 'Ya votaste esta oferta' : 'Avisar que aumentó el precio'}
-                    >
-                      {votoActual === 'subio' ? (
-                        <Check className="w-3 h-3 text-amber-400" />
-                      ) : (
-                        <TrendingUp className="w-3 h-3 text-amber-400" />
-                      )}
-                      <span>{votoActual === 'subio' ? 'Votado' : 'Subió'}</span>
-                    </button>
-                  </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <span className="text-[11px] font-bold text-amber-600">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={nuevoPrecioInput}
+                            onChange={(e) => setNuevoPrecioInput(e.target.value)}
+                            placeholder={`Actual: ${item._precio}`}
+                            className="w-full theme-input border rounded-lg px-2.5 py-1 text-xs font-mono font-bold focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={guardandoPrecio || !nuevoPrecioInput}
+                            onClick={() => handleProponerNuevoPrecio(item)}
+                            className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                          >
+                            <span>{item._esCatalogo ? 'Enviar aviso' : 'Actualizar'}</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleConfirmar(item, 'subio');
+                              setEditandoPrecioId(null);
+                            }}
+                            className="text-[10px] theme-muted hover:text-amber-600 px-2 py-1 rounded-lg border theme-btn-sec cursor-pointer"
+                            title="Avisar que subió cuando no recordás el monto exacto"
+                          >
+                            Solo subió
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
               </article>
@@ -667,6 +1572,62 @@ export default function HomePage() {
           })}
         </div>
       )}
+
+      {/* BARRA FLOTANTE INFERIOR */}
+      {changuito.length > 0 && modoVista !== 'milista' && (
+        <div className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
+          <div className="theme-card backdrop-blur-md border border-sky-500/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-500 shrink-0 relative">
+                <ShoppingBag className="w-5 h-5" />
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sky-500 text-slate-950 text-[10px] font-black flex items-center justify-center">
+                  {changuito.length}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black theme-title truncate">
+                  Tu Lista de Compras ({changuito.length} ítems)
+                </p>
+                {simulacionChanguito?.ganador && (
+                  <p className="text-[11px] text-emerald-600 font-bold truncate">
+                    Conviene ir a {simulacionChanguito.ganador.comercio} (${simulacionChanguito.ganador.totalEstimado.toLocaleString('es-AR')})
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Botón WhatsApp en barra flotante */}
+              <button
+                type="button"
+                onClick={() => compartirListaWhatsApp(simulacionChanguito, changuito.length)}
+                className="p-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition cursor-pointer shadow-md"
+                title="Compartir lista por WhatsApp"
+              >
+                <WhatsAppIcon className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModoVista('milista')}
+                className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-sky-500/20"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>Ver Mi Lista</span>
+              </button>
+              <button
+                type="button"
+                onClick={limpiarChanguito}
+                className="p-2 rounded-xl theme-btn-sec hover:text-rose-500 transition cursor-pointer border"
+                title="Vaciar lista"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

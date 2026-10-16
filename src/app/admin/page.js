@@ -1,8 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
+import {
+  ShieldCheck,
+  LayoutDashboard,
+  LogOut,
+  ArrowLeft,
+  Search,
+  Check,
+  X,
+  Trash2,
+  Store,
+  ShoppingBag,
+  Tag,
+  Star,
+  BellRing,
+  ArrowUpDown,
+  Image as ImageIcon,
+  AlertTriangle,
+  ArrowRight
+} from 'lucide-react';
 
 export default function AdminPage() {
   const [adminUser, setAdminUser] = useState(null);
@@ -10,58 +29,32 @@ export default function AdminPage() {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminCargando, setAdminCargando] = useState(false);
   const [adminError, setAdminError] = useState('');
-  const [adminSubTab, setAdminSubTab] = useState('ofertas');
+
+  const [vistaActual, setVistaActual] = useState('pendientes'); // 'pendientes' | 'ofertas' | 'comercios' | 'productos'
+  const [busqueda, setBusqueda] = useState('');
+  const [ordenAdmin, setOrdenAdmin] = useState('recientes');
 
   const [ofertas, setOfertas] = useState([]);
   const [comercios, setComercios] = useState([]);
   const [productos, setProductos] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(true);
 
-  const [nuevoComercioNombre, setNuevoComercioNombre] = useState('');
+  // Edición rápida en línea
+  const [editandoId, setEditandoId] = useState(null);
+  const [precioEdit, setPrecioEdit] = useState('');
+
+  // Creación rápida de registros maestros
+  const [nuevoNombreComercio, setNuevoNombreComercio] = useState('');
   const [nuevoProdNombre, setNuevoProdNombre] = useState('');
   const [nuevoProdMarca, setNuevoProdMarca] = useState('');
-  const [nuevoProdCategoria, setNuevoProdCategoria] = useState('Súper');
-  const [creandoMaestro, setCreandoMaestro] = useState(false);
-
-  const cargarOfertas = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('ofertas')
-        .select(`
-          id, precio, estado, vencimiento, foto_url, votos_positivos, votos_negativos, creado_en,
-          productos ( id, nombre, marca, categoria ),
-          comercios ( id, nombre )
-        `)
-        .order('creado_en', { ascending: false });
-
-      if (error) throw error;
-      setOfertas(data || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const cargarDatosMaestros = async () => {
-    try {
-      const [resComercios, resProductos] = await Promise.all([
-        supabase.from('comercios').select('*').order('nombre'),
-        supabase.from('productos').select('*').order('nombre'),
-      ]);
-      if (resComercios.data) setComercios(resComercios.data);
-      if (resProductos.data) setProductos(resProductos.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setCargandoDatos(false);
-    }
-  };
+  const [nuevoProdCat, setNuevoProdCat] = useState('Súper');
+  const [guardandoMaestro, setGuardandoMaestro] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAdminUser(session?.user ?? null);
       if (session?.user) {
-        cargarOfertas();
-        cargarDatosMaestros();
+        cargarTodo();
       } else {
         setCargandoDatos(false);
       }
@@ -69,14 +62,34 @@ export default function AdminPage() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAdminUser(session?.user ?? null);
-      if (session?.user) {
-        cargarOfertas();
-        cargarDatosMaestros();
-      }
+      if (session?.user) cargarTodo();
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const cargarTodo = async () => {
+    setCargandoDatos(true);
+    try {
+      const [resOfertas, resComercios, resProductos] = await Promise.all([
+        supabase.from('ofertas').select(`
+          id, precio, precio_propuesto, votos_propuesto, motivo_revision, es_catalogo, estado, foto_url, creado_en, usuario_id,
+          productos ( id, nombre, marca, categoria, creado_en ),
+          comercios ( id, nombre, creado_en )
+        `).order('creado_en', { ascending: false }),
+        supabase.from('comercios').select('*').order('nombre'),
+        supabase.from('productos').select('*').order('nombre')
+      ]);
+
+      if (resOfertas.data) setOfertas(resOfertas.data);
+      if (resComercios.data) setComercios(resComercios.data);
+      if (resProductos.data) setProductos(resProductos.data);
+    } catch (err) {
+      console.error('Error cargando datos de admin:', err);
+    } finally {
+      setCargandoDatos(false);
+    }
+  };
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
@@ -96,132 +109,221 @@ export default function AdminPage() {
     }
   };
 
-  const handleCambiarEstadoOferta = async (ofertaId, nuevoEstado) => {
+  const handleAprobarOferta = async (item) => {
     try {
-      const updateData = { estado: nuevoEstado };
-      if (nuevoEstado === 'activa') updateData.votos_negativos = 0;
-      const { error } = await supabase.from('ofertas').update(updateData).eq('id', ofertaId);
+      const updatePayload = {
+        estado: 'activa',
+        motivo_revision: null
+      };
+
+      const { error } = await supabase.from('ofertas').update(updatePayload).eq('id', item.id);
       if (error) throw error;
-      setOfertas((prev) => prev.map((o) => (o.id === ofertaId ? { ...o, ...updateData } : o)));
+
+      setOfertas(prev => prev.map(o => o.id === item.id ? { ...o, ...updatePayload } : o));
     } catch (err) {
-      alert('Error: ' + err.message);
+      alert('Error aprobando oferta: ' + err.message);
     }
   };
 
-  const handleEliminarOferta = async (ofertaId) => {
+  const handleAceptarPrecioPropuesto = async (item) => {
+    if (!item.precio_propuesto) return;
+    try {
+      const nuevoValor = Number(item.precio_propuesto);
+      const updatePayload = {
+        precio: nuevoValor,
+        precio_propuesto: null,
+        votos_propuesto: 0,
+        motivo_revision: null,
+        estado: 'activa',
+        creado_en: new Date().toISOString()
+      };
+
+      const { error } = await supabase.from('ofertas').update(updatePayload).eq('id', item.id);
+      if (error) throw error;
+
+      setOfertas(prev => prev.map(o => o.id === item.id ? { ...o, ...updatePayload } : o));
+    } catch (err) {
+      alert('Error aceptando precio propuesto: ' + err.message);
+    }
+  };
+
+  const handleCambiarEstado = async (id, estadoActual) => {
+    const nuevoEstado = estadoActual === 'activa' ? 'en_revision' : 'activa';
+    try {
+      const updatePayload = {
+        estado: nuevoEstado,
+        motivo_revision: nuevoEstado === 'activa' ? null : 'Pausado manualmente por Admin'
+      };
+      const { error } = await supabase.from('ofertas').update(updatePayload).eq('id', id);
+      if (error) throw error;
+      setOfertas(prev => prev.map(o => o.id === id ? { ...o, ...updatePayload } : o));
+    } catch (err) {
+      alert('Error cambiando estado: ' + err.message);
+    }
+  };
+
+  const guardarPrecioRapido = async (id) => {
+    const pNum = Number(precioEdit);
+    if (isNaN(pNum) || pNum <= 0) return;
+
+    try {
+      const updatePayload = {
+        precio: pNum,
+        precio_propuesto: null,
+        motivo_revision: null,
+        estado: 'activa'
+      };
+      const { error } = await supabase.from('ofertas').update(updatePayload).eq('id', id);
+      if (error) throw error;
+      setOfertas(prev => prev.map(o => o.id === id ? { ...o, ...updatePayload } : o));
+      setEditandoId(null);
+      setPrecioEdit('');
+    } catch (err) {
+      alert('No se pudo actualizar el precio: ' + err.message);
+    }
+  };
+
+  const handleEliminarOferta = async (id) => {
     if (!confirm('¿Eliminar esta oferta permanentemente?')) return;
     try {
-      const { error } = await supabase.from('ofertas').delete().eq('id', ofertaId);
+      const { error } = await supabase.from('ofertas').delete().eq('id', id);
       if (error) throw error;
-      setOfertas((prev) => prev.filter((o) => o.id !== ofertaId));
+      setOfertas(prev => prev.filter(o => o.id !== id));
     } catch (err) {
-      alert('Error: ' + err.message);
+      alert('Error al eliminar: ' + err.message);
     }
   };
 
   const handleCrearComercio = async (e) => {
     e.preventDefault();
-    setCreandoMaestro(true);
+    if (!nuevoNombreComercio.trim()) return;
+    setGuardandoMaestro(true);
     try {
-      const { error } = await supabase.from('comercios').insert([{ nombre: nuevoComercioNombre }]);
+      const { error } = await supabase.from('comercios').insert([{ nombre: nuevoNombreComercio.trim() }]);
       if (error) throw error;
-      setNuevoComercioNombre('');
-      cargarDatosMaestros();
+      setNuevoNombreComercio('');
+      cargarTodo();
     } catch (err) {
       alert(err.message);
     } finally {
-      setCreandoMaestro(false);
-    }
-  };
-
-  const handleEditarComercio = async (id, nombreActual) => {
-    const nuevo = prompt('Nuevo nombre:', nombreActual);
-    if (!nuevo || nuevo === nombreActual) return;
-    try {
-      const { error } = await supabase.from('comercios').update({ nombre: nuevo }).eq('id', id);
-      if (error) throw error;
-      cargarDatosMaestros();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const handleEliminarComercio = async (id) => {
-    if (!confirm('¿Borrar comercio?')) return;
-    try {
-      const { error } = await supabase.from('comercios').delete().eq('id', id);
-      if (error) throw error;
-      cargarDatosMaestros();
-    } catch (err) {
-      alert('No se puede borrar si tiene ofertas cargadas.');
+      setGuardandoMaestro(false);
     }
   };
 
   const handleCrearProducto = async (e) => {
     e.preventDefault();
-    setCreandoMaestro(true);
+    if (!nuevoProdNombre.trim()) return;
+    setGuardandoMaestro(true);
     try {
       const { error } = await supabase.from('productos').insert([{
-        nombre: nuevoProdNombre,
-        marca: nuevoProdMarca,
-        categoria: nuevoProdCategoria,
+        nombre: nuevoProdNombre.trim(),
+        marca: nuevoProdMarca.trim() || null,
+        categoria: nuevoProdCat
       }]);
       if (error) throw error;
       setNuevoProdNombre('');
       setNuevoProdMarca('');
-      cargarDatosMaestros();
+      cargarTodo();
     } catch (err) {
       alert(err.message);
     } finally {
-      setCreandoMaestro(false);
+      setGuardandoMaestro(false);
     }
   };
 
-  const handleEditarProducto = async (id, nombreActual) => {
-    const nuevo = prompt('Editar nombre:', nombreActual);
-    if (!nuevo || nuevo === nombreActual) return;
+  const handleEliminarMaestro = async (tabla, id) => {
+    if (!confirm(`¿Eliminar este registro de ${tabla}?`)) return;
     try {
-      const { error } = await supabase.from('productos').update({ nombre: nuevo }).eq('id', id);
+      const { error } = await supabase.from(tabla).delete().eq('id', id);
       if (error) throw error;
-      cargarDatosMaestros();
+      cargarTodo();
     } catch (err) {
-      alert(err.message);
+      alert('No se puede borrar si tiene ofertas asociadas en la base de datos.');
     }
   };
 
-  const handleEliminarProducto = async (id) => {
-    if (!confirm('¿Borrar producto?')) return;
-    try {
-      const { error } = await supabase.from('productos').delete().eq('id', id);
-      if (error) throw error;
-      cargarDatosMaestros();
-    } catch (err) {
-      alert('No se puede borrar si tiene ofertas cargadas.');
-    }
-  };
+  // Ofertas que requieren atención del administrador
+  const ofertasPendientes = useMemo(() => {
+    return ofertas.filter(o => 
+      o.estado === 'en_revision' || 
+      Boolean(o.motivo_revision) || 
+      Boolean(o.precio_propuesto)
+    );
+  }, [ofertas]);
+
+  const ofertasFiltradas = useMemo(() => {
+    const listaBase = vistaActual === 'pendientes' ? ofertasPendientes : ofertas;
+    const q = busqueda.toLowerCase();
+
+    return listaBase
+      .filter(o => {
+        if (!q) return true;
+        return (
+          String(o.productos?.nombre || '').toLowerCase().includes(q) ||
+          String(o.comercios?.nombre || '').toLowerCase().includes(q) ||
+          String(o.productos?.marca || '').toLowerCase().includes(q) ||
+          String(o.motivo_revision || '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        if (ordenAdmin === 'precio_asc') return (a.precio || 0) - (b.precio || 0);
+        if (ordenAdmin === 'precio_desc') return (b.precio || 0) - (a.precio || 0);
+        if (ordenAdmin === 'producto_asc') {
+          const prodA = String(a.productos?.nombre || '').toLowerCase();
+          const prodB = String(b.productos?.nombre || '').toLowerCase();
+          return prodA.localeCompare(prodB);
+        }
+
+        const fechaA = new Date(a.creado_en || 0).getTime();
+        const fechaB = new Date(b.creado_en || 0).getTime();
+        if (ordenAdmin === 'antiguos') return fechaA - fechaB;
+        return fechaB - fechaA;
+      });
+  }, [ofertas, ofertasPendientes, vistaActual, busqueda, ordenAdmin]);
+
+  const comerciosFiltrados = useMemo(() => {
+    const q = busqueda.toLowerCase();
+    if (!q) return comercios;
+    return comercios.filter(c => String(c.nombre || '').toLowerCase().includes(q));
+  }, [comercios, busqueda]);
+
+  const productosFiltrados = useMemo(() => {
+    const q = busqueda.toLowerCase();
+    if (!q) return productos;
+    return productos.filter(p =>
+      String(p.nombre || '').toLowerCase().includes(q) ||
+      String(p.marca || '').toLowerCase().includes(q) ||
+      String(p.categoria || '').toLowerCase().includes(q)
+    );
+  }, [productos, busqueda]);
 
   return (
-    <main className="p-4 md:p-8 flex-1 max-w-5xl mx-auto w-full">
+    <main className="p-3 sm:p-6 flex-1 max-w-6xl mx-auto w-full selection:bg-emerald-500 selection:text-white pb-24">
       {!adminUser ? (
-        <div className="max-w-md mx-auto my-12 bg-[#131d2e] p-6 rounded-3xl border border-slate-800 shadow-2xl">
-          <div className="text-center mb-6">
-            <span className="text-3xl">🔐</span>
-            <h2 className="text-xl font-bold text-white mt-2">Panel Privado Bariahorra</h2>
-            <p className="text-xs text-slate-400">Ingreso exclusivo para administración</p>
+        <div className="max-w-sm mx-auto mt-12 theme-card p-6 rounded-3xl border shadow-2xl">
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-3">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h2 className="text-lg font-black theme-title">Centro de Control Admin</h2>
+            <p className="text-xs theme-muted mt-1">Acceso restringido</p>
           </div>
+
           {adminError && (
-            <div className="p-3 mb-4 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
-              {adminError}
+            <div className="p-3 mb-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{adminError}</span>
             </div>
           )}
-          <form onSubmit={handleAdminLogin} className="space-y-4">
+
+          <form onSubmit={handleAdminLogin} className="space-y-3">
             <input
               type="email"
-              placeholder="Email"
+              placeholder="Admin Email"
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}
               required
-              className="w-full bg-[#0a0f18] text-sm text-white rounded-xl px-4 py-3 border border-slate-700 outline-none"
+              className="w-full theme-input text-sm rounded-xl px-4 py-2.5 border outline-none focus:border-emerald-500 transition"
             />
             <input
               type="password"
@@ -229,201 +331,487 @@ export default function AdminPage() {
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               required
-              className="w-full bg-[#0a0f18] text-sm text-white rounded-xl px-4 py-3 border border-slate-700 outline-none"
+              className="w-full theme-input text-sm rounded-xl px-4 py-2.5 border outline-none focus:border-emerald-500 transition"
             />
             <button
               type="submit"
               disabled={adminCargando}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-xl transition cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95"
             >
-              {adminCargando ? 'Accediendo...' : 'Ingresar'}
+              {adminCargando ? 'Verificando...' : 'Ingresar al Panel'}
             </button>
           </form>
-          <div className="mt-4 text-center">
-            <Link href="/" className="text-xs text-slate-500 hover:text-slate-400">
-              ← Volver al sitio público
+
+          <div className="mt-5 text-center">
+            <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-bold theme-muted hover:text-sky-400 transition">
+              <ArrowLeft className="w-3.5 h-3.5" /> Volver al sitio público
             </Link>
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Header del Dashboard */}
-          <div className="bg-[#131d2e] p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                Panel de Control
-              </span>
-              <h2 className="text-xl font-bold text-white">Administración General</h2>
-            </div>
+        <div className="space-y-4">
+
+          {/* HEADER */}
+          <div className="theme-card p-4 sm:p-5 rounded-3xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-xl">
             <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
+                <LayoutDashboard className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-black theme-title">Panel de Moderación Automática</h2>
+                <p className="text-[10px] theme-muted font-mono mt-0.5">{adminUser.email}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
               <Link
-                href="/cargar"
-                className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-2 rounded-xl transition"
+                href="/cargar?catalogo=1"
+                className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 font-black px-3.5 py-2 rounded-xl text-xs transition shadow-sm cursor-pointer"
               >
-                ⭐ Cargar Catálogo Oficial
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <span>Cargar Catálogo Oficial</span>
+              </Link>
+              <Link
+                href="/"
+                className="text-xs theme-btn-sec font-bold px-3.5 py-2 rounded-xl border transition"
+              >
+                Ver Góndola
               </Link>
               <button
                 onClick={() => supabase.auth.signOut()}
-                className="text-xs bg-slate-800 hover:bg-rose-500/20 hover:text-rose-300 text-slate-300 px-3 py-2 rounded-xl border border-slate-700 transition"
+                className="p-2 theme-btn-sec hover:bg-rose-500/20 hover:text-rose-400 rounded-xl border transition cursor-pointer"
+                title="Cerrar sesión"
               >
-                Cerrar Sesión
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Tarjetas de Métricas Rápidas */}
-          <div className="grid grid-cols-3 gap-3 md:gap-4">
+          {/* PESTAÑAS */}
+          <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => setAdminSubTab('ofertas')}
-              className={`p-4 rounded-2xl border text-left transition ${
-                adminSubTab === 'ofertas'
-                  ? 'bg-emerald-500/10 border-emerald-500/50'
-                  : 'bg-[#131d2e] border-slate-800 hover:border-slate-700'
+              onClick={() => { setVistaActual('pendientes'); setBusqueda(''); }}
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
+                vistaActual === 'pendientes'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                  : 'theme-btn-sec border'
               }`}
             >
-              <p className="text-xs text-slate-400">Ofertas Activas</p>
-              <p className="text-2xl font-black text-white mt-1">{ofertas.length}</p>
+              <BellRing className="w-4 h-4" />
+              <span>Por Revisar</span>
+              {ofertasPendientes.length > 0 && (
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                  vistaActual === 'pendientes' ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
+                }`}>
+                  {ofertasPendientes.length}
+                </span>
+              )}
             </button>
             <button
-              onClick={() => setAdminSubTab('comercios')}
-              className={`p-4 rounded-2xl border text-left transition ${
-                adminSubTab === 'comercios'
-                  ? 'bg-sky-500/10 border-sky-500/50'
-                  : 'bg-[#131d2e] border-slate-800 hover:border-slate-700'
+              onClick={() => { setVistaActual('ofertas'); setBusqueda(''); }}
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+                vistaActual === 'ofertas'
+                  ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
+                  : 'theme-btn-sec border'
               }`}
             >
-              <p className="text-xs text-slate-400">Supermercados</p>
-              <p className="text-2xl font-black text-white mt-1">{comercios.length}</p>
+              <Tag className="w-4 h-4" />
+              <span>Todas las Ofertas ({ofertas.length})</span>
             </button>
             <button
-              onClick={() => setAdminSubTab('productos')}
-              className={`p-4 rounded-2xl border text-left transition ${
-                adminSubTab === 'productos'
-                  ? 'bg-amber-500/10 border-amber-500/50'
-                  : 'bg-[#131d2e] border-slate-800 hover:border-slate-700'
+              onClick={() => { setVistaActual('comercios'); setBusqueda(''); }}
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+                vistaActual === 'comercios'
+                  ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-md shadow-sky-500/20'
+                  : 'theme-btn-sec border'
               }`}
             >
-              <p className="text-xs text-slate-400">Productos</p>
-              <p className="text-2xl font-black text-white mt-1">{productos.length}</p>
+              <Store className="w-4 h-4" />
+              <span>Comercios ({comercios.length})</span>
+            </button>
+            <button
+              onClick={() => { setVistaActual('productos'); setBusqueda(''); }}
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+                vistaActual === 'productos'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
+                  : 'theme-btn-sec border'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Productos ({productos.length})</span>
             </button>
           </div>
 
-          {/* Pestaña: Ofertas */}
-          {adminSubTab === 'ofertas' && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-300">Moderación de Precios</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {ofertas.map((item) => (
-                  <div key={item.id} className="bg-[#131d2e] p-4 rounded-2xl border border-slate-800 flex justify-between items-start gap-3">
-                    <div className="space-y-1">
-                      <p className="font-bold text-white text-sm">{item.productos?.nombre}</p>
-                      <p className="text-xs text-slate-400">{item.comercios?.nombre} • ${item.precio?.toLocaleString('es-AR')}</p>
-                      <div className="flex gap-2 items-center pt-2">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                          item.estado === 'en_revision' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
-                        }`}>
-                          {item.estado.toUpperCase()}
-                        </span>
-                        <span className="text-[11px] text-slate-500">👍 {item.votos_positivos} | 👎 {item.votos_negativos}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5 text-xs">
-                      {item.estado === 'en_revision' ? (
-                        <button onClick={() => handleCambiarEstadoOferta(item.id, 'activa')} className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg">Reactivar</button>
-                      ) : (
-                        <button onClick={() => handleCambiarEstadoOferta(item.id, 'en_revision')} className="px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-lg">Pausar</button>
-                      )}
-                      <button onClick={() => handleEliminarOferta(item.id)} className="px-2.5 py-1 bg-rose-500/20 text-rose-300 rounded-lg">Eliminar</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pestaña: Comercios */}
-          {adminSubTab === 'comercios' && (
-            <div className="bg-[#131d2e] p-6 rounded-2xl border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-slate-300">Gestión de Comercios</h3>
-              <form onSubmit={handleCrearComercio} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Nuevo comercio (Ej: Diarco)..."
-                  value={nuevoComercioNombre}
-                  onChange={(e) => setNuevoComercioNombre(e.target.value)}
-                  required
-                  className="flex-1 bg-[#0a0f18] text-sm text-white rounded-xl px-4 py-2.5 border border-slate-700 outline-none"
-                />
-                <button type="submit" disabled={creandoMaestro} className="bg-emerald-500 text-slate-950 font-bold px-5 rounded-xl text-sm">
-                  Agregar
+          {/* BARRA DE BÚSQUEDA Y ORDENAMIENTO */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 theme-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por producto, marca, súper o motivo de alerta..."
+                className="w-full theme-input border rounded-2xl pl-10 pr-8 py-2.5 text-xs placeholder-slate-400 outline-none focus:border-emerald-500 transition shadow-sm"
+              />
+              {busqueda && (
+                <button type="button" onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 theme-muted hover:text-slate-200">
+                  <X className="w-3.5 h-3.5" />
                 </button>
-              </form>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-2">
-                {comercios.map((com) => (
-                  <div key={com.id} className="flex justify-between items-center bg-[#0a0f18] p-3 rounded-xl border border-slate-800">
-                    <span className="text-sm text-slate-200 font-medium">{com.nombre}</span>
-                    <div className="flex gap-1">
-                      <button onClick={() => handleEditarComercio(com.id, com.nombre)} className="p-1 hover:text-sky-400">✏️</button>
-                      <button onClick={() => handleEliminarComercio(com.id)} className="p-1 hover:text-rose-400">🗑️</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
-          )}
 
-          {/* Pestaña: Productos */}
-          {adminSubTab === 'productos' && (
-            <div className="bg-[#131d2e] p-6 rounded-2xl border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-slate-300">Gestión de Productos</h3>
-              <form onSubmit={handleCrearProducto} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  placeholder="Nombre..."
-                  value={nuevoProdNombre}
-                  onChange={(e) => setNuevoProdNombre(e.target.value)}
-                  required
-                  className="bg-[#0a0f18] text-sm text-white rounded-xl px-4 py-2.5 border border-slate-700 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Marca (opcional)..."
-                  value={nuevoProdMarca}
-                  onChange={(e) => setNuevoProdMarca(e.target.value)}
-                  className="bg-[#0a0f18] text-sm text-white rounded-xl px-4 py-2.5 border border-slate-700 outline-none"
-                />
-                <div className="flex gap-2">
-                  <select
-                    value={nuevoProdCategoria}
-                    onChange={(e) => setNuevoProdCategoria(e.target.value)}
-                    className="flex-1 bg-[#0a0f18] text-sm text-white rounded-xl px-3 py-2.5 border border-slate-700 outline-none"
-                  >
-                    <option value="Súper">Súper</option>
-                    <option value="Carnicería">Carnicería</option>
-                    <option value="Verdulería">Verdulería</option>
-                    <option value="Lácteos">Lácteos</option>
-                  </select>
-                  <button type="submit" disabled={creandoMaestro} className="bg-emerald-500 text-slate-950 font-bold px-4 rounded-xl text-sm">
-                    +
-                  </button>
-                </div>
-              </form>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-2">
-                {productos.map((prod) => (
-                  <div key={prod.id} className="flex justify-between items-center bg-[#0a0f18] p-3 rounded-xl border border-slate-800">
-                    <div>
-                      <p className="text-sm text-slate-200 font-bold">{prod.nombre}</p>
-                      <p className="text-[11px] text-slate-500">{prod.marca || 'S/M'} • {prod.categoria}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => handleEditarProducto(prod.id, prod.nombre)} className="p-1 hover:text-sky-400">✏️</button>
-                      <button onClick={() => handleEliminarProducto(prod.id)} className="p-1 hover:text-rose-400">🗑️</button>
-                    </div>
-                  </div>
-                ))}
+            {(vistaActual === 'ofertas' || vistaActual === 'pendientes') && (
+              <div className="flex items-center gap-1.5 theme-btn-sec border px-3.5 py-2 rounded-2xl text-xs shrink-0">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <select
+                  value={ordenAdmin}
+                  onChange={(e) => setOrdenAdmin(e.target.value)}
+                  className="bg-transparent theme-title font-bold outline-none cursor-pointer text-xs"
+                >
+                  <option value="recientes" className="theme-card">Más recientes primero</option>
+                  <option value="producto_asc" className="theme-card">Ordenar por Producto (A-Z)</option>
+                  <option value="antiguos" className="theme-card">Más antiguos primero</option>
+                  <option value="precio_asc" className="theme-card">Menor precio ($)</option>
+                  <option value="precio_desc" className="theme-card">Mayor precio ($)</option>
+                </select>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* CONTENIDO PRINCIPAL */}
+          <div className="min-h-[50vh]">
+            {cargandoDatos ? (
+              <div className="text-center py-16 theme-muted text-xs">Cargando registros...</div>
+            ) : vistaActual === 'ofertas' || vistaActual === 'pendientes' ? (
+              <div>
+                {ofertasFiltradas.length === 0 ? (
+                  <div className="text-center py-16 theme-muted text-xs theme-card rounded-3xl border space-y-2">
+                    <p>No hay ofertas en esta vista.</p>
+                    {vistaActual === 'pendientes' && (
+                      <p className="text-emerald-400 font-bold">¡Excelente! El piloto automático tiene todo bajo control.</p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* VISTA MÓVIL: TARJETAS */}
+                    <div className="block sm:hidden space-y-3">
+                      {ofertasFiltradas.map((item) => {
+                        const tieneFoto = Boolean(item.foto_url);
+                        const tienePropuesto = Boolean(item.precio_propuesto);
+                        const fechaFormateada = new Date(item.creado_en).toLocaleDateString('es-AR', {
+                          day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                        });
+
+                        return (
+                          <div key={item.id} className="theme-card border rounded-2xl p-3.5 flex flex-col justify-between gap-3 shadow-md">
+                            {item.motivo_revision && (
+                              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-bold flex items-center gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                <span>{item.motivo_revision}</span>
+                              </div>
+                            )}
+
+                            <div className="flex gap-3">
+                              <div className="w-16 h-16 rounded-xl theme-card-sub border overflow-hidden shrink-0 flex items-center justify-center">
+                                {tieneFoto ? (
+                                  <a href={item.foto_url} target="_blank" rel="noreferrer">
+                                    <img src={item.foto_url} alt="Góndola" className="w-full h-full object-cover" />
+                                  </a>
+                                ) : (
+                                  <ImageIcon className="w-6 h-6 theme-muted" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1 mb-1">
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 truncate">
+                                    {item.comercios?.nombre || 'Comercio'}
+                                  </span>
+                                  <span className="text-[10px] theme-muted">{fechaFormateada}</span>
+                                </div>
+                                <h3 className="text-xs font-black theme-title truncate">{item.productos?.nombre || 'Producto'}</h3>
+                                <p className="text-[11px] theme-muted truncate mt-0.5">
+                                  <span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-400">{item.productos?.categoria || 'Súper'}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="pt-2.5 border-t border-slate-700/60 theme-card-sub/40 space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <div>
+                                  {editandoId === item.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="number"
+                                        value={precioEdit}
+                                        onChange={(e) => setPrecioEdit(e.target.value)}
+                                        className="w-24 theme-input text-xs px-2 py-1 rounded-lg border border-emerald-500 outline-none font-mono font-bold"
+                                        autoFocus
+                                      />
+                                      <button onClick={() => guardarPrecioRapido(item.id)} className="p-1.5 bg-emerald-500 text-slate-950 rounded-lg">
+                                        <Check className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button onClick={() => setEditandoId(null)} className="p-1.5 theme-btn-sec rounded-lg border">
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        onClick={() => { setEditandoId(item.id); setPrecioEdit(item.precio); }}
+                                        className="text-base font-black font-mono text-emerald-400 cursor-pointer hover:underline"
+                                      >
+                                        ${Number(item.precio || 0).toLocaleString('es-AR')}
+                                      </span>
+                                      {item.es_catalogo && (
+                                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                                          Catálogo
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => handleAprobarOferta(item)}
+                                    className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-[11px] font-black cursor-pointer shadow"
+                                  >
+                                    Aprobar
+                                  </button>
+                                  <button
+                                    onClick={() => handleEliminarOferta(item.id)}
+                                    className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-xl cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {tienePropuesto && (
+                                <div className="p-2 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-between gap-2">
+                                  <div className="text-[11px]">
+                                    <span className="theme-muted">Propuesto: </span>
+                                    <strong className="text-sky-400 font-mono font-black">${Number(item.precio_propuesto).toLocaleString('es-AR')}</strong>
+                                  </div>
+                                  <button
+                                    onClick={() => handleAceptarPrecioPropuesto(item)}
+                                    className="px-2.5 py-1 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <span>Aceptar $</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* VISTA ESCRITORIO: TABLA DE ALTA DENSIDAD */}
+                    <div className="hidden sm:block theme-card rounded-3xl border overflow-hidden shadow-xl">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="theme-card-sub border-b text-[10px] font-black uppercase tracking-wider theme-muted">
+                            <th className="p-3 pl-4 w-12 text-center">Foto</th>
+                            <th className="p-3">Producto y Marca</th>
+                            <th className="p-3">Supermercado</th>
+                            <th className="p-3 text-right">Precio Actual</th>
+                            <th className="p-3">Alerta / Propuesta</th>
+                            <th className="p-3 pr-4 text-right">Acciones de Auditoría</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y theme-card-sub/50 text-xs">
+                          {ofertasFiltradas.map((item) => {
+                            const tieneFoto = Boolean(item.foto_url);
+                            const tienePropuesto = Boolean(item.precio_propuesto);
+
+                            return (
+                              <tr key={item.id} className="hover:bg-slate-500/5 transition">
+                                <td className="p-3 pl-4 text-center">
+                                  {tieneFoto ? (
+                                    <a href={item.foto_url} target="_blank" rel="noreferrer" className="inline-block w-9 h-9 rounded-lg theme-card-sub border overflow-hidden">
+                                      <img src={item.foto_url} alt="Foto" className="w-full h-full object-cover hover:scale-110 transition" />
+                                    </a>
+                                  ) : (
+                                    <div className="w-9 h-9 rounded-lg theme-card-sub border flex items-center justify-center mx-auto theme-muted">
+                                      <ImageIcon className="w-4 h-4" />
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-3">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="font-black theme-title">{item.productos?.nombre || 'Producto'}</p>
+                                    {item.es_catalogo && (
+                                      <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[9px] font-black">OFICIAL</span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] theme-muted"><span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-400">{item.productos?.categoria || 'Súper'}</span></p>
+                                </td>
+                                <td className="p-3">
+                                  <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold text-[11px]">
+                                    {item.comercios?.nombre || 'Comercio'}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right font-mono font-black text-emerald-400 text-sm">
+                                  {editandoId === item.id ? (
+                                    <div className="flex items-center justify-end gap-1">
+                                      <input
+                                        type="number"
+                                        value={precioEdit}
+                                        onChange={(e) => setPrecioEdit(e.target.value)}
+                                        className="w-24 theme-input text-xs px-2 py-1 rounded-lg border border-emerald-500 outline-none text-right font-mono"
+                                        autoFocus
+                                      />
+                                      <button onClick={() => guardarPrecioRapido(item.id)} className="p-1 bg-emerald-500 text-slate-950 rounded">
+                                        <Check className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button onClick={() => setEditandoId(null)} className="p-1 theme-btn-sec rounded border">
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span
+                                      onClick={() => { setEditandoId(item.id); setPrecioEdit(item.precio); }}
+                                      className="cursor-pointer hover:underline"
+                                      title="Clic para editar precio"
+                                    >
+                                      ${Number(item.precio || 0).toLocaleString('es-AR')}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-3">
+                                  {item.motivo_revision ? (
+                                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-bold inline-flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                                      <span>{item.motivo_revision}</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] theme-muted">Normal</span>
+                                  )}
+
+                                  {tienePropuesto && (
+                                    <div className="mt-1 flex items-center gap-1.5">
+                                      <span className="text-[10px] theme-muted font-mono">Nuevo: <strong className="text-sky-400">${item.precio_propuesto}</strong></span>
+                                      <button
+                                        onClick={() => handleAceptarPrecioPropuesto(item)}
+                                        className="px-2 py-0.5 rounded bg-sky-500 hover:bg-sky-400 text-slate-950 text-[10px] font-black cursor-pointer"
+                                      >
+                                        Aceptar $
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-3 pr-4 text-right space-x-1.5 whitespace-nowrap">
+                                  <button
+                                    onClick={() => handleAprobarOferta(item)}
+                                    className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-[11px] font-black cursor-pointer shadow"
+                                    title="Aprobar oferta y limpiar alertas"
+                                  >
+                                    Aprobar
+                                  </button>
+                                  <button
+                                    onClick={() => handleCambiarEstado(item.id, item.estado)}
+                                    className="px-2.5 py-1 theme-btn-sec rounded-xl text-[11px] font-bold cursor-pointer border"
+                                  >
+                                    {item.estado === 'activa' ? 'Pausar' : 'Activar'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleEliminarOferta(item.id)}
+                                    className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 rounded-xl cursor-pointer"
+                                    title="Eliminar oferta"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : vistaActual === 'comercios' ? (
+              <div className="space-y-3">
+                <form onSubmit={handleCrearComercio} className="flex gap-2 theme-card p-3 rounded-2xl border shadow-sm">
+                  <input
+                    type="text"
+                    placeholder="Nuevo supermercado..."
+                    value={nuevoNombreComercio}
+                    onChange={(e) => setNuevoNombreComercio(e.target.value)}
+                    required
+                    className="flex-1 theme-input text-xs px-3 py-2 rounded-xl border outline-none"
+                  />
+                  <button type="submit" disabled={guardandoMaestro} className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs transition cursor-pointer shadow">
+                    Agregar
+                  </button>
+                </form>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {comerciosFiltrados.map((com) => (
+                    <div key={com.id} className="theme-card p-3 rounded-2xl border flex justify-between items-center shadow-sm">
+                      <span className="text-xs font-bold theme-title">{com.nombre}</span>
+                      <button onClick={() => handleEliminarMaestro('comercios', com.id)} className="p-1.5 theme-muted hover:text-rose-400 cursor-pointer">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <form onSubmit={handleCrearProducto} className="grid grid-cols-1 sm:grid-cols-4 gap-2 theme-card p-3 rounded-2xl border shadow-sm">
+                  <input
+                    type="text"
+                    placeholder="Producto..."
+                    value={nuevoProdNombre}
+                    onChange={(e) => setNuevoProdNombre(e.target.value)}
+                    required
+                    className="theme-input text-xs px-3 py-2 rounded-xl border outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Marca..."
+                    value={nuevoProdMarca}
+                    onChange={(e) => setNuevoProdMarca(e.target.value)}
+                    className="theme-input text-xs px-3 py-2 rounded-xl border outline-none"
+                  />
+                  <select
+                    value={nuevoProdCat}
+                    onChange={(e) => setNuevoProdCat(e.target.value)}
+                    className="theme-input text-xs text-amber-400 font-bold px-3 py-2 rounded-xl border outline-none cursor-pointer"
+                  >
+                    <option value="Súper" className="theme-card">Súper</option>
+                    <option value="Carnicería" className="theme-card">Carnicería</option>
+                    <option value="Verdulería" className="theme-card">Verdulería</option>
+                    <option value="Lácteos" className="theme-card">Lácteos</option>
+                    <option value="Bebidas" className="theme-card">Bebidas</option>
+                    <option value="Limpieza" className="theme-card">Limpieza</option>
+                  </select>
+                  <button type="submit" disabled={guardandoMaestro} className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2 rounded-xl text-xs transition cursor-pointer shadow">
+                    + Producto
+                  </button>
+                </form>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {productosFiltrados.map((prod) => (
+                    <div key={prod.id} className="theme-card p-3 rounded-2xl border flex justify-between items-center shadow-sm">
+                      <div className="min-w-0 pr-2">
+                        <p className="text-xs font-bold theme-title truncate">{prod.nombre}</p>
+                        <p className="text-[10px] text-amber-400"><span className="theme-muted">{prod.marca || 'S/M'}</span> • {prod.categoria}</p>
+                      </div>
+                      <button onClick={() => handleEliminarMaestro('productos', prod.id)} className="p-1.5 theme-muted hover:text-rose-400 cursor-pointer shrink-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       )}
     </main>

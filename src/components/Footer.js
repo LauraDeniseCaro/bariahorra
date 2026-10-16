@@ -32,7 +32,7 @@ function TikTokIcon({ className = 'w-3.5 h-3.5' }) {
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-[#0a0f18] border-t border-slate-800/80 pt-8 pb-24 md:pb-10 px-6 text-slate-400 text-xs mt-12">
+    <footer className="w-full theme-card border-t pt-8 pb-24 md:pb-10 px-6 theme-muted text-xs mt-12 transition-colors">
       <div className="max-w-4xl mx-auto flex flex-col items-center text-center gap-6">
         
         {/* Botón Cafecito */}
@@ -49,12 +49,12 @@ export default function Footer() {
         </div>
 
         {/* Redes Sociales */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center">
           <a
             href="https://instagram.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-pink-500/50 hover:text-pink-400 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg theme-btn-sec border hover:border-pink-500/50 hover:text-pink-500 transition"
           >
             <InstagramIcon className="w-3.5 h-3.5" />
             <span>Instagram</span>
@@ -63,7 +63,7 @@ export default function Footer() {
             href="https://facebook.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:text-blue-400 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg theme-btn-sec border hover:border-blue-500/50 hover:text-blue-500 transition"
           >
             <FacebookIcon className="w-3.5 h-3.5" />
             <span>Facebook</span>
@@ -72,7 +72,7 @@ export default function Footer() {
             href="https://tiktok.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-400 hover:text-white transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg theme-btn-sec border hover:border-slate-400 hover:text-slate-900 dark:hover:text-white transition"
           >
             <TikTokIcon className="w-3.5 h-3.5" />
             <span>TikTok</span>
@@ -80,15 +80,15 @@ export default function Footer() {
         </div>
 
         {/* Créditos de Desarrollo y Acceso Discreto */}
-        <div className="flex flex-col sm:flex-row items-center justify-between w-full border-t border-slate-800/60 pt-6 text-[11px] text-slate-500 gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between w-full border-t border-slate-700/40 dark:border-slate-800/60 pt-6 text-[11px] theme-muted gap-2">
           <p>
             Desarrollado con orgullo en la Patagonia por{' '}
-            <span className="font-bold text-slate-300">argos.it</span>
+            <span className="font-bold theme-title">argos.it</span>
           </p>
           <div className="flex items-center gap-3">
             <span>Bariahorra © {new Date().getFullYear()}</span>
             {/* Acceso discreto para administración */}
-            <Link href="/admin" className="text-slate-600 hover:text-slate-400 transition">
+            <Link href="/admin" className="theme-muted hover:text-slate-600 dark:hover:text-slate-400 transition">
               • Gestión
             </Link>
           </div>

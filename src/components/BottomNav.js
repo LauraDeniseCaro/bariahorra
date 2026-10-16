@@ -11,15 +11,15 @@ export default function BottomNav() {
   if (pathname.startsWith('/admin')) return null;
 
   return (
-    <nav className="w-full bg-[#111827] border-t border-slate-800/80 py-3 px-4 mt-auto">
+    <nav className="w-full theme-card border-t py-3 px-4 mt-auto transition-colors">
       <div className="max-w-md mx-auto flex items-center justify-center gap-4">
         {/* Enlace Inicio / Precios */}
         <Link
           href="/"
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition border ${
             esInicio
-              ? 'bg-slate-800 text-sky-400 border-sky-500/40 shadow-sm'
-              : 'text-slate-400 border-slate-800 hover:bg-slate-800/60 hover:text-slate-200'
+              ? 'bg-sky-500/15 text-sky-500 dark:text-sky-400 border-sky-500/40 shadow-sm'
+              : 'theme-btn-sec border theme-muted hover:theme-title'
           }`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

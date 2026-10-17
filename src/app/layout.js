@@ -14,11 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://bariahorra.com.ar'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://bariahorra.vercel.app'),
   title: "BariAhorra - Precios de Supermercados en Bariloche",
   description: "Compará precios entre La Anónima, Todo, ChangoMás y comercios de barrio en Bariloche. Cuidemos el bolsillo juntos.",
   keywords: ["precios bariloche", "supermercados bariloche", "ahorro bariloche", "la anonima", "supermercado todo", "changomas"],
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-192.png",
+    shortcut: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -27,11 +32,11 @@ export const metadata = {
   openGraph: {
     title: "BariAhorra - Precios en Bariloche",
     description: "Compará precios en góndola entre súper y comercios de Bariloche. Aportes en tiempo real de la comunidad.",
-    url: "https://bariahorra.com.ar",
+    url: "https://bariahorra.vercel.app",
     siteName: "BariAhorra",
     images: [
       {
-        url: "/icon-512.png", // Usa el icono oficial en alta resolución
+        url: "/icon-512.png",
         width: 512,
         height: 512,
         alt: "Logo BariAhorra",
@@ -61,11 +66,12 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/icon-192.png" sizes="any" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-full flex flex-col selection:bg-sky-500 selection:text-white">
-        {/* Usamos theme-shell para que el contenedor cambie de color según el tema */}
+        {/* Contenedor adaptativo según el tema activo */}
         <div className="flex-1 flex flex-col w-full max-w-4xl mx-auto border-x shadow-2xl theme-shell min-h-screen">
           <Header />
           <main className="flex-1 flex flex-col">

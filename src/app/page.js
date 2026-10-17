@@ -29,6 +29,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ShoppingBag,
   Trash2,
   Calculator,
@@ -37,6 +38,8 @@ import {
   AlertTriangle,
   Share2
 } from 'lucide-react';
+
+const CANTIDAD_POR_PAGINA = 12;
 
 const CONFIG_CATEGORIAS = {
   Todos: {
@@ -248,7 +251,7 @@ function compartirOfertaWhatsApp(item) {
 💵 *$${precioFormateado}*${unitario}
 
 Encontrá más precios y compará en 👇
-https://bariahorra.com.ar`;
+https://bariahorra.vercel.app`;
 
   window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
@@ -271,7 +274,7 @@ ${lineasProds}
 ${ganadorTxt}
 
 Calculá tu lista de supermercado en 👇
-https://bariahorra.com.ar`;
+https://bariahorra.vercel.app`;
 
   window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
 }
@@ -283,6 +286,7 @@ export default function HomePage() {
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
   const [orden, setOrden] = useState('recientes');
   const [modoVista, setModoVista] = useState('gondola');
+  const [limiteVisibles, setLimiteVisibles] = useState(CANTIDAD_POR_PAGINA);
 
   const [usuario, setUsuario] = useState(null);
   const [confirmandoId, setConfirmandoId] = useState(null);
@@ -307,6 +311,16 @@ export default function HomePage() {
     obtenerSesionYOfertas();
     cargarVotosDesdeStorage();
 
+    const esStandalone =
+      typeof window !== 'undefined' &&
+      (window.matchMedia('(display-mode: standalone)').matches || window.navigator?.standalone);
+
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
+        console.error('Error al registrar Service Worker:', err);
+      });
+    }
+
     try {
       const changuitoGuardado = localStorage.getItem('bariahorra_changuito');
       if (changuitoGuardado) setChanguito(JSON.parse(changuitoGuardado));
@@ -319,13 +333,15 @@ export default function HomePage() {
     const capturarPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setMostrarBannerInstalar(true);
+      if (!esStandalone) {
+        setMostrarBannerInstalar(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', capturarPrompt);
 
     const descartado = localStorage.getItem('bariahorra_banner_instalado');
-    if (!descartado) {
+    if (!descartado && !esStandalone) {
       setMostrarBannerInstalar(true);
     }
 
@@ -334,6 +350,11 @@ export default function HomePage() {
       window.removeEventListener('beforeinstallprompt', capturarPrompt);
     };
   }, []);
+
+  // Reiniciar la paginación a 12 cuando el usuario filtra o busca
+  useEffect(() => {
+    setLimiteVisibles(CANTIDAD_POR_PAGINA);
+  }, [busqueda, categoriaActiva, orden]);
 
   const mostrarToast = (texto) => {
     setAvisoFeedback(texto);
@@ -398,14 +419,18 @@ export default function HomePage() {
 
   const handleInstalarApp = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setMostrarBannerInstalar(false);
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          setMostrarBannerInstalar(false);
+        }
+        setDeferredPrompt(null);
+      } catch (err) {
+        console.error('Error al solicitar instalación:', err);
       }
-      setDeferredPrompt(null);
     } else {
-      alert('Para instalar BariAhorra:\n• En Android: Menú (⋮) -> Instalar app.\n• En iPhone: Compartir (⎋) -> Agregar a inicio.');
+      alert('Para instalar BariAhorra:\n• En Android: Tocá los 3 puntos (⋮) y seleccioná "Instalar aplicación".\n• En iPhone (Safari): Tocá Compartir (⎋) y elegí "Agregar a inicio".');
     }
   };
 
@@ -736,6 +761,11 @@ export default function HomePage() {
       });
   }, [ofertas, categoriaActiva, busqueda, orden]);
 
+  // Lista paginada para la vista góndola
+  const ofertasVisibles = useMemo(() => {
+    return ofertasFiltradas.slice(0, limiteVisibles);
+  }, [ofertasFiltradas, limiteVisibles]);
+
   const mejoresPreciosIds = useMemo(() => {
     const grupos = {};
     ofertas.forEach((o) => {
@@ -981,50 +1011,50 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* BARRA DE CONTROLES SUPERIOR */}
-      <div className="flex items-center justify-between gap-2 theme-card border rounded-2xl p-1.5 px-2.5 shadow-sm">
-        <div className="flex items-center gap-1 flex-wrap">
+      {/* BARRA DE CONTROLES SUPERIOR (OPTIMIZADA PARA MÓVIL) */}
+      <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2 theme-card border rounded-2xl p-1.5 px-2.5 shadow-sm">
+        <div className="grid grid-cols-3 xs:flex items-center gap-1 w-full xs:w-auto">
           <button
             type="button"
             onClick={() => setModoVista('gondola')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'gondola'
+            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'gondola'
               ? 'bg-amber-500/15 text-amber-600 border border-amber-500/40 shadow-sm'
               : 'theme-muted hover:theme-title'
               }`}
           >
-            <ListFilter className="w-3.5 h-3.5 text-amber-500" />
+            <ListFilter className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span>Góndola</span>
           </button>
           <button
             type="button"
             onClick={() => setModoVista('comparar')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'comparar'
+            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'comparar'
               ? 'bg-sky-500/15 text-sky-600 border border-sky-500/40 shadow-sm'
               : 'theme-muted hover:theme-title'
               }`}
           >
-            <Layers className="w-3.5 h-3.5 text-sky-500" />
+            <Layers className="w-3.5 h-3.5 text-sky-500 shrink-0" />
             <span>Comparar</span>
           </button>
           <button
             type="button"
             onClick={() => setModoVista('milista')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'milista'
+            className={`flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'milista'
               ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/40 shadow-sm'
               : 'theme-muted hover:theme-title'
               }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Mi Lista ({changuito.length})</span>
+            <ShoppingBag className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <span className="truncate">Mi Lista ({changuito.length})</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 pt-1 xs:pt-0 border-t xs:border-t-0 border-[var(--border-card)]">
           {modoVista === 'gondola' && (
             <select
               value={orden}
               onChange={(e) => setOrden(e.target.value)}
-              className="theme-btn-sec font-bold px-2.5 py-1 rounded-lg border focus:outline-none cursor-pointer text-[11px]"
+              className="w-full xs:w-auto theme-btn-sec font-bold px-2.5 py-1 rounded-lg border focus:outline-none cursor-pointer text-[11px]"
             >
               <option value="recientes">Más recientes</option>
               <option value="precio_asc">Menor precio</option>
@@ -1291,285 +1321,300 @@ export default function HomePage() {
           })}
         </div>
       ) : (
-        /* --- VISTA GÓNDOLA (TARJETAS INDIVIDUALES) --- */
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {ofertasFiltradas.map((item) => {
-            const tieneFoto = Boolean(item._foto);
-            const esAnonimo = limpiarTexto(item._usuario).includes('anonimo');
-            const formatoUsuario = esAnonimo
-              ? 'Vecino anónimo'
-              : item._usuario.startsWith('@')
-                ? item._usuario
-                : `@${item._usuario}`;
+        /* --- VISTA GÓNDOLA (TARJETAS PAGINADAS) --- */
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {ofertasVisibles.map((item) => {
+              const tieneFoto = Boolean(item._foto);
+              const esAnonimo = limpiarTexto(item._usuario).includes('anonimo');
+              const formatoUsuario = esAnonimo
+                ? 'Vecino anónimo'
+                : item._usuario.startsWith('@')
+                  ? item._usuario
+                  : `@${item._usuario}`;
 
-            const claveVoto = obtenerClaveVoto(item.id, item._precio);
-            const votoActual = votosRealizados[claveVoto];
-            const yaVoto = Boolean(votoActual);
+              const claveVoto = obtenerClaveVoto(item.id, item._precio);
+              const votoActual = votosRealizados[claveVoto];
+              const yaVoto = Boolean(votoActual);
 
-            const confRubro = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Súper;
-            const IconoRubro = confRubro.icono;
-            const estiloComercio = obtenerEstiloComercio(item._comercio);
-            const esMejorPrecio = mejoresPreciosIds.has(item.id);
-            const enChanguito = changuito.includes(item._claveProducto);
+              const confRubro = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Súper;
+              const IconoRubro = confRubro.icono;
+              const estiloComercio = obtenerEstiloComercio(item._comercio);
+              const esMejorPrecio = mejoresPreciosIds.has(item.id);
+              const enChanguito = changuito.includes(item._claveProducto);
 
-            const verificadoComunidad = !item._esCatalogo && item._votosPositivos >= 3 && item._votosNegativos === 0;
-            const enDuda = item._votosNegativos >= 2;
+              const verificadoComunidad = !item._esCatalogo && item._votosPositivos >= 3 && item._votosNegativos === 0;
+              const enDuda = item._votosNegativos >= 2;
 
-            return (
-              <article
-                key={item.id}
-                className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${esMejorPrecio
-                  ? 'border-emerald-500/50 shadow-emerald-500/10'
-                  : 'hover:border-slate-400'
-                  }`}
-              >
-                {/* PISO 1: CABECERA SUPERIOR (Comercio expansivo a la izq | Acciones a la der) */}
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--border-card)] pb-2.5">
-                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 ${estiloComercio}`}>
-                      <Store className="w-3 h-3 shrink-0" />
-                      <span className="truncate max-w-[220px] sm:max-w-none">{item._comercio}</span>
-                    </span>
-
-                    {esMejorPrecio && (
-                      <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
-                        <Award className="w-2.5 h-2.5 text-emerald-600" />
-                        Mejor Precio
+              return (
+                <article
+                  key={item.id}
+                  className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${esMejorPrecio
+                    ? 'border-emerald-500/50 shadow-emerald-500/10'
+                    : 'hover:border-slate-400'
+                    }`}
+                >
+                  {/* PISO 1: CABECERA SUPERIOR */}
+                  <div className="flex items-center justify-between gap-2 border-b border-[var(--border-card)] pb-2.5">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 ${estiloComercio}`}>
+                        <Store className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-[220px] sm:max-w-none">{item._comercio}</span>
                       </span>
-                    )}
-                  </div>
 
-                  {/* Acciones superiores: Compartir por WhatsApp + Mi Lista */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => compartirOfertaWhatsApp(item)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-slate-950 transition cursor-pointer text-[10px] font-bold"
-                      title="Compartir oferta por WhatsApp"
-                    >
-                      <Share2 className="w-3 h-3 stroke-[2.5]" />
-                      <WhatsAppIcon className="w-3 h-3" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => toggleProductoChanguito(item._producto)}
-                      className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${enChanguito
-                        ? 'bg-sky-500 text-slate-950 border-sky-400'
-                        : 'btn-changuito-add hover:border-sky-500'
-                        }`}
-                      title="Sumar a mi lista para calcular en qué súper conviene comprar"
-                    >
-                      <ShoppingCart className="w-3 h-3" />
-                      <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* PISO 2: CUERPO DEL PRODUCTO (Foto + Título + Datos de comunidad) */}
-                <div className="flex gap-3 items-start flex-1 py-0.5">
-                  <div className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center ${tieneFoto ? 'theme-card-sub' : confRubro.cajaIcono
-                    }`}>
-                    {tieneFoto ? (
-                      <img
-                        src={item._foto}
-                        alt={item._producto}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <IconoRubro className="w-7 h-7 stroke-[1.75]" />
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-xs sm:text-sm font-black theme-title leading-snug line-clamp-2">
-                      {item._producto}
-                    </h3>
-
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      <span className="text-[11px] font-bold theme-subtitle">
-                        {item._marca}
-                      </span>
-                      {item._presentacion && (
-                        <span className="text-[11px] theme-muted">• {item._presentacion}</span>
-                      )}
-                      <span className={`text-[10px] font-bold ${confRubro.acento}`}>
-                        • {item._rubro}
-                      </span>
-                    </div>
-
-                    {/* SELLO DE AUTORIDAD Y TIEMPO */}
-                    <div className="flex items-center gap-2 mt-1.5 text-[10px] theme-muted flex-wrap">
-                      {item._esCatalogo ? (
-                        <span className="flex items-center gap-1 text-amber-600 font-bold bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
-                          <ShieldCheck className="w-3 h-3 text-amber-500 shrink-0" />
-                          <span>Catálogo Oficial</span>
+                      {esMejorPrecio && (
+                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
+                          <Award className="w-2.5 h-2.5 text-emerald-600" />
+                          Mejor Precio
                         </span>
-                      ) : (
-                        <span className="flex items-center gap-1 truncate">
-                          <User className="w-3 h-3 theme-muted shrink-0" />
-                          <span className={!esAnonimo ? 'text-sky-600 font-bold truncate' : 'truncate'}>
-                            {formatoUsuario}
-                          </span>
-                        </span>
-                      )}
-
-                      {verificadoComunidad && (
-                        <span className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded-md">
-                          <Check className="w-2.5 h-2.5 text-emerald-600" />
-                          <span>Verificado</span>
-                        </span>
-                      )}
-
-                      <span className="flex items-center gap-1 theme-muted shrink-0">
-                        <Clock className="w-2.5 h-2.5" />
-                        {tiempoRelativo(item.creado_en)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* PISO 3: PRECIOS Y VALIDACIÓN */}
-                <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
-                  <div className="flex items-end justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none">
-                        ${Number(item._precio || 0).toLocaleString('es-AR')}
-                      </span>
-
-                      {item._refUnitario && (
-                        <p className="text-[10px] theme-muted flex items-center gap-1 leading-tight pt-0.5">
-                          <Scale className="w-3 h-3 text-emerald-600 shrink-0" />
-                          <span>
-                            x {item._refUnitario.unidad}:{' '}
-                            <strong className="precio-ref-unitario font-mono font-bold">
-                              {item._refUnitario.valor}
-                            </strong>
-                          </span>
-                        </p>
-                      )}
-
-                      {item._esCatalogo ? (
-                        <p className="text-[10px] theme-muted pt-0.5">
-                          Precio de referencia oficial
-                          {item._votosNegativos > 0 && (
-                            <span className="text-amber-600 font-semibold ml-1">
-                              ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso de cambio' : 'avisos de cambio'})
-                            </span>
-                          )}
-                        </p>
-                      ) : (
-                        <p className="text-[10px] theme-muted pt-0.5 flex items-center gap-1">
-                          {enDuda && <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />}
-                          <span>
-                            {item._votosPositivos} {item._votosPositivos === 1 ? 'confirmación' : 'confirmaciones'}
-                          </span>
-                          {item._votosNegativos > 0 && (
-                            <span className="text-amber-600 font-semibold">
-                              ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso' : 'avisos'})
-                            </span>
-                          )}
-                        </p>
                       )}
                     </div>
 
-                    {/* BOTONES DE VOTACIÓN */}
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {!item._esCatalogo && (
-                        <button
-                          type="button"
-                          onClick={() => handleConfirmar(item, 'sigue')}
-                          disabled={confirmandoId === item.id || yaVoto}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 ${votoActual === 'sigue'
-                            ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-600'
-                            : yaVoto
-                              ? 'btn-voto-accion opacity-60 cursor-not-allowed'
-                              : 'btn-voto-accion cursor-pointer'
-                            }`}
-                        >
-                          {votoActual === 'sigue' ? (
-                            <Check className="w-3 h-3 text-emerald-600" />
-                          ) : (
-                            <ThumbsUp className="w-3 h-3 text-emerald-600" />
-                          )}
-                          <span>{votoActual === 'sigue' ? 'Confirmado' : 'Sigue igual'}</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => compartirOfertaWhatsApp(item)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-slate-950 transition cursor-pointer text-[10px] font-bold"
+                        title="Compartir oferta por WhatsApp"
+                      >
+                        <Share2 className="w-3 h-3 stroke-[2.5]" />
+                        <WhatsAppIcon className="w-3 h-3" />
+                      </button>
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (editandoPrecioId === item.id) {
-                            setEditandoPrecioId(null);
-                          } else {
-                            setEditandoPrecioId(item.id);
-                            setNuevoPrecioInput('');
-                          }
-                        }}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 cursor-pointer ${editandoPrecioId === item.id || votoActual === 'reportado' || votoActual === 'subio'
-                          ? 'bg-amber-500/20 border border-amber-500 text-amber-600'
-                          : 'btn-voto-accion'
+                        onClick={() => toggleProductoChanguito(item._producto)}
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${enChanguito
+                          ? 'bg-sky-500 text-slate-950 border-sky-400'
+                          : 'btn-changuito-add hover:border-sky-500'
                           }`}
+                        title="Sumar a mi lista para calcular en qué súper conviene comprar"
                       >
-                        <RefreshCw className="w-3 h-3 text-amber-500" />
-                        <span>
-                          {item._esCatalogo ? '¿Cambió? Avisar' : 'Cambió'}
-                        </span>
+                        <ShoppingCart className="w-3 h-3" />
+                        <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* DESPLEGABLE PARA CAMBIAR PRECIO */}
-                  {editandoPrecioId === item.id && (
-                    <div className="theme-card-sub border border-amber-500/40 rounded-xl p-2.5 space-y-2">
-                      <p className="text-[10px] theme-muted leading-tight">
-                        {item._esCatalogo
-                          ? 'Avisanos si cambió el precio oficial. Si otro vecino coincide, se actualizará solo:'
-                          : 'Ingresá el nuevo valor visto en góndola (se reiniciará la votación para este nuevo precio):'}
-                      </p>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 flex-1">
-                          <span className="text-[11px] font-bold text-amber-600">$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={nuevoPrecioInput}
-                            onChange={(e) => setNuevoPrecioInput(e.target.value)}
-                            placeholder={`Actual: ${item._precio}`}
-                            className="w-full theme-input border rounded-lg px-2.5 py-1 text-xs font-mono font-bold focus:outline-none focus:border-amber-400"
-                          />
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            disabled={guardandoPrecio || !nuevoPrecioInput}
-                            onClick={() => handleProponerNuevoPrecio(item)}
-                            className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
-                          >
-                            <span>{item._esCatalogo ? 'Enviar aviso' : 'Actualizar'}</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              handleConfirmar(item, 'subio');
-                              setEditandoPrecioId(null);
-                            }}
-                            className="text-[10px] theme-muted hover:text-amber-600 px-2 py-1 rounded-lg border theme-btn-sec cursor-pointer"
-                            title="Avisar que subió cuando no recordás el monto exacto"
-                          >
-                            Solo subió
-                          </button>
-                        </div>
+                  {/* PISO 2: CUERPO DEL PRODUCTO */}
+                  <div className="flex gap-3 items-start flex-1 py-0.5">
+                    <div className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center ${tieneFoto ? 'theme-card-sub' : confRubro.cajaIcono
+                      }`}>
+                      {tieneFoto ? (
+                        <img
+                          src={item._foto}
+                          alt={item._producto}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <IconoRubro className="w-7 h-7 stroke-[1.75]" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xs sm:text-sm font-black theme-title leading-snug line-clamp-2">
+                        {item._producto}
+                      </h3>
+
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className="text-[11px] font-bold theme-subtitle">
+                          {item._marca}
+                        </span>
+                        {item._presentacion && (
+                          <span className="text-[11px] theme-muted">• {item._presentacion}</span>
+                        )}
+                        <span className={`text-[10px] font-bold ${confRubro.acento}`}>
+                          • {item._rubro}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px] theme-muted flex-wrap">
+                        {item._esCatalogo ? (
+                          <span className="flex items-center gap-1 text-amber-600 font-bold bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
+                            <ShieldCheck className="w-3 h-3 text-amber-500 shrink-0" />
+                            <span>Catálogo Oficial</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 truncate">
+                            <User className="w-3 h-3 theme-muted shrink-0" />
+                            <span className={!esAnonimo ? 'text-sky-600 font-bold truncate' : 'truncate'}>
+                              {formatoUsuario}
+                            </span>
+                          </span>
+                        )}
+
+                        {verificadoComunidad && (
+                          <span className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded-md">
+                            <Check className="w-2.5 h-2.5 text-emerald-600" />
+                            <span>Verificado</span>
+                          </span>
+                        )}
+
+                        <span className="flex items-center gap-1 theme-muted shrink-0">
+                          <Clock className="w-2.5 h-2.5" />
+                          {tiempoRelativo(item.creado_en)}
+                        </span>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-              </article>
-            );
-          })}
+                  {/* PISO 3: PRECIOS Y VALIDACIÓN */}
+                  <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none">
+                          ${Number(item._precio || 0).toLocaleString('es-AR')}
+                        </span>
+
+                        {item._refUnitario && (
+                          <p className="text-[10px] theme-muted flex items-center gap-1 leading-tight pt-0.5">
+                            <Scale className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span>
+                              x {item._refUnitario.unidad}:{' '}
+                              <strong className="precio-ref-unitario font-mono font-bold">
+                                {item._refUnitario.valor}
+                              </strong>
+                            </span>
+                          </p>
+                        )}
+
+                        {item._esCatalogo ? (
+                          <p className="text-[10px] theme-muted pt-0.5">
+                            Precio de referencia oficial
+                            {item._votosNegativos > 0 && (
+                              <span className="text-amber-600 font-semibold ml-1">
+                                ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso de cambio' : 'avisos de cambio'})
+                              </span>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] theme-muted pt-0.5 flex items-center gap-1">
+                            {enDuda && <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />}
+                            <span>
+                              {item._votosPositivos} {item._votosPositivos === 1 ? 'confirmación' : 'confirmaciones'}
+                            </span>
+                            {item._votosNegativos > 0 && (
+                              <span className="text-amber-600 font-semibold">
+                                ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso' : 'avisos'})
+                              </span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!item._esCatalogo && (
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmar(item, 'sigue')}
+                            disabled={confirmandoId === item.id || yaVoto}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 ${votoActual === 'sigue'
+                              ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-600'
+                              : yaVoto
+                                ? 'btn-voto-accion opacity-60 cursor-not-allowed'
+                                : 'btn-voto-accion cursor-pointer'
+                              }`}
+                          >
+                            {votoActual === 'sigue' ? (
+                              <Check className="w-3 h-3 text-emerald-600" />
+                            ) : (
+                              <ThumbsUp className="w-3 h-3 text-emerald-600" />
+                            )}
+                            <span>{votoActual === 'sigue' ? 'Confirmado' : 'Sigue igual'}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (editandoPrecioId === item.id) {
+                              setEditandoPrecioId(null);
+                            } else {
+                              setEditandoPrecioId(item.id);
+                              setNuevoPrecioInput('');
+                            }
+                          }}
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 cursor-pointer ${editandoPrecioId === item.id || votoActual === 'reportado' || votoActual === 'subio'
+                            ? 'bg-amber-500/20 border border-amber-500 text-amber-600'
+                            : 'btn-voto-accion'
+                            }`}
+                        >
+                          <RefreshCw className="w-3 h-3 text-amber-500" />
+                          <span>
+                            {item._esCatalogo ? '¿Cambió? Avisar' : 'Cambió'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {editandoPrecioId === item.id && (
+                      <div className="theme-card-sub border border-amber-500/40 rounded-xl p-2.5 space-y-2">
+                        <p className="text-[10px] theme-muted leading-tight">
+                          {item._esCatalogo
+                            ? 'Avisanos si cambió el precio oficial. Si otro vecino coincide, se actualizará solo:'
+                            : 'Ingresá el nuevo valor visto en góndola (se reiniciará la votación para este nuevo precio):'}
+                        </p>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <span className="text-[11px] font-bold text-amber-600">$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={nuevoPrecioInput}
+                              onChange={(e) => setNuevoPrecioInput(e.target.value)}
+                              placeholder={`Actual: ${item._precio}`}
+                              className="w-full theme-input border rounded-lg px-2.5 py-1 text-xs font-mono font-bold focus:outline-none focus:border-amber-400"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              disabled={guardandoPrecio || !nuevoPrecioInput}
+                              onClick={() => handleProponerNuevoPrecio(item)}
+                              className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                            >
+                              <span>{item._esCatalogo ? 'Enviar aviso' : 'Actualizar'}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleConfirmar(item, 'subio');
+                                setEditandoPrecioId(null);
+                              }}
+                              className="text-[10px] theme-muted hover:text-amber-600 px-2 py-1 rounded-lg border theme-btn-sec cursor-pointer"
+                              title="Avisar que subió cuando no recordás el monto exacto"
+                            >
+                              Solo subió
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                </article>
+              );
+            })}
+          </div>
+
+          {/* BOTÓN "MOSTRAR MÁS OFERTAS" */}
+          {ofertasFiltradas.length > limiteVisibles && (
+            <div className="flex justify-center pt-3 pb-1">
+              <button
+                type="button"
+                onClick={() => setLimiteVisibles((prev) => prev + CANTIDAD_POR_PAGINA)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl theme-btn-sec border border-[var(--border-sub)] font-bold text-xs hover:border-sky-500/60 transition shadow-sm cursor-pointer active:scale-95"
+              >
+                <span>Mostrar más ofertas</span>
+                <span className="theme-muted font-mono font-medium text-[11px]">
+                  ({ofertasVisibles.length} de {ofertasFiltradas.length})
+                </span>
+                <ChevronDown className="w-4 h-4 text-sky-500" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1597,7 +1642,6 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Botón WhatsApp en barra flotante */}
               <button
                 type="button"
                 onClick={() => compartirListaWhatsApp(simulacionChanguito, changuito.length)}

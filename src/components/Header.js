@@ -26,7 +26,6 @@ export default function Header() {
       }
     });
 
-    // Escuchar actualizaciones de perfil hechas desde /perfil
     const actualizarLocalmente = () => {
       const guardado = localStorage.getItem('bariahorra_perfil');
       if (guardado) {
@@ -61,7 +60,6 @@ export default function Header() {
 
   const cargarPerfil = async (user) => {
     try {
-      // 1. Revisar si hay copia rápida en localStorage
       const cacheLocal = localStorage.getItem('bariahorra_perfil');
       if (cacheLocal) {
         try {
@@ -72,7 +70,6 @@ export default function Header() {
         } catch (e) { }
       }
 
-      // 2. Buscar en Supabase por id, user_id o email
       let perfilData = null;
 
       const { data: porId } = await supabase
@@ -120,11 +117,11 @@ export default function Header() {
 
   return (
     <>
-      <header className="px-3.5 sm:px-4 py-2.5 border-b theme-card backdrop-blur sticky top-0 z-40 flex items-center justify-between gap-2 shadow-sm transition-colors">
+      <header className="px-3 sm:px-4 py-2 border-b theme-card backdrop-blur sticky top-0 z-40 flex items-center justify-between gap-1.5 sm:gap-2 shadow-sm transition-colors">
         
-        {/* LOGO: Sin marco doble raro. La imagen llena la cajita con bordes redondeados limpios */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-sm flex items-center justify-center shrink-0">
+        {/* LOGO: Se adapta a pantallas ultra chicas */}
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden shadow-sm flex items-center justify-center shrink-0">
             <img
               src="/icon-192.png"
               alt="Bariahorra"
@@ -132,57 +129,55 @@ export default function Header() {
               onError={(e) => { e.target.style.display = 'none'; }}
             />
           </div>
-          <div>
-            <span className="font-black text-sm sm:text-base tracking-tight theme-title block leading-tight">
+          <div className="min-w-0">
+            <span className="font-black text-sm sm:text-base tracking-tight theme-title block leading-none">
               BARI<span className="text-sky-400">AHORRA</span>
             </span>
-            <span className="text-[10px] theme-muted block font-medium -mt-0.5">
+            <span className="hidden xs:block text-[10px] theme-muted font-medium mt-0.5">
               Precios de Bariloche
             </span>
           </div>
         </Link>
 
-        {/* BOTONES: Todos con la misma altura exacta (h-9 / 36px) */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* ACCIONES DERECHA: Todos con altura uniforme h-9 */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
           {/* 1. Modo Claro / Oscuro */}
-          <div className="h-9 flex items-center [&>button]:h-9 [&>button]:w-9 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-xl">
+          <div className="h-9 w-9 flex items-center justify-center [&>button]:h-9 [&>button]:w-9 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-xl">
             <ThemeToggle />
           </div>
 
-          {/* 2. Botón Ranking: Siempre dice "Ranking" para que se entienda */}
+          {/* 2. Botón Ranking: Icono en móviles angostos, texto en pantallas normales */}
           <Link
             href="/ranking"
-            className="h-9 flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 px-3 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
+            className="h-9 flex items-center justify-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
             title="Ver ranking comunitario"
           >
-            <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span className="font-bold">Ranking</span>
+            <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
+            <span className="hidden sm:inline font-bold">Ranking</span>
           </Link>
 
-          {/* 3. Botón Ingresar / Perfil: Mismo alto h-9 y redondeo rounded-xl */}
+          {/* 3. Botón Perfil / Ingresar: Solo Avatar cuando está logueado */}
           {usuario ? (
             <Link
               href="/perfil"
-              className="h-9 flex items-center gap-2 theme-card-sub hover:opacity-90 border border-[var(--border-sub)] rounded-xl py-1 pl-1.5 pr-3 transition shrink-0"
+              className="h-9 w-9 flex items-center justify-center theme-card-sub hover:opacity-90 border border-[var(--border-sub)] rounded-xl transition shrink-0 overflow-hidden shadow-xs active:scale-95"
+              title={`Perfil de @${perfil?.apodo || 'vecino'}`}
             >
               <img
                 src={perfil?.avatar_url || AVATAR_DEFAULT}
-                alt={perfil?.apodo || 'perfil'}
-                className="w-6 h-6 rounded-lg bg-slate-900 object-cover"
+                alt="Mi perfil"
+                className="w-full h-full object-cover"
               />
-              <span className="text-xs font-bold theme-title max-w-[85px] sm:max-w-none truncate">
-                @{perfil?.apodo || usuario.email?.split('@')[0] || 'vecino'}
-              </span>
             </Link>
           ) : (
             <button
               type="button"
               onClick={() => setMostrarModalAuth(true)}
-              className="h-9 flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/30 font-bold px-3.5 rounded-xl text-xs transition cursor-pointer active:scale-95 shrink-0"
+              className="h-9 flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/30 font-bold px-2.5 sm:px-3.5 rounded-xl text-xs transition cursor-pointer active:scale-95 shrink-0"
             >
-              <User className="w-3.5 h-3.5 shrink-0" />
-              <span>Ingresar</span>
+              <User className="w-4 h-4 shrink-0" />
+              <span className="hidden xs:inline">Ingresar</span>
             </button>
           )}
         </div>

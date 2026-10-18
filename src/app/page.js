@@ -36,7 +36,10 @@ import {
   ListChecks,
   ShieldCheck,
   AlertTriangle,
-  Share2
+  Share2,
+  ZoomIn,
+  MapPin,
+  Navigation
 } from 'lucide-react';
 
 const CANTIDAD_POR_PAGINA = 12;
@@ -137,6 +140,30 @@ function tiempoRelativo(fechaStr) {
   return new Date(fechaStr).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
 }
 
+// Cálculo matemático de distancia con Haversine
+function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function formatearDistancia(km) {
+  if (km == null || isNaN(km)) return null;
+  if (km < 1) {
+    return `${Math.round(km * 1000)}m`;
+  }
+  return `${km.toFixed(1)} km`;
+}
+
 function formatearPresentacion(tamanoRaw, unidadRaw) {
   let cantStr = String(tamanoRaw || '').trim();
   let uniStr = String(unidadRaw || '').trim();
@@ -229,7 +256,6 @@ function obtenerClaveVoto(ofertaId, precioActual) {
   return `${ofertaId}_${Math.round(Number(precioActual || 0))}`;
 }
 
-// Ícono SVG de WhatsApp
 function WhatsAppIcon({ className = 'w-3.5 h-3.5' }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -238,7 +264,6 @@ function WhatsAppIcon({ className = 'w-3.5 h-3.5' }) {
   );
 }
 
-// Funciones para compartir
 function compartirOfertaWhatsApp(item) {
   const precioFormateado = Number(item._precio || 0).toLocaleString('es-AR');
   const unitario = item._refUnitario ? ` ($${item._refUnitario.valor} x ${item._refUnitario.unidad})` : '';
@@ -288,6 +313,12 @@ export default function HomePage() {
   const [modoVista, setModoVista] = useState('gondola');
   const [limiteVisibles, setLimiteVisibles] = useState(CANTIDAD_POR_PAGINA);
 
+  const [fotoModal, setFotoModal] = useState(null);
+
+  // Estado de ubicación GPS del usuario
+  const [userCoords, setUserCoords] = useState(null);
+  const [pidiendoGps, setPidiendoGps] = useState(false);
+
   const [usuario, setUsuario] = useState(null);
   const [confirmandoId, setConfirmandoId] = useState(null);
   const [votosRealizados, setVotosRealizados] = useState({});
@@ -310,6 +341,12 @@ export default function HomePage() {
   useEffect(() => {
     obtenerSesionYOfertas();
     cargarVotosDesdeStorage();
+
+    // Intentar recuperar coordenadas si ya las autorizó previamente en la sesión
+    try {
+      const coordsGuardadas = sessionStorage.getItem('bariahorra_gps');
+      if (coordsGuardadas) setUserCoords(JSON.parse(coordsGuardadas));
+    } catch (e) { }
 
     const esStandalone =
       typeof window !== 'undefined' &&
@@ -351,14 +388,63 @@ export default function HomePage() {
     };
   }, []);
 
-  // Reiniciar la paginación a 12 cuando el usuario filtra o busca
   useEffect(() => {
     setLimiteVisibles(CANTIDAD_POR_PAGINA);
   }, [busqueda, categoriaActiva, orden]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setFotoModal(null);
+    };
+    if (fotoModal) {
+      window.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [fotoModal]);
+
   const mostrarToast = (texto) => {
     setAvisoFeedback(texto);
     setTimeout(() => setAvisoFeedback(null), 3500);
+  };
+
+  // Solicitar ubicación GPS
+  const handleActivarUbicacion = () => {
+    if (userCoords) {
+      mostrarToast('Ubicación activa. Calculando distancias.');
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      alert('Tu navegador o dispositivo no soporta geolocalización.');
+      return;
+    }
+
+    setPidiendoGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        };
+        setUserCoords(coords);
+        setPidiendoGps(false);
+        try {
+          sessionStorage.setItem('bariahorra_gps', JSON.stringify(coords));
+        } catch (e) { }
+        mostrarToast('📍 ¡Ubicación activada! Ahora podés ver las distancias.');
+      },
+      (err) => {
+        setPidiendoGps(false);
+        alert('Para ver qué súper te queda más cerca, permití el acceso a tu ubicación cuando el navegador te lo consulte.');
+      },
+      { timeout: 10000, enableHighAccuracy: false }
+    );
   };
 
   const desplazarCategorias = (direccion) => {
@@ -519,6 +605,10 @@ export default function HomePage() {
         }
 
         const comercioNombre = comRel?.nombre || 'Comercio Bariloche';
+        const comercioDireccion = comRel?.direccion || null;
+        const comercioLat = comRel?.latitud ? parseFloat(comRel.latitud) : null;
+        const comercioLng = comRel?.longitud ? parseFloat(comRel.longitud) : null;
+
         let apodoAutor = perfRel?.username || perfRel?.apodo || perfRel?.nombre || '';
 
         if (!apodoAutor && userActual && String(userActual.id).toLowerCase() === userId) {
@@ -551,6 +641,9 @@ export default function HomePage() {
           _presentacion: presentacionFormateada,
           _rubro: rubro,
           _comercio: comercioNombre,
+          _comercioDireccion: comercioDireccion,
+          _comercioLat: comercioLat,
+          _comercioLng: comercioLng,
           _usuario: apodoAutor,
           _foto: item.foto_url || prodRel?.foto_url || null,
           _precio: precioFinal,
@@ -594,6 +687,25 @@ export default function HomePage() {
         .eq('id', oferta.id);
 
       if (!error) {
+        if (tipo === 'sigue' && oferta.usuario_id) {
+          try {
+            const { data: autor } = await supabase
+              .from('perfiles')
+              .select('puntos')
+              .eq('id', oferta.usuario_id)
+              .maybeSingle();
+
+            if (autor) {
+              await supabase
+                .from('perfiles')
+                .update({ puntos: (Number(autor.puntos) || 0) + 2 })
+                .eq('id', oferta.usuario_id);
+            }
+          } catch (e) {
+            console.error('Error actualizando puntos del autor:', e);
+          }
+        }
+
         try {
           localStorage.setItem(`bariahorra_voto_${claveVoto}`, tipo);
           setVotosRealizados((prev) => ({ ...prev, [claveVoto]: tipo }));
@@ -613,7 +725,7 @@ export default function HomePage() {
         );
 
         if (tipo === 'sigue') {
-          mostrarToast('¡Gracias! Confirmaste que el precio sigue vigente.');
+          mostrarToast('¡Gracias! Confirmaste que el precio sigue vigente (+2 pts al autor).');
         } else {
           mostrarToast('Aviso registrado. Gracias por colaborar.');
         }
@@ -734,6 +846,7 @@ export default function HomePage() {
     }
   };
 
+  // Filtrado y ordenamiento (incluye cálculo de distancia si hay GPS)
   const ofertasFiltradas = useMemo(() => {
     const catNorm = limpiarTexto(categoriaActiva);
     const busqNorm = limpiarTexto(busqueda);
@@ -748,7 +861,23 @@ export default function HomePage() {
 
         return coincideCat && coincideBusq;
       })
+      .map((o) => {
+        let distanciaKm = null;
+        if (userCoords && o._comercioLat && o._comercioLng) {
+          distanciaKm = calcularDistanciaKm(userCoords.lat, userCoords.lng, o._comercioLat, o._comercioLng);
+        }
+        return {
+          ...o,
+          _distanciaKm: distanciaKm,
+          _distanciaTxt: formatearDistancia(distanciaKm)
+        };
+      })
       .sort((a, b) => {
+        if (orden === 'distancia_asc') {
+          if (a._distanciaKm != null && b._distanciaKm != null) return a._distanciaKm - b._distanciaKm;
+          if (a._distanciaKm != null) return -1;
+          if (b._distanciaKm != null) return 1;
+        }
         if (orden === 'precio_asc') return (a._precio || 0) - (b._precio || 0);
         if (orden === 'precio_desc') return (b._precio || 0) - (a._precio || 0);
 
@@ -759,9 +888,8 @@ export default function HomePage() {
         }
         return String(b.id || '').localeCompare(String(a.id || ''));
       });
-  }, [ofertas, categoriaActiva, busqueda, orden]);
+  }, [ofertas, categoriaActiva, busqueda, orden, userCoords]);
 
-  // Lista paginada para la vista góndola
   const ofertasVisibles = useMemo(() => {
     return ofertasFiltradas.slice(0, limiteVisibles);
   }, [ofertasFiltradas, limiteVisibles]);
@@ -786,6 +914,7 @@ export default function HomePage() {
     return ganadores;
   }, [ofertas]);
 
+  // COMPARADOR INTELIGENTE (Precio vs Cercanía)
   const productosComparados = useMemo(() => {
     const mapa = new Map();
     ofertasFiltradas.forEach((o) => {
@@ -812,7 +941,29 @@ export default function HomePage() {
         const min = g.items[0]?._precio || 0;
         const max = g.items[g.items.length - 1]?._precio || 0;
         const ahorro = max > min ? max - min : 0;
-        return { ...g, minPrecio: min, maxPrecio: max, ahorro };
+
+        // Identificar el más cercano si hay ubicación
+        let masCercanoId = null;
+        let menorDist = Infinity;
+        g.items.forEach((item) => {
+          if (item._distanciaKm != null && item._distanciaKm < menorDist) {
+            menorDist = item._distanciaKm;
+            masCercanoId = item.id;
+          }
+        });
+
+        const masBaratoId = g.items[0]?.id;
+        const esOpcionIdeal = masBaratoId === masCercanoId && g.items.length > 1;
+
+        return {
+          ...g,
+          minPrecio: min,
+          maxPrecio: max,
+          ahorro,
+          masBaratoId,
+          masCercanoId,
+          esOpcionIdeal
+        };
       })
       .sort((a, b) => b.items.length - a.items.length || a.minPrecio - b.minPrecio);
   }, [ofertasFiltradas]);
@@ -894,7 +1045,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* BANNER PWA ULTRA-COMPACTO */}
+      {/* BANNER PWA */}
       {mostrarBannerInstalar && (
         <div className="bg-gradient-to-r from-sky-500/15 via-sky-500/5 to-transparent border border-sky-500/30 rounded-xl px-3 py-2 flex items-center justify-between gap-2 shadow-sm">
           <div className="flex items-center gap-2 min-w-0">
@@ -1011,57 +1162,90 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* BARRA DE CONTROLES SUPERIOR (OPTIMIZADA PARA MÓVIL) */}
-      <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2 theme-card border rounded-2xl p-1.5 px-2.5 shadow-sm">
-        <div className="grid grid-cols-3 xs:flex items-center gap-1 w-full xs:w-auto">
+      {/* BARRA DE CONTROLES ULTRA-RESPONSIVE (OPTIMIZADA CELULAR Y DESKTOP) */}
+      <div className="theme-card border rounded-2xl p-1.5 sm:p-2.5 shadow-sm space-y-1.5 sm:space-y-2">
+
+        {/* FILA 1: Control segmentado uniforme (3 columnas idénticas) */}
+        <div className="grid grid-cols-3 gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
           <button
             type="button"
             onClick={() => setModoVista('gondola')}
-            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'gondola'
-              ? 'bg-amber-500/15 text-amber-600 border border-amber-500/40 shadow-sm'
-              : 'theme-muted hover:theme-title'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'gondola'
+                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                : 'theme-muted hover:theme-title'
               }`}
           >
-            <ListFilter className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            <span>Góndola</span>
+            <ListFilter className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Góndola</span>
           </button>
+
           <button
             type="button"
             onClick={() => setModoVista('comparar')}
-            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'comparar'
-              ? 'bg-sky-500/15 text-sky-600 border border-sky-500/40 shadow-sm'
-              : 'theme-muted hover:theme-title'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'comparar'
+                ? 'bg-sky-500 text-slate-950 shadow-md font-black'
+                : 'theme-muted hover:theme-title'
               }`}
           >
-            <Layers className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-            <span>Comparar</span>
+            <Layers className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Comparar</span>
           </button>
+
           <button
             type="button"
             onClick={() => setModoVista('milista')}
-            className={`flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-xl text-[11px] font-bold transition cursor-pointer ${modoVista === 'milista'
-              ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/40 shadow-sm'
-              : 'theme-muted hover:theme-title'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'milista'
+                ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
+                : 'theme-muted hover:theme-title'
               }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Mi Lista ({changuito.length})</span>
           </button>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-1 xs:pt-0 border-t xs:border-t-0 border-[var(--border-card)]">
-          {modoVista === 'gondola' && (
-            <select
-              value={orden}
-              onChange={(e) => setOrden(e.target.value)}
-              className="w-full xs:w-auto theme-btn-sec font-bold px-2.5 py-1 rounded-lg border focus:outline-none cursor-pointer text-[11px]"
-            >
-              <option value="recientes">Más recientes</option>
-              <option value="precio_asc">Menor precio</option>
-              <option value="precio_desc">Mayor precio</option>
-            </select>
-          )}
-        </div>
+        {/* FILA 2: GPS y Selector de Orden alineados sin desbordes */}
+        {modoVista === 'gondola' && (
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-[var(--border-card)]">
+            <span className="text-[11px] theme-muted font-medium hidden md:inline pl-1">
+              Filtros de góndola:
+            </span>
+
+            <div className="flex items-center gap-1.5 w-full md:w-auto">
+              {/* Chip GPS */}
+              <button
+                type="button"
+                onClick={handleActivarUbicacion}
+                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${userCoords
+                    ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+                    : 'theme-btn-sec text-sky-400 border-sky-500/30 hover:border-sky-500'
+                  }`}
+                title={userCoords ? 'Ubicación activa' : 'Activar GPS para calcular distancias'}
+              >
+                <Navigation className={`w-3 h-3 ${userCoords ? 'text-emerald-500' : 'text-sky-400'}`} />
+                <span>{pidiendoGps ? 'Buscando...' : userCoords ? 'GPS Activo' : 'Cerca mío'}</span>
+              </button>
+
+              {/* Desplegable de orden */}
+              <select
+                value={orden}
+                onChange={(e) => {
+                  if (e.target.value === 'distancia_asc' && !userCoords) {
+                    handleActivarUbicacion();
+                  }
+                  setOrden(e.target.value);
+                }}
+                className="flex-1 md:flex-initial theme-btn-sec font-bold px-2 sm:px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer text-[11px] sm:text-xs truncate"
+              >
+                <option value="recientes">Más recientes</option>
+                <option value="precio_asc">Menor precio</option>
+                <option value="precio_desc">Mayor precio</option>
+                <option value="distancia_asc">📍 Más cercanos</option>
+              </select>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
@@ -1124,7 +1308,6 @@ export default function HomePage() {
                     Resumen de tu lista ({changuito.length} ítems)
                   </h3>
 
-                  {/* Acciones de Mi Lista: Compartir y Vaciar */}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -1219,7 +1402,7 @@ export default function HomePage() {
           )}
         </div>
       ) : modoVista === 'comparar' ? (
-        /* --- VISTA COMPARADOR --- */
+        /* --- VISTA COMPARADOR INTELIGENTE: PRECIO VS DISTANCIA --- */
         <div className="space-y-3.5">
           {productosComparados.map((grupo) => {
             const confRubro = CONFIG_CATEGORIAS[grupo.rubro] || CONFIG_CATEGORIAS.Súper;
@@ -1233,9 +1416,33 @@ export default function HomePage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-12 h-12 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center ${confRubro.cajaIcono}`}>
+                    <div
+                      onClick={() => {
+                        if (grupo.foto) {
+                          setFotoModal({
+                            foto: grupo.foto,
+                            producto: grupo.producto,
+                            marca: grupo.marca,
+                            comercio: grupo.items[0]?._comercio,
+                            precio: grupo.minPrecio
+                          });
+                        }
+                      }}
+                      className={`w-12 h-12 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${grupo.foto ? 'cursor-zoom-in' : ''
+                        } ${confRubro.cajaIcono}`}
+                      title={grupo.foto ? 'Tocar para ampliar foto' : undefined}
+                    >
                       {grupo.foto ? (
-                        <img src={grupo.foto} alt={grupo.producto} className="w-full h-full object-cover" />
+                        <>
+                          <img
+                            src={grupo.foto}
+                            alt={grupo.producto}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <ZoomIn className="w-4 h-4 text-white drop-shadow" />
+                          </div>
+                        </>
                       ) : (
                         <IconoRubro className="w-6 h-6" />
                       )}
@@ -1271,34 +1478,67 @@ export default function HomePage() {
 
                 <div className="divide-y theme-card-sub rounded-xl border overflow-hidden">
                   {grupo.items.map((item, idx) => {
-                    const esMasBarato = idx === 0 && grupo.items.length > 1;
                     const estiloCom = obtenerEstiloComercio(item._comercio);
+                    const esElMasBarato = item.id === grupo.masBaratoId && grupo.items.length > 1;
+                    const esElMasCercano = item.id === grupo.masCercanoId && grupo.items.length > 1;
+                    const esOpcionIdeal = grupo.esOpcionIdeal && esElMasBarato;
 
                     return (
                       <div
                         key={item.id}
-                        className={`p-3 flex items-center justify-between gap-3 ${esMasBarato ? 'bg-emerald-500/10' : ''
+                        className={`p-3 flex items-center justify-between gap-3 ${esOpcionIdeal
+                          ? 'bg-emerald-500/15'
+                          : esElMasBarato
+                            ? 'bg-emerald-500/10'
+                            : esElMasCercano
+                              ? 'bg-sky-500/10'
+                              : ''
                           }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${esMasBarato ? 'bg-emerald-500 text-slate-950' : 'theme-btn-sec border'
+                          <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${esOpcionIdeal || esElMasBarato
+                            ? 'bg-emerald-500 text-slate-950'
+                            : esElMasCercano
+                              ? 'bg-sky-500 text-slate-950'
+                              : 'theme-btn-sec border'
                             }`}>
                             {idx + 1}
                           </span>
+
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${estiloCom}`}>
                                 <Store className="w-2.5 h-2.5" />
                                 {item._comercio}
                               </span>
-                              {esMasBarato && (
-                                <span className="text-[10px] font-bold text-emerald-600">
+
+                              {/* INSIGNIAS PRECIO VS CERCANÍA */}
+                              {esOpcionIdeal ? (
+                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  ¡Opción Ideal! (Más barato y cerca)
+                                </span>
+                              ) : esElMasBarato ? (
+                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/15 px-1.5 py-0.5 rounded-md">
                                   Más barato
                                 </span>
-                              )}
+                              ) : esElMasCercano ? (
+                                <span className="text-[10px] font-black text-sky-500 bg-sky-500/15 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                                  <Navigation className="w-2.5 h-2.5" />
+                                  Más cerca tuyo
+                                </span>
+                              ) : null}
                             </div>
-                            <p className="text-[10px] theme-muted mt-1 flex items-center gap-2">
+
+                            <p className="text-[10px] theme-muted mt-1 flex items-center gap-2 flex-wrap">
                               <span>{tiempoRelativo(item.creado_en)}</span>
+
+                              {item._distanciaTxt && (
+                                <span className="text-sky-500 font-bold flex items-center gap-0.5">
+                                  • <MapPin className="w-2.5 h-2.5" /> a {item._distanciaTxt}
+                                </span>
+                              )}
+
                               {item._refUnitario && (
                                 <span>• <strong className="precio-ref-unitario">{item._refUnitario.valor} x {item._refUnitario.unidad}</strong></span>
                               )}
@@ -1307,7 +1547,7 @@ export default function HomePage() {
                         </div>
 
                         <div className="text-right shrink-0">
-                          <p className={`text-sm sm:text-base font-black font-mono ${esMasBarato ? 'text-emerald-600' : 'theme-title'
+                          <p className={`text-sm sm:text-base font-black font-mono ${esElMasBarato ? 'text-emerald-600' : 'theme-title'
                             }`}>
                             ${Number(item._precio || 0).toLocaleString('es-AR')}
                           </p>
@@ -1344,30 +1584,44 @@ export default function HomePage() {
               const enChanguito = changuito.includes(item._claveProducto);
 
               const verificadoComunidad = !item._esCatalogo && item._votosPositivos >= 3 && item._votosNegativos === 0;
-              const enDuda = item._votosNegativos >= 2;
 
               return (
                 <article
                   key={item.id}
-                  className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${esMejorPrecio
-                    ? 'border-emerald-500/50 shadow-emerald-500/10'
-                    : 'hover:border-slate-400'
+                  className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${verificadoComunidad
+                    ? 'border-emerald-500/60 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500/20'
+                    : esMejorPrecio
+                      ? 'border-emerald-500/50 shadow-emerald-500/10'
+                      : 'hover:border-slate-400'
                     }`}
                 >
                   {/* PISO 1: CABECERA SUPERIOR */}
                   <div className="flex items-center justify-between gap-2 border-b border-[var(--border-card)] pb-2.5">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
                       <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 ${estiloComercio}`}>
                         <Store className="w-3 h-3 shrink-0" />
-                        <span className="truncate max-w-[220px] sm:max-w-none">{item._comercio}</span>
+                        <span className="truncate max-w-[150px] sm:max-w-none">{item._comercio}</span>
                       </span>
 
-                      {esMejorPrecio && (
+                      {/* DISTANCIA EN KM SI EL VECINO TIENE GPS */}
+                      {item._distanciaTxt && (
+                        <span className="text-[9px] font-bold text-sky-500 bg-sky-500/10 border border-sky-500/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0">
+                          <MapPin className="w-2.5 h-2.5" />
+                          <span>a {item._distanciaTxt}</span>
+                        </span>
+                      )}
+
+                      {verificadoComunidad ? (
+                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
+                          <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                          <span>Destacado ({item._votosPositivos})</span>
+                        </span>
+                      ) : esMejorPrecio ? (
                         <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
                           <Award className="w-2.5 h-2.5 text-emerald-600" />
                           Mejor Precio
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1396,17 +1650,36 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* PISO 2: CUERPO DEL PRODUCTO */}
+                  {/* PISO 2: CUERPO DEL PRODUCTO (Con foto ampliable al toque) */}
                   <div className="flex gap-3 items-start flex-1 py-0.5">
-                    <div className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center ${tieneFoto ? 'theme-card-sub' : confRubro.cajaIcono
-                      }`}>
+                    <div
+                      onClick={() => {
+                        if (tieneFoto) {
+                          setFotoModal({
+                            foto: item._foto,
+                            producto: item._producto,
+                            marca: item._marca,
+                            comercio: item._comercio,
+                            precio: item._precio
+                          });
+                        }
+                      }}
+                      className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${tieneFoto ? 'theme-card-sub cursor-zoom-in' : confRubro.cajaIcono
+                        }`}
+                      title={tieneFoto ? 'Tocar para ampliar foto' : undefined}
+                    >
                       {tieneFoto ? (
-                        <img
-                          src={item._foto}
-                          alt={item._producto}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
+                        <>
+                          <img
+                            src={item._foto}
+                            alt={item._producto}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <ZoomIn className="w-5 h-5 text-white drop-shadow" />
+                          </div>
+                        </>
                       ) : (
                         <IconoRubro className="w-7 h-7 stroke-[1.75]" />
                       )}
@@ -1459,16 +1732,16 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* PISO 3: PRECIOS Y VALIDACIÓN */}
+                  {/* PISO 3: PRECIOS Y VALIDACIÓN VISUAL */}
                   <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
                     <div className="flex items-end justify-between gap-2">
-                      <div className="space-y-0.5">
-                        <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none">
+                      <div className="space-y-1">
+                        <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none block">
                           ${Number(item._precio || 0).toLocaleString('es-AR')}
                         </span>
 
                         {item._refUnitario && (
-                          <p className="text-[10px] theme-muted flex items-center gap-1 leading-tight pt-0.5">
+                          <p className="text-[10px] theme-muted flex items-center gap-1 leading-tight">
                             <Scale className="w-3 h-3 text-emerald-600 shrink-0" />
                             <span>
                               x {item._refUnitario.unidad}:{' '}
@@ -1479,28 +1752,37 @@ export default function HomePage() {
                           </p>
                         )}
 
-                        {item._esCatalogo ? (
-                          <p className="text-[10px] theme-muted pt-0.5">
-                            Precio de referencia oficial
-                            {item._votosNegativos > 0 && (
-                              <span className="text-amber-600 font-semibold ml-1">
-                                ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso de cambio' : 'avisos de cambio'})
-                              </span>
-                            )}
-                          </p>
-                        ) : (
-                          <p className="text-[10px] theme-muted pt-0.5 flex items-center gap-1">
-                            {enDuda && <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />}
-                            <span>
-                              {item._votosPositivos} {item._votosPositivos === 1 ? 'confirmación' : 'confirmaciones'}
+                        {/* MICRO-INSIGNIAS VISUALES DE CONFIANZA */}
+                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                          {item._esCatalogo ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                              <ShieldCheck className="w-3 h-3 text-amber-500" />
+                              <span>Referencia oficial</span>
                             </span>
-                            {item._votosNegativos > 0 && (
-                              <span className="text-amber-600 font-semibold">
-                                ({item._votosNegativos} {item._votosNegativos === 1 ? 'aviso' : 'avisos'})
-                              </span>
-                            )}
-                          </p>
-                        )}
+                          ) : (
+                            <>
+                              {item._votosPositivos > 0 ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                                  <ThumbsUp className="w-2.5 h-2.5 text-emerald-600" />
+                                  <span>
+                                    {item._votosPositivos} {item._votosPositivos === 1 ? 'confirmó' : 'confirmaron'}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] theme-muted">Sin confirmar aún</span>
+                              )}
+
+                              {item._votosNegativos > 0 && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
+                                  <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
+                                  <span>
+                                    {item._votosNegativos} {item._votosNegativos === 1 ? 'aviso de cambio' : 'avisos de cambio'}
+                                  </span>
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -1513,7 +1795,7 @@ export default function HomePage() {
                               ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-600'
                               : yaVoto
                                 ? 'btn-voto-accion opacity-60 cursor-not-allowed'
-                                : 'btn-voto-accion cursor-pointer'
+                                : 'btn-voto-accion cursor-pointer hover:border-emerald-500/60'
                               }`}
                           >
                             {votoActual === 'sigue' ? (
@@ -1537,7 +1819,7 @@ export default function HomePage() {
                           }}
                           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 cursor-pointer ${editandoPrecioId === item.id || votoActual === 'reportado' || votoActual === 'subio'
                             ? 'bg-amber-500/20 border border-amber-500 text-amber-600'
-                            : 'btn-voto-accion'
+                            : 'btn-voto-accion hover:border-amber-500/60'
                             }`}
                         >
                           <RefreshCw className="w-3 h-3 text-amber-500" />
@@ -1618,7 +1900,72 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* BARRA FLOTANTE INFERIOR */}
+      {/* MODAL / VISOR DE FOTO EN ALTA RESOLUCIÓN */}
+      {fotoModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
+          onClick={() => setFotoModal(null)}
+        >
+          <div
+            className="relative max-w-lg w-full theme-card border border-[var(--border-card)] rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-[var(--border-card)]">
+              <div className="min-w-0 pr-2">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  {fotoModal.comercio && (
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${obtenerEstiloComercio(fotoModal.comercio)}`}>
+                      <Store className="w-3 h-3" />
+                      <span>{fotoModal.comercio}</span>
+                    </span>
+                  )}
+                  {fotoModal.precio > 0 && (
+                    <span className="font-mono font-black text-xs text-emerald-600">
+                      ${Number(fotoModal.precio).toLocaleString('es-AR')}
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-xs sm:text-sm font-black theme-title truncate">
+                  {fotoModal.producto}
+                </h3>
+                {fotoModal.marca && (
+                  <p className="text-[11px] theme-muted font-bold">{fotoModal.marca}</p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setFotoModal(null)}
+                className="w-8 h-8 rounded-full theme-btn-sec border flex items-center justify-center theme-muted hover:theme-title transition shrink-0 cursor-pointer"
+                title="Cerrar visor"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-2 sm:p-3 bg-black/20 flex items-center justify-center overflow-auto flex-1">
+              <img
+                src={fotoModal.foto}
+                alt={fotoModal.producto}
+                className="max-h-[65vh] w-auto max-w-full object-contain rounded-xl shadow-lg"
+              />
+            </div>
+
+            <div className="p-2.5 sm:p-3 text-center border-t border-[var(--border-card)] theme-card-sub text-[11px] theme-muted flex items-center justify-between px-4">
+              <span>Foto capturada en góndola</span>
+              <button
+                type="button"
+                onClick={() => setFotoModal(null)}
+                className="text-sky-600 font-bold hover:underline cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BARRA FLOTANTE INFERIOR (MI LISTA) */}
       {changuito.length > 0 && modoVista !== 'milista' && (
         <div className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
           <div className="theme-card backdrop-blur-md border border-sky-500/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3">

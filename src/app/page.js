@@ -314,6 +314,7 @@ export default function HomePage() {
   const [limiteVisibles, setLimiteVisibles] = useState(CANTIDAD_POR_PAGINA);
 
   const [fotoModal, setFotoModal] = useState(null);
+  const [comercioModal, setComercioModal] = useState(null);
 
   // Estado de ubicación GPS del usuario
   const [userCoords, setUserCoords] = useState(null);
@@ -394,9 +395,12 @@ export default function HomePage() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setFotoModal(null);
+      if (e.key === 'Escape') {
+        setFotoModal(null);
+        setComercioModal(null);
+      }
     };
-    if (fotoModal) {
+    if (fotoModal || comercioModal) {
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     } else {
@@ -406,11 +410,21 @@ export default function HomePage() {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [fotoModal]);
+  }, [fotoModal, comercioModal]);
 
   const mostrarToast = (texto) => {
     setAvisoFeedback(texto);
     setTimeout(() => setAvisoFeedback(null), 3500);
+  };
+
+  const abrirUbicacionComercio = (comercioNombre, direccion = null, lat = null, lng = null, distancia = null) => {
+    setComercioModal({
+      nombre: comercioNombre,
+      direccion: direccion,
+      lat: lat,
+      lng: lng,
+      distancia: distancia
+    });
   };
 
   // Solicitar ubicación GPS
@@ -1170,10 +1184,11 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setModoVista('gondola')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'gondola'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${
+              modoVista === 'gondola'
                 ? 'bg-amber-500 text-slate-950 shadow-md font-black'
                 : 'theme-muted hover:theme-title'
-              }`}
+            }`}
           >
             <ListFilter className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Góndola</span>
@@ -1182,10 +1197,11 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setModoVista('comparar')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'comparar'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${
+              modoVista === 'comparar'
                 ? 'bg-sky-500 text-slate-950 shadow-md font-black'
                 : 'theme-muted hover:theme-title'
-              }`}
+            }`}
           >
             <Layers className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Comparar</span>
@@ -1194,10 +1210,11 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setModoVista('milista')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'milista'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${
+              modoVista === 'milista'
                 ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
                 : 'theme-muted hover:theme-title'
-              }`}
+            }`}
           >
             <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Mi Lista ({changuito.length})</span>
@@ -1216,10 +1233,11 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleActivarUbicacion}
-                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${userCoords
+                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${
+                  userCoords
                     ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
                     : 'theme-btn-sec text-sky-400 border-sky-500/30 hover:border-sky-500'
-                  }`}
+                }`}
                 title={userCoords ? 'Ubicación activa' : 'Activar GPS para calcular distancias'}
               >
                 <Navigation className={`w-3 h-3 ${userCoords ? 'text-emerald-500' : 'text-sky-400'}`} />
@@ -1366,13 +1384,15 @@ export default function HomePage() {
                     return (
                       <div
                         key={sup.comercio}
-                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${esGanador ? 'bg-emerald-500/10 border-emerald-500/40' : 'theme-card-sub'
-                          }`}
+                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                          esGanador ? 'bg-emerald-500/10 border-emerald-500/40' : 'theme-card-sub'
+                        }`}
                       >
                         <div className="space-y-0.5 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${esGanador ? 'bg-emerald-500 text-slate-950' : 'theme-btn-sec border'
-                              }`}>
+                            <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${
+                              esGanador ? 'bg-emerald-500 text-slate-950' : 'theme-btn-sec border'
+                            }`}>
                               {idx + 1}
                             </span>
                             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${estiloCom}`}>
@@ -1428,8 +1448,9 @@ export default function HomePage() {
                           });
                         }
                       }}
-                      className={`w-12 h-12 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${grupo.foto ? 'cursor-zoom-in' : ''
-                        } ${confRubro.cajaIcono}`}
+                      className={`w-12 h-12 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${
+                        grupo.foto ? 'cursor-zoom-in' : ''
+                      } ${confRubro.cajaIcono}`}
                       title={grupo.foto ? 'Tocar para ampliar foto' : undefined}
                     >
                       {grupo.foto ? (
@@ -1465,10 +1486,11 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => toggleProductoChanguito(grupo.producto)}
-                      className={`px-2.5 py-1 rounded-xl border text-[10px] font-black flex items-center gap-1 transition cursor-pointer ${enChanguito
-                        ? 'bg-sky-500 text-slate-950 border-sky-400'
-                        : 'btn-changuito-add hover:border-sky-500'
-                        }`}
+                      className={`px-2.5 py-1 rounded-xl border text-[10px] font-black flex items-center gap-1 transition cursor-pointer ${
+                        enChanguito
+                          ? 'bg-sky-500 text-slate-950 border-sky-400'
+                          : 'btn-changuito-add hover:border-sky-500'
+                      }`}
                     >
                       <ShoppingBag className="w-3 h-3" />
                       <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
@@ -1486,31 +1508,40 @@ export default function HomePage() {
                     return (
                       <div
                         key={item.id}
-                        className={`p-3 flex items-center justify-between gap-3 ${esOpcionIdeal
-                          ? 'bg-emerald-500/15'
-                          : esElMasBarato
-                            ? 'bg-emerald-500/10'
-                            : esElMasCercano
-                              ? 'bg-sky-500/10'
-                              : ''
-                          }`}
+                        className={`p-3 flex items-center justify-between gap-3 ${
+                          esOpcionIdeal
+                            ? 'bg-emerald-500/15'
+                            : esElMasBarato
+                              ? 'bg-emerald-500/10'
+                              : esElMasCercano
+                                ? 'bg-sky-500/10'
+                                : ''
+                        }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${esOpcionIdeal || esElMasBarato
-                            ? 'bg-emerald-500 text-slate-950'
-                            : esElMasCercano
-                              ? 'bg-sky-500 text-slate-950'
-                              : 'theme-btn-sec border'
-                            }`}>
+                          <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                            esOpcionIdeal || esElMasBarato
+                              ? 'bg-emerald-500 text-slate-950'
+                              : esElMasCercano
+                                ? 'bg-sky-500 text-slate-950'
+                                : 'theme-btn-sec border'
+                          }`}>
                             {idx + 1}
                           </span>
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${estiloCom}`}>
+                              {/* BOTÓN CON FICHA Y GOOGLE MAPS */}
+                              <button
+                                type="button"
+                                onClick={() => abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt)}
+                                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 cursor-pointer hover:opacity-80 active:scale-95 transition ${estiloCom}`}
+                                title="Tocar para ver dirección y cómo llegar en Google Maps"
+                              >
                                 <Store className="w-2.5 h-2.5" />
-                                {item._comercio}
-                              </span>
+                                <span>{item._comercio}</span>
+                                <MapPin className="w-2.5 h-2.5 text-sky-400 ml-0.5" />
+                              </button>
 
                               {/* INSIGNIAS PRECIO VS CERCANÍA */}
                               {esOpcionIdeal ? (
@@ -1547,8 +1578,9 @@ export default function HomePage() {
                         </div>
 
                         <div className="text-right shrink-0">
-                          <p className={`text-sm sm:text-base font-black font-mono ${esElMasBarato ? 'text-emerald-600' : 'theme-title'
-                            }`}>
+                          <p className={`text-sm sm:text-base font-black font-mono ${
+                            esElMasBarato ? 'text-emerald-600' : 'theme-title'
+                          }`}>
                             ${Number(item._precio || 0).toLocaleString('es-AR')}
                           </p>
                         </div>
@@ -1588,64 +1620,72 @@ export default function HomePage() {
               return (
                 <article
                   key={item.id}
-                  className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${verificadoComunidad
-                    ? 'border-emerald-500/60 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500/20'
-                    : esMejorPrecio
-                      ? 'border-emerald-500/50 shadow-emerald-500/10'
-                      : 'hover:border-slate-400'
-                    }`}
+                  className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${
+                    verificadoComunidad
+                      ? 'border-emerald-500/60 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500/20'
+                      : esMejorPrecio
+                        ? 'border-emerald-500/50 shadow-emerald-500/10'
+                        : 'hover:border-slate-400'
+                  }`}
                 >
-                  {/* PISO 1: CABECERA SUPERIOR */}
-                  <div className="flex items-center justify-between gap-2 border-b border-[var(--border-card)] pb-2.5">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 ${estiloComercio}`}>
+                  {/* PISO 1: CABECERA SUPERIOR BLINDADA CONTRA PANTALLAS PARTIDAS */}
+                  <div className="flex items-center justify-between gap-1.5 border-b border-[var(--border-card)] pb-2.5">
+                    <div className="flex items-center gap-1 min-w-0 flex-1">
+                      {/* BOTÓN CON FICHA Y GOOGLE MAPS */}
+                      <button
+                        type="button"
+                        onClick={() => abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt)}
+                        className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 min-w-0 shrink transition cursor-pointer hover:opacity-80 active:scale-95 ${estiloComercio}`}
+                        title="Tocar para ver ubicación y cómo llegar en Google Maps"
+                      >
                         <Store className="w-3 h-3 shrink-0" />
-                        <span className="truncate max-w-[150px] sm:max-w-none">{item._comercio}</span>
-                      </span>
+                        <span className="truncate max-w-[110px] xs:max-w-[140px] md:max-w-[170px]">{item._comercio}</span>
+                        <MapPin className="w-2.5 h-2.5 text-sky-400 shrink-0 ml-0.5" />
+                      </button>
 
                       {/* DISTANCIA EN KM SI EL VECINO TIENE GPS */}
                       {item._distanciaTxt && (
                         <span className="text-[9px] font-bold text-sky-500 bg-sky-500/10 border border-sky-500/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0">
                           <MapPin className="w-2.5 h-2.5" />
-                          <span>a {item._distanciaTxt}</span>
+                          <span>{item._distanciaTxt}</span>
                         </span>
                       )}
 
                       {verificadoComunidad ? (
-                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 whitespace-nowrap">
                           <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                          <span>Destacado ({item._votosPositivos})</span>
+                          <span>Destacado</span>
                         </span>
                       ) : esMejorPrecio ? (
-                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 whitespace-nowrap">
                           <Award className="w-2.5 h-2.5 text-emerald-600" />
-                          Mejor Precio
+                          <span>Mejor</span>
                         </span>
                       ) : null}
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
                         onClick={() => compartirOfertaWhatsApp(item)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-slate-950 transition cursor-pointer text-[10px] font-bold"
+                        className="flex items-center justify-center p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-slate-950 transition cursor-pointer"
                         title="Compartir oferta por WhatsApp"
                       >
-                        <Share2 className="w-3 h-3 stroke-[2.5]" />
-                        <WhatsAppIcon className="w-3 h-3" />
+                        <WhatsAppIcon className="w-3.5 h-3.5" />
                       </button>
 
                       <button
                         type="button"
                         onClick={() => toggleProductoChanguito(item._producto)}
-                        className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${enChanguito
-                          ? 'bg-sky-500 text-slate-950 border-sky-400'
-                          : 'btn-changuito-add hover:border-sky-500'
-                          }`}
-                        title="Sumar a mi lista para calcular en qué súper conviene comprar"
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shrink-0 ${
+                          enChanguito
+                            ? 'bg-sky-500 text-slate-950 border-sky-400'
+                            : 'btn-changuito-add hover:border-sky-500'
+                        }`}
+                        title="Sumar a mi lista"
                       >
                         <ShoppingCart className="w-3 h-3" />
-                        <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
+                        <span>{enChanguito ? 'En lista' : '+ Lista'}</span>
                       </button>
                     </div>
                   </div>
@@ -1664,8 +1704,9 @@ export default function HomePage() {
                           });
                         }
                       }}
-                      className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${tieneFoto ? 'theme-card-sub cursor-zoom-in' : confRubro.cajaIcono
-                        }`}
+                      className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${
+                        tieneFoto ? 'theme-card-sub cursor-zoom-in' : confRubro.cajaIcono
+                      }`}
                       title={tieneFoto ? 'Tocar para ampliar foto' : undefined}
                     >
                       {tieneFoto ? (
@@ -1791,12 +1832,13 @@ export default function HomePage() {
                             type="button"
                             onClick={() => handleConfirmar(item, 'sigue')}
                             disabled={confirmandoId === item.id || yaVoto}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 ${votoActual === 'sigue'
-                              ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-600'
-                              : yaVoto
-                                ? 'btn-voto-accion opacity-60 cursor-not-allowed'
-                                : 'btn-voto-accion cursor-pointer hover:border-emerald-500/60'
-                              }`}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 ${
+                              votoActual === 'sigue'
+                                ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-600'
+                                : yaVoto
+                                  ? 'btn-voto-accion opacity-60 cursor-not-allowed'
+                                  : 'btn-voto-accion cursor-pointer hover:border-emerald-500/60'
+                            }`}
                           >
                             {votoActual === 'sigue' ? (
                               <Check className="w-3 h-3 text-emerald-600" />
@@ -1817,10 +1859,11 @@ export default function HomePage() {
                               setNuevoPrecioInput('');
                             }
                           }}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 cursor-pointer ${editandoPrecioId === item.id || votoActual === 'reportado' || votoActual === 'subio'
-                            ? 'bg-amber-500/20 border border-amber-500 text-amber-600'
-                            : 'btn-voto-accion hover:border-amber-500/60'
-                            }`}
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 cursor-pointer ${
+                            editandoPrecioId === item.id || votoActual === 'reportado' || votoActual === 'subio'
+                              ? 'bg-amber-500/20 border border-amber-500 text-amber-600'
+                              : 'btn-voto-accion hover:border-amber-500/60'
+                          }`}
                         >
                           <RefreshCw className="w-3 h-3 text-amber-500" />
                           <span>
@@ -1960,6 +2003,74 @@ export default function HomePage() {
               >
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL / FICHA DE UBICACIÓN DEL COMERCIO Y CÓMO LLEGAR */}
+      {comercioModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setComercioModal(null)}
+        >
+          <div
+            className="relative max-w-sm w-full theme-card border border-[var(--border-card)] rounded-3xl p-5 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-2 border-b border-[var(--border-card)] pb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-sky-500/15 text-sky-500 flex items-center justify-center shrink-0 border border-sky-500/30">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${obtenerEstiloComercio(comercioModal.nombre)}`}>
+                    Comercio
+                  </span>
+                  <h3 className="text-sm font-black theme-title truncate mt-0.5">
+                    {comercioModal.nombre}
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setComercioModal(null)}
+                className="w-7 h-7 rounded-full theme-btn-sec border flex items-center justify-center theme-muted hover:theme-title cursor-pointer transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2 theme-subtitle">
+                <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="font-bold">
+                  {comercioModal.direccion || 'San Carlos de Bariloche'}
+                </span>
+              </div>
+
+              {comercioModal.distancia && (
+                <p className="text-[11px] text-sky-400 font-bold pl-6">
+                  📍 A solo {comercioModal.distancia} de tu ubicación actual
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <a
+                href={
+                  comercioModal.lat && comercioModal.lng
+                    ? `https://www.google.com/maps/search/?api=1&query=${comercioModal.lat},${comercioModal.lng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(comercioModal.nombre + ' San Carlos de Bariloche')}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95 text-xs"
+              >
+                <Navigation className="w-4 h-4" />
+                <span>Cómo llegar en Google Maps</span>
+              </a>
             </div>
           </div>
         </div>

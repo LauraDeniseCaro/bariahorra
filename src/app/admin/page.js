@@ -29,7 +29,7 @@ import {
 // Poné acá ÚNICAMENTE tu correo de admin (en minúsculas)
 // =====================================================================
 const ADMIN_EMAILS = [
-  'bariahorra@gmail.com', // 👈 Reemplazá por tu correo real de administración
+  'lauradenisecaro87@gmail.com', // 👈 Reemplazá por tu correo real de administración
 ];
 
 export default function AdminPage() {

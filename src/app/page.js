@@ -39,59 +39,114 @@ import {
   Share2,
   ZoomIn,
   MapPin,
-  Navigation
+  Navigation,
+  Fish,
+  Snowflake,
+  Leaf,
+  Wheat,
+  Smile,
+  CheckSquare,
+  Square,
+  Zap,
+  TrendingDown
 } from 'lucide-react';
 
 const CANTIDAD_POR_PAGINA = 12;
+
+const TERMINOS_POPULARES = [
+  { label: 'Carnes', query: 'carne', Icono: Beef },
+  { label: 'Lácteos', query: 'leche', Icono: Milk },
+  { label: 'Aceites', query: 'aceite', Icono: Sparkles },
+  { label: 'Yerba', query: 'yerba', Icono: Leaf },
+  { label: 'Sin TACC', query: 'gluten', Icono: Wheat },
+  { label: 'Verdulería', query: 'papa', Icono: Apple }
+];
+
+const CADENAS_FILTRO = ['Todos', 'La Anónima', 'Todo', 'ChangoMás', 'Carrefour', 'Diarco'];
 
 const CONFIG_CATEGORIAS = {
   Todos: {
     icono: LayoutGrid,
     pillActiva: 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 border-amber-400',
-    acento: 'rubro-tag-Todos',
-    cajaIcono: 'bg-amber-500/10 border-amber-500/30 text-amber-500',
+    acento: 'text-amber-600 dark:text-amber-400',
+    cajaIcono: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
     bordeBuscador: 'focus:border-amber-500/60'
   },
-  Súper: {
+  Almacén: {
     icono: ShoppingCart,
     pillActiva: 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 border-emerald-400',
-    acento: 'rubro-tag-Súper',
-    cajaIcono: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500',
+    acento: 'text-emerald-600 dark:text-emerald-400',
+    cajaIcono: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400',
     bordeBuscador: 'focus:border-emerald-500/60'
   },
   Carnicería: {
     icono: Beef,
     pillActiva: 'bg-rose-500 text-white shadow-lg shadow-rose-500/25 border-rose-400',
-    acento: 'rubro-tag-Carnicería',
-    cajaIcono: 'bg-rose-500/10 border-rose-500/25 text-rose-500',
+    acento: 'text-rose-600 dark:text-rose-400',
+    cajaIcono: 'bg-rose-500/10 border-rose-500/25 text-rose-600 dark:text-rose-400',
     bordeBuscador: 'focus:border-rose-500/60'
+  },
+  'Pescados y Mariscos': {
+    icono: Fish,
+    pillActiva: 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 border-cyan-400',
+    acento: 'text-cyan-600 dark:text-cyan-400',
+    cajaIcono: 'bg-cyan-500/10 border-cyan-500/25 text-cyan-600 dark:text-cyan-400',
+    bordeBuscador: 'focus:border-cyan-500/60'
+  },
+  Congelados: {
+    icono: Snowflake,
+    pillActiva: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 border-indigo-400',
+    acento: 'text-indigo-600 dark:text-indigo-400',
+    cajaIcono: 'bg-indigo-500/10 border-indigo-500/25 text-indigo-600 dark:text-indigo-400',
+    bordeBuscador: 'focus:border-indigo-500/60'
   },
   Verdulería: {
     icono: Apple,
     pillActiva: 'bg-lime-400 text-slate-950 shadow-lg shadow-lime-400/20 border-lime-300',
-    acento: 'rubro-tag-Verdulería',
-    cajaIcono: 'bg-lime-500/10 border-lime-500/25 text-lime-600',
+    acento: 'text-lime-600 dark:text-lime-400',
+    cajaIcono: 'bg-lime-500/10 border-lime-500/25 text-lime-600 dark:text-lime-400',
     bordeBuscador: 'focus:border-lime-400/60'
   },
   Lácteos: {
     icono: Milk,
     pillActiva: 'bg-sky-400 text-slate-950 shadow-lg shadow-sky-400/20 border-sky-300',
-    acento: 'rubro-tag-Lácteos',
-    cajaIcono: 'bg-sky-500/10 border-sky-500/25 text-sky-500',
+    acento: 'text-sky-600 dark:text-sky-400',
+    cajaIcono: 'bg-sky-500/10 border-sky-500/25 text-sky-600 dark:text-sky-400',
     bordeBuscador: 'focus:border-sky-400/60'
+  },
+  Veggie: {
+    icono: Leaf,
+    pillActiva: 'bg-teal-500 text-white shadow-lg shadow-teal-500/20 border-teal-400',
+    acento: 'text-teal-600 dark:text-teal-400',
+    cajaIcono: 'bg-teal-500/10 border-teal-500/25 text-teal-600 dark:text-teal-400',
+    bordeBuscador: 'focus:border-teal-500/60'
+  },
+  'Sin TACC': {
+    icono: Wheat,
+    pillActiva: 'bg-yellow-500 text-slate-950 shadow-lg shadow-yellow-500/20 border-yellow-400',
+    acento: 'text-yellow-600 dark:text-yellow-400',
+    cajaIcono: 'bg-yellow-500/10 border-yellow-500/25 text-yellow-600 dark:text-yellow-400',
+    bordeBuscador: 'focus:border-yellow-500/60'
+  },
+  'Higiene Personal': {
+    icono: Smile,
+    pillActiva: 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/20 border-fuchsia-400',
+    acento: 'text-fuchsia-600 dark:text-fuchsia-400',
+    cajaIcono: 'bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-600 dark:text-fuchsia-400',
+    bordeBuscador: 'focus:border-fuchsia-500/60'
   },
   Limpieza: {
     icono: Sparkles,
     pillActiva: 'bg-violet-500 text-white shadow-lg shadow-violet-500/25 border-violet-400',
-    acento: 'rubro-tag-Limpieza',
-    cajaIcono: 'bg-violet-500/10 border-violet-500/25 text-violet-500',
+    acento: 'text-violet-600 dark:text-violet-400',
+    cajaIcono: 'bg-violet-500/10 border-violet-500/25 text-violet-600 dark:text-violet-400',
     bordeBuscador: 'focus:border-violet-500/60'
   },
   Bebidas: {
     icono: Wine,
     pillActiva: 'bg-orange-500 text-slate-950 shadow-lg shadow-orange-500/20 border-orange-400',
-    acento: 'rubro-tag-Bebidas',
-    cajaIcono: 'bg-orange-500/10 border-orange-500/25 text-orange-500',
+    acento: 'text-orange-600 dark:text-orange-400',
+    cajaIcono: 'bg-orange-500/10 border-orange-500/25 text-orange-600 dark:text-orange-400',
     bordeBuscador: 'focus:border-orange-500/60'
   }
 };
@@ -99,11 +154,17 @@ const CONFIG_CATEGORIAS = {
 const CATEGORIAS = Object.keys(CONFIG_CATEGORIAS);
 
 const DICCIONARIO_RUBROS = {
-  Carnicería: ['lomo', 'bola de lomo', 'asado', 'vacio', 'picada', 'carne', 'pollo', 'milanesa', 'nalga', 'peceto', 'bife', 'matambre', 'costilla', 'pechuga'],
-  Lácteos: ['leche', 'yogur', 'queso', 'manteca', 'crema', 'dulce de leche', 'sachet', 'untable', 'ricota'],
-  Verdulería: ['papa', 'tomate', 'cebolla', 'zanahoria', 'manzana', 'banana', 'lechuga', 'palta', 'naranja', 'limon', 'zapallo', 'morron', 'acelga'],
-  Bebidas: ['agua', 'gaseosa', 'coca', 'pepsi', 'cerveza', 'vino', 'jugo', 'soda', 'fernet', 'aperitivo'],
-  Limpieza: ['jabon', 'detergente', 'lavandina', 'papel higienico', 'rollo', 'suavizante', 'desinfectante', 'shampoo', 'dentifrico', 'cif']
+  Carnicería: ['lomo', 'bola de lomo', 'asado', 'vacio', 'picada', 'carne', 'pollo', 'milanesa', 'nalga', 'peceto', 'bife', 'matambre', 'costilla', 'pechuga', 'cerdo', 'bondiola'],
+  'Pescados y Mariscos': ['salmón', 'salmon', 'atún', 'atun', 'pescado', 'merluza', 'marisco', 'calamar'],
+  Congelados: ['congelado', 'supercongelado', 'espinaca', 'brócoli', 'brocoli', 'nuggets', 'bocaditos'],
+  Veggie: ['notco', 'notchicken', 'notmila', 'burganas', 'tofu', 'vegano', 'vegetariano', 'plant-based'],
+  'Sin TACC': ['sin gluten', 'gluten', 'celiaco', 'schär', 'schar', 'tacc', 'blancaflor sin', 'premezcla pizza'],
+  'Higiene Personal': ['dental', 'colgate', 'shampoo', 'desodorante', 'rexona', 'palmolive', 'toalla femenina', 'lina', 'jabón de tocador', 'jabon de tocador'],
+  Limpieza: ['jabon liquido', 'detergente', 'lavandina', 'papel higienico', 'rollo', 'suavizante', 'desinfectante', 'cif', 'skip', 'ayudín', 'ayudin', 'odex', 'vileda', 'poett'],
+  Lácteos: ['leche', 'yogur', 'queso', 'manteca', 'crema', 'dulce de leche', 'sachet', 'untable', 'ricota', 'danbo', 'fiambre', 'jamon'],
+  Verdulería: ['papa', 'tomate', 'cebolla', 'zanahoria', 'manzana', 'banana', 'lechuga', 'palta', 'naranja', 'limon', 'zapallo', 'morron', 'acelga', 'sandia', 'kale', 'alcaucil'],
+  Bebidas: ['agua', 'gaseosa', 'coca', 'pepsi', 'cerveza', 'vino', 'jugo', 'soda', 'fernet', 'aperitivo', 'levité', 'levite', 'schneider', 'andes', 'dr. lemon', 'clight'],
+  Almacén: ['arroz', 'fideos', 'harina', 'yerba', 'aceite', 'galletitas', 'azucar', 'pure de tomate', 'arvejas', 'lentejas', 'pan', 'tapas']
 };
 
 function limpiarTexto(str = '') {
@@ -112,6 +173,16 @@ function limpiarTexto(str = '') {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function normalizarCadena(nombre = '') {
+  const n = limpiarTexto(nombre);
+  if (n.includes('anonima')) return 'La Anónima';
+  if (n.includes('todo')) return 'Todo';
+  if (n.includes('chango')) return 'ChangoMás';
+  if (n.includes('carrefour')) return 'Carrefour';
+  if (n.includes('diarco')) return 'Diarco';
+  return nombre;
 }
 
 function obtenerEstiloComercio(nombre = '') {
@@ -140,7 +211,25 @@ function tiempoRelativo(fechaStr) {
   return new Date(fechaStr).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
 }
 
-// Cálculo matemático de distancia con Haversine
+function calcularEstadoVencimiento(fechaVencStr) {
+  if (!fechaVencStr) return null;
+  const venc = new Date(fechaVencStr).getTime();
+  if (isNaN(venc)) return null;
+  const ahora = Date.now();
+  const diffHoras = (venc - ahora) / (1000 * 60 * 60);
+
+  if (diffHoras < 0) {
+    return { tipo: 'vencido', texto: 'Precio de referencia' };
+  }
+  if (diffHoras <= 24) {
+    return { tipo: 'urgente', texto: 'Vence hoy' };
+  }
+  if (diffHoras <= 48) {
+    return { tipo: 'proximo', texto: 'Últimos 2 días' };
+  }
+  return null;
+}
+
 function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return null;
   const R = 6371;
@@ -309,14 +398,21 @@ export default function HomePage() {
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
+  const [cadenaActiva, setCadenaActiva] = useState('Todos');
   const [orden, setOrden] = useState('recientes');
   const [modoVista, setModoVista] = useState('gondola');
   const [limiteVisibles, setLimiteVisibles] = useState(CANTIDAD_POR_PAGINA);
 
+  // Modales
   const [fotoModal, setFotoModal] = useState(null);
   const [comercioModal, setComercioModal] = useState(null);
+  const [buscadorFoco, setBuscadorFoco] = useState(false);
 
-  // Estado de ubicación GPS del usuario
+  // Modo Góndola (Checklist)
+  const [modoCompraActivo, setModoCompraActivo] = useState(false);
+  const [itemsTachados, setItemsTachados] = useState([]);
+
+  // GPS
   const [userCoords, setUserCoords] = useState(null);
   const [pidiendoGps, setPidiendoGps] = useState(false);
 
@@ -331,10 +427,20 @@ export default function HomePage() {
 
   const [changuito, setChanguito] = useState([]);
 
+  // Referencias para carruseles con soporte de arrastre en PC
   const categoriasRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
+  const bombaRef = useRef(null);
+  const popularesRef = useRef(null);
+  const cadenasRef = useRef(null);
+
+  // Estado unificado para drag con mouse
+  const dragInfoRef = useRef({
+    isDown: false,
+    startX: 0,
+    scrollLeft: 0,
+    hasMoved: false,
+    activeRef: null
+  });
 
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [mostrarBannerInstalar, setMostrarBannerInstalar] = useState(false);
@@ -343,7 +449,6 @@ export default function HomePage() {
     obtenerSesionYOfertas();
     cargarVotosDesdeStorage();
 
-    // Intentar recuperar coordenadas si ya las autorizó previamente en la sesión
     try {
       const coordsGuardadas = sessionStorage.getItem('bariahorra_gps');
       if (coordsGuardadas) setUserCoords(JSON.parse(coordsGuardadas));
@@ -362,6 +467,8 @@ export default function HomePage() {
     try {
       const changuitoGuardado = localStorage.getItem('bariahorra_changuito');
       if (changuitoGuardado) setChanguito(JSON.parse(changuitoGuardado));
+      const tachadosGuardados = localStorage.getItem('bariahorra_tachados');
+      if (tachadosGuardados) setItemsTachados(JSON.parse(tachadosGuardados));
     } catch (e) { }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -371,9 +478,7 @@ export default function HomePage() {
     const capturarPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      if (!esStandalone) {
-        setMostrarBannerInstalar(true);
-      }
+      if (!esStandalone) setMostrarBannerInstalar(true);
     };
 
     window.addEventListener('beforeinstallprompt', capturarPrompt);
@@ -391,13 +496,14 @@ export default function HomePage() {
 
   useEffect(() => {
     setLimiteVisibles(CANTIDAD_POR_PAGINA);
-  }, [busqueda, categoriaActiva, orden]);
+  }, [busqueda, categoriaActiva, cadenaActiva, orden, modoVista]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         setFotoModal(null);
         setComercioModal(null);
+        setBuscadorFoco(false);
       }
     };
     if (fotoModal || comercioModal) {
@@ -427,7 +533,51 @@ export default function HomePage() {
     });
   };
 
-  // Solicitar ubicación GPS
+  // CONTROLADORES DE ARRASTRE Y RUEDA
+  const iniciarArrastre = (e, contenedorRef) => {
+    if (!contenedorRef?.current) return;
+    dragInfoRef.current = {
+      isDown: true,
+      startX: e.pageX - contenedorRef.current.offsetLeft,
+      scrollLeft: contenedorRef.current.scrollLeft,
+      hasMoved: false,
+      activeRef: contenedorRef
+    };
+  };
+
+  const moverArrastre = (e) => {
+    const d = dragInfoRef.current;
+    if (!d.isDown || !d.activeRef?.current) return;
+    const x = e.pageX - d.activeRef.current.offsetLeft;
+    const walk = (x - d.startX) * 1.5;
+    if (Math.abs(walk) > 4) {
+      d.hasMoved = true;
+    }
+    d.activeRef.current.scrollLeft = d.scrollLeft - walk;
+  };
+
+  const detenerArrastre = () => {
+    dragInfoRef.current.isDown = false;
+  };
+
+  const manejarRuedaHorizontal = (e, contenedorRef) => {
+    if (e.deltaY !== 0 && contenedorRef?.current) {
+      contenedorRef.current.scrollLeft += e.deltaY;
+    }
+  };
+
+  const desplazarBomba = (direccion) => {
+    if (!bombaRef.current) return;
+    const monto = direccion === 'izq' ? -260 : 260;
+    bombaRef.current.scrollBy({ left: monto, behavior: 'smooth' });
+  };
+
+  const desplazarCategorias = (direccion) => {
+    if (!categoriasRef.current) return;
+    const monto = direccion === 'izq' ? -180 : 180;
+    categoriasRef.current.scrollBy({ left: monto, behavior: 'smooth' });
+  };
+
   const handleActivarUbicacion = () => {
     if (userCoords) {
       mostrarToast('Ubicación activa. Calculando distancias.');
@@ -435,7 +585,7 @@ export default function HomePage() {
     }
 
     if (!navigator.geolocation) {
-      alert('Tu navegador o dispositivo no soporta geolocalización.');
+      alert('Tu navegador no soporta geolocalización.');
       return;
     }
 
@@ -451,38 +601,15 @@ export default function HomePage() {
         try {
           sessionStorage.setItem('bariahorra_gps', JSON.stringify(coords));
         } catch (e) { }
-        mostrarToast('📍 ¡Ubicación activada! Ahora podés ver las distancias.');
+        mostrarToast('Ubicación activada. Ahora podés ver las distancias.');
       },
       (err) => {
         setPidiendoGps(false);
-        alert('Para ver qué súper te queda más cerca, permití el acceso a tu ubicación cuando el navegador te lo consulte.');
+        alert('Para ver qué súper te queda más cerca, permití el acceso a tu ubicación.');
       },
       { timeout: 10000, enableHighAccuracy: false }
     );
   };
-
-  const desplazarCategorias = (direccion) => {
-    if (!categoriasRef.current) return;
-    const monto = direccion === 'izq' ? -180 : 180;
-    categoriasRef.current.scrollBy({ left: monto, behavior: 'smooth' });
-  };
-
-  const handleMouseDownCat = (e) => {
-    if (!categoriasRef.current) return;
-    setIsDragging(true);
-    setStartX(e.pageX - categoriasRef.current.offsetLeft);
-    setScrollLeft(categoriasRef.current.scrollLeft);
-  };
-
-  const handleMouseMoveCat = (e) => {
-    if (!isDragging || !categoriasRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - categoriasRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5;
-    categoriasRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  const detenerDragCat = () => setIsDragging(false);
 
   const toggleProductoChanguito = (nombreProducto) => {
     const clave = limpiarTexto(nombreProducto);
@@ -496,10 +623,24 @@ export default function HomePage() {
     });
   };
 
+  const toggleItemTachado = (clave) => {
+    setItemsTachados((prev) => {
+      const existe = prev.includes(clave);
+      const nuevo = existe ? prev.filter((k) => k !== clave) : [...prev, clave];
+      try {
+        localStorage.setItem('bariahorra_tachados', JSON.stringify(nuevo));
+      } catch (e) { }
+      return nuevo;
+    });
+  };
+
   const limpiarChanguito = () => {
     setChanguito([]);
+    setItemsTachados([]);
+    setModoCompraActivo(false);
     try {
       localStorage.removeItem('bariahorra_changuito');
+      localStorage.removeItem('bariahorra_tachados');
     } catch (e) { }
   };
 
@@ -522,15 +663,13 @@ export default function HomePage() {
       try {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          setMostrarBannerInstalar(false);
-        }
+        if (outcome === 'accepted') setMostrarBannerInstalar(false);
         setDeferredPrompt(null);
       } catch (err) {
         console.error('Error al solicitar instalación:', err);
       }
     } else {
-      alert('Para instalar BariAhorra:\n• En Android: Tocá los 3 puntos (⋮) y seleccioná "Instalar aplicación".\n• En iPhone (Safari): Tocá Compartir (⎋) y elegí "Agregar a inicio".');
+      alert('Para instalar BariAhorra:\n• En Android: Tocá los 3 puntos y seleccioná "Instalar aplicación".\n• En iPhone (Safari): Tocá Compartir y elegí "Agregar a inicio".');
     }
   };
 
@@ -607,7 +746,7 @@ export default function HomePage() {
 
         let rubro = prodRel?.categoria || prodRel?.rubro || '';
 
-        if (!rubro || limpiarTexto(rubro) === 'super') {
+        if (!rubro || limpiarTexto(rubro) === 'super' || limpiarTexto(rubro) === 'almacen') {
           const textoBusqueda = `${productoNombre} ${marca}`.toLowerCase();
           for (const [catNombre, keywords] of Object.entries(DICCIONARIO_RUBROS)) {
             if (keywords.some((kw) => textoBusqueda.includes(kw))) {
@@ -615,7 +754,7 @@ export default function HomePage() {
               break;
             }
           }
-          if (!rubro) rubro = 'Súper';
+          if (!rubro) rubro = 'Almacén';
         }
 
         const comercioNombre = comRel?.nombre || 'Comercio Bariloche';
@@ -641,6 +780,7 @@ export default function HomePage() {
         const votosNeg = Number(item.votos_negativos || 0);
 
         const esCatalogoOficial = Boolean(item.es_catalogo) || item.estado === 'catalogo' || votosPos >= 100;
+        const estadoVenc = calcularEstadoVencimiento(item.vencimiento);
 
         const refUnitario = calcularPrecioPorUnidad(precioFinal, tamano, unidad, productoNombre);
         const presentacionFormateada = formatearPresentacion(tamano, unidad);
@@ -655,6 +795,7 @@ export default function HomePage() {
           _presentacion: presentacionFormateada,
           _rubro: rubro,
           _comercio: comercioNombre,
+          _cadena: normalizarCadena(comercioNombre),
           _comercioDireccion: comercioDireccion,
           _comercioLat: comercioLat,
           _comercioLng: comercioLng,
@@ -663,6 +804,7 @@ export default function HomePage() {
           _precio: precioFinal,
           _refUnitario: refUnitario,
           _esCatalogo: esCatalogoOficial,
+          _estadoVenc: estadoVenc,
           _votosPositivos: votosPos,
           _votosNegativos: votosNeg,
         };
@@ -716,7 +858,7 @@ export default function HomePage() {
                 .eq('id', oferta.usuario_id);
             }
           } catch (e) {
-            console.error('Error actualizando puntos del autor:', e);
+            console.error('Error actualizando puntos:', e);
           }
         }
 
@@ -739,7 +881,7 @@ export default function HomePage() {
         );
 
         if (tipo === 'sigue') {
-          mostrarToast('¡Gracias! Confirmaste que el precio sigue vigente (+2 pts al autor).');
+          mostrarToast('Confirmaste que el precio sigue vigente (+2 pts al autor).');
         } else {
           mostrarToast('Aviso registrado. Gracias por colaborar.');
         }
@@ -774,81 +916,46 @@ export default function HomePage() {
           })
           .eq('id', oferta.id);
 
-        mostrarToast(`Precio en revisión por variación inusual ($${valorNum.toLocaleString('es-AR')}). El Admin lo verificará.`);
+        mostrarToast(`Precio en revisión por variación inusual ($${valorNum.toLocaleString('es-AR')}).`);
         setEditandoPrecioId(null);
         setNuevoPrecioInput('');
         return;
       }
 
-      if (oferta._esCatalogo) {
-        const propuestaPrevia = Number(oferta.precio_propuesto || 0);
+      const ahoraISO = new Date().toISOString();
+      const { error } = await supabase
+        .from('ofertas')
+        .update({
+          precio: valorNum,
+          votos_positivos: 1,
+          votos_negativos: 0,
+          precio_propuesto: null,
+          motivo_revision: null,
+          creado_en: ahoraISO
+        })
+        .eq('id', oferta.id);
 
-        if (propuestaPrevia > 0 && Math.abs(propuestaPrevia - valorNum) < 10) {
-          const ahoraISO = new Date().toISOString();
-          await supabase
-            .from('ofertas')
-            .update({
+      if (!error) {
+        const nuevaClaveVoto = obtenerClaveVoto(oferta.id, valorNum);
+        localStorage.setItem(`bariahorra_voto_${nuevaClaveVoto}`, 'sigue');
+        setVotosRealizados((prev) => ({ ...prev, [nuevaClaveVoto]: 'sigue' }));
+
+        setOfertas((prev) =>
+          prev.map((o) => {
+            if (o.id !== oferta.id) return o;
+            const nuevaRef = calcularPrecioPorUnidad(valorNum, o._tamanoRaw, o._unidadRaw, o._producto);
+            return {
+              ...o,
               precio: valorNum,
-              precio_propuesto: null,
-              votos_propuesto: 0,
-              votos_positivos: 2,
-              votos_negativos: 0,
+              _precio: valorNum,
+              _refUnitario: nuevaRef,
+              _votosPositivos: 1,
+              _votosNegativos: 0,
               creado_en: ahoraISO
-            })
-            .eq('id', oferta.id);
-
-          setOfertas((prev) =>
-            prev.map((o) => (o.id === oferta.id ? { ...o, precio: valorNum, _precio: valorNum, _votosPositivos: 2, creado_en: ahoraISO } : o))
-          );
-          mostrarToast('¡Precio de catálogo actualizado por consenso de vecinos!');
-        } else {
-          await supabase
-            .from('ofertas')
-            .update({
-              precio_propuesto: valorNum,
-              votos_propuesto: 1,
-              motivo_revision: `Propuesta de cambio a $${valorNum}`
-            })
-            .eq('id', oferta.id);
-
-          mostrarToast('Aviso guardado. Se actualizará cuando otro vecino lo valide.');
-        }
-      } else {
-        const ahoraISO = new Date().toISOString();
-        const { error } = await supabase
-          .from('ofertas')
-          .update({
-            precio: valorNum,
-            votos_positivos: 1,
-            votos_negativos: 0,
-            precio_propuesto: null,
-            motivo_revision: null,
-            creado_en: ahoraISO
+            };
           })
-          .eq('id', oferta.id);
-
-        if (!error) {
-          const nuevaClaveVoto = obtenerClaveVoto(oferta.id, valorNum);
-          localStorage.setItem(`bariahorra_voto_${nuevaClaveVoto}`, 'sigue');
-          setVotosRealizados((prev) => ({ ...prev, [nuevaClaveVoto]: 'sigue' }));
-
-          setOfertas((prev) =>
-            prev.map((o) => {
-              if (o.id !== oferta.id) return o;
-              const nuevaRef = calcularPrecioPorUnidad(valorNum, o._tamanoRaw, o._unidadRaw, o._producto);
-              return {
-                ...o,
-                precio: valorNum,
-                _precio: valorNum,
-                _refUnitario: nuevaRef,
-                _votosPositivos: 1,
-                _votosNegativos: 0,
-                creado_en: ahoraISO
-              };
-            })
-          );
-          mostrarToast('¡Precio actualizado! Se reinició la votación para este nuevo monto.');
-        }
+        );
+        mostrarToast('Precio actualizado por la comunidad.');
       }
 
       setEditandoPrecioId(null);
@@ -860,9 +967,10 @@ export default function HomePage() {
     }
   };
 
-  // Filtrado y ordenamiento (incluye cálculo de distancia si hay GPS)
+  // Filtrado reactivo (Categoría + Cadena + Buscador)
   const ofertasFiltradas = useMemo(() => {
     const catNorm = limpiarTexto(categoriaActiva);
+    const cadenaNorm = limpiarTexto(cadenaActiva);
     const busqNorm = limpiarTexto(busqueda);
 
     return ofertas
@@ -870,10 +978,13 @@ export default function HomePage() {
         const rubroNorm = limpiarTexto(o._rubro);
         const coincideCat = catNorm === 'todos' || rubroNorm === catNorm;
 
+        const comCadenaNorm = limpiarTexto(o._cadena);
+        const coincideCadena = cadenaNorm === 'todos' || comCadenaNorm.includes(cadenaNorm);
+
         const textoBusq = limpiarTexto(`${o._producto} ${o._marca} ${o._comercio} ${o._rubro}`);
         const coincideBusq = busqNorm === '' || textoBusq.includes(busqNorm);
 
-        return coincideCat && coincideBusq;
+        return coincideCat && coincideCadena && coincideBusq;
       })
       .map((o) => {
         let distanciaKm = null;
@@ -902,11 +1013,36 @@ export default function HomePage() {
         }
         return String(b.id || '').localeCompare(String(a.id || ''));
       });
-  }, [ofertas, categoriaActiva, busqueda, orden, userCoords]);
+  }, [ofertas, categoriaActiva, cadenaActiva, busqueda, orden, userCoords]);
+
+  const ofertasGondolaDesduplicadas = useMemo(() => {
+    const mapa = new Map();
+    ofertasFiltradas.forEach((o) => {
+      const claveAgrupada = `${o._claveProducto}_${limpiarTexto(o._marca)}_${limpiarTexto(o._cadena)}`;
+      const existente = mapa.get(claveAgrupada);
+      if (!existente) {
+        mapa.set(claveAgrupada, o);
+      } else if (o._distanciaKm != null && (existente._distanciaKm == null || o._distanciaKm < existente._distanciaKm)) {
+        mapa.set(claveAgrupada, o);
+      }
+    });
+    return Array.from(mapa.values());
+  }, [ofertasFiltradas]);
 
   const ofertasVisibles = useMemo(() => {
-    return ofertasFiltradas.slice(0, limiteVisibles);
-  }, [ofertasFiltradas, limiteVisibles]);
+    return ofertasGondolaDesduplicadas.slice(0, limiteVisibles);
+  }, [ofertasGondolaDesduplicadas, limiteVisibles]);
+
+  const ofertasBomba = useMemo(() => {
+    return [...ofertasGondolaDesduplicadas]
+      .filter((o) => o._precio > 0)
+      .sort((a, b) => {
+        const pesoA = (a._esCatalogo ? 2 : 1) * (a._votosPositivos + 1);
+        const pesoB = (b._esCatalogo ? 2 : 1) * (b._votosPositivos + 1);
+        return pesoB - pesoA;
+      })
+      .slice(0, 6);
+  }, [ofertasGondolaDesduplicadas]);
 
   const mejoresPreciosIds = useMemo(() => {
     const grupos = {};
@@ -928,9 +1064,9 @@ export default function HomePage() {
     return ganadores;
   }, [ofertas]);
 
-  // COMPARADOR INTELIGENTE (Precio vs Cercanía)
   const productosComparados = useMemo(() => {
     const mapa = new Map();
+
     ofertasFiltradas.forEach((o) => {
       const clave = `${o._claveProducto}_${limpiarTexto(o._marca)}`;
       if (!mapa.has(clave)) {
@@ -941,36 +1077,45 @@ export default function HomePage() {
           marca: o._marca,
           rubro: o._rubro,
           foto: o._foto,
-          items: []
+          itemsPorCadena: new Map()
         });
       }
       const grupo = mapa.get(clave);
       if (!grupo.foto && o._foto) grupo.foto = o._foto;
-      grupo.items.push(o);
+
+      const cadenaKey = limpiarTexto(o._cadena);
+      const existente = grupo.itemsPorCadena.get(cadenaKey);
+
+      if (!existente) {
+        grupo.itemsPorCadena.set(cadenaKey, o);
+      } else if (o._distanciaKm != null && (existente._distanciaKm == null || o._distanciaKm < existente._distanciaKm)) {
+        grupo.itemsPorCadena.set(cadenaKey, o);
+      }
     });
 
     return Array.from(mapa.values())
       .map((g) => {
-        g.items.sort((a, b) => a._precio - b._precio);
-        const min = g.items[0]?._precio || 0;
-        const max = g.items[g.items.length - 1]?._precio || 0;
+        const items = Array.from(g.itemsPorCadena.values());
+        items.sort((a, b) => a._precio - b._precio);
+        const min = items[0]?._precio || 0;
+        const max = items[items.length - 1]?._precio || 0;
         const ahorro = max > min ? max - min : 0;
 
-        // Identificar el más cercano si hay ubicación
         let masCercanoId = null;
         let menorDist = Infinity;
-        g.items.forEach((item) => {
+        items.forEach((item) => {
           if (item._distanciaKm != null && item._distanciaKm < menorDist) {
             menorDist = item._distanciaKm;
             masCercanoId = item.id;
           }
         });
 
-        const masBaratoId = g.items[0]?.id;
-        const esOpcionIdeal = masBaratoId === masCercanoId && g.items.length > 1;
+        const masBaratoId = items[0]?.id;
+        const esOpcionIdeal = masBaratoId === masCercanoId && items.length > 1;
 
         return {
           ...g,
+          items,
           minPrecio: min,
           maxPrecio: max,
           ahorro,
@@ -994,6 +1139,7 @@ export default function HomePage() {
         nombre: mejor?._producto || clave,
         minPrecio: mejor?._precio || 0,
         mejorComercio: mejor?._comercio || '',
+        mejorCadena: mejor?._cadena || mejor?._comercio || '',
         ofertasPorComercio: coincidencias
       };
     });
@@ -1003,7 +1149,7 @@ export default function HomePage() {
     const mapaComercios = {};
     ofertas.forEach((o) => {
       if (!changuito.includes(o._claveProducto)) return;
-      const com = o._comercio;
+      const com = o._cadena || o._comercio;
       if (!mapaComercios[com]) {
         mapaComercios[com] = {
           comercio: com,
@@ -1038,18 +1184,35 @@ export default function HomePage() {
       })
       .sort((a, b) => b.encontrados - a.encontrados || a.totalEstimado - b.totalEstimado);
 
+    const mejorUnicoSuper = rankingSupermercados[0] || null;
+    const ahorroCombinado = mejorUnicoSuper ? mejorUnicoSuper.totalEstimado - totalCompraCombinada : 0;
+
+    const totalItems = changuito.length;
+    const itemsCompradosCount = changuito.filter((k) => itemsTachados.includes(k)).length;
+    const gastoAcumulado = productosElegidos
+      .filter((p) => itemsTachados.includes(p.clave))
+      .reduce((acc, p) => acc + p.minPrecio, 0);
+
     return {
       productosElegidos,
       totalCompraCombinada,
       rankingSupermercados,
-      ganador: rankingSupermercados[0] || null
+      ganador: mejorUnicoSuper,
+      ahorroCombinado: ahorroCombinado > 500 ? ahorroCombinado : 0,
+      totalItems,
+      itemsCompradosCount,
+      gastoAcumulado
     };
-  }, [changuito, ofertas]);
+  }, [changuito, ofertas, itemsTachados]);
 
   const estiloCatActiva = CONFIG_CATEGORIAS[categoriaActiva] || CONFIG_CATEGORIAS.Todos;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-3.5 sm:p-6 space-y-3.5 pb-24">
+    <div
+      onMouseMove={moverArrastre}
+      onMouseUp={detenerArrastre}
+      className="w-full max-w-4xl mx-auto p-3.5 sm:p-6 space-y-3.5 pb-24"
+    >
 
       {/* TOAST FLOTANTE */}
       {avisoFeedback && (
@@ -1090,35 +1253,102 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* BUSCADOR + BOTÓN "CARGAR PRECIO" */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${estiloCatActiva.acento}`} />
-          <input
-            type="text"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar producto, marca o súper..."
-            className={`w-full theme-input border rounded-2xl pl-10 pr-8 py-2.5 text-xs sm:text-sm placeholder-slate-400 focus:outline-none ${estiloCatActiva.bordeBuscador} transition shadow-sm font-medium`}
-          />
-          {busqueda && (
-            <button
-              type="button"
-              onClick={() => setBusqueda('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg theme-muted hover:theme-title"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+      {/* BUSCADOR CON NUBE DE TÉRMINOS POPULARES */}
+      <div className="space-y-1.5 relative">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${estiloCatActiva.acento}`} />
+            <input
+              type="text"
+              value={busqueda}
+              onFocus={() => setBuscadorFoco(true)}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar producto, marca o súper..."
+              className={`w-full theme-input border rounded-2xl pl-10 pr-8 py-2.5 text-xs sm:text-sm placeholder-slate-400 focus:outline-none ${estiloCatActiva.bordeBuscador} transition shadow-sm font-medium`}
+            />
+            {busqueda && (
+              <button
+                type="button"
+                onClick={() => setBusqueda('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg theme-muted hover:theme-title cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <Link
+            href="/cargar"
+            className="flex items-center justify-center gap-1.5 bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950 border-t border-white/30 font-black px-4 py-2.5 rounded-2xl text-xs transition shadow-lg shadow-sky-500/20 shrink-0 active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Cargar precio</span>
+          </Link>
         </div>
 
-        <Link
-          href="/cargar"
-          className="flex items-center justify-center gap-1.5 bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950 border-t border-white/30 font-black px-4 py-2.5 rounded-2xl text-xs transition shadow-lg shadow-sky-500/20 shrink-0 active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Cargar precio</span>
-        </Link>
+        {/* NUBE POPULARES (DESPLAZABLE CON MOUSE Y RUEDA) */}
+        {(buscadorFoco || busqueda.length > 0) && (
+          <div
+            ref={popularesRef}
+            onMouseDown={(e) => iniciarArrastre(e, popularesRef)}
+            onWheel={(e) => manejarRuedaHorizontal(e, popularesRef)}
+            className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none select-none cursor-grab active:cursor-grabbing animate-in fade-in duration-150"
+          >
+            <span className="text-[10px] theme-muted font-bold whitespace-nowrap pl-1 shrink-0">
+              Populares:
+            </span>
+            {TERMINOS_POPULARES.map((tp) => {
+              const IconoItem = tp.Icono;
+              return (
+                <button
+                  key={tp.label}
+                  type="button"
+                  onClick={() => {
+                    if (dragInfoRef.current.hasMoved) return;
+                    setBusqueda(tp.query);
+                    setBuscadorFoco(false);
+                  }}
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-lg theme-card border border-[var(--border-card)] theme-subtitle hover:border-amber-500 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
+                >
+                  <IconoItem className="w-3 h-3 text-amber-500" />
+                  <span>{tp.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* FILTRO POR CADENA (DESPLAZABLE CON MOUSE Y RUEDA) */}
+      <div
+        ref={cadenasRef}
+        onMouseDown={(e) => iniciarArrastre(e, cadenasRef)}
+        onWheel={(e) => manejarRuedaHorizontal(e, cadenasRef)}
+        className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none select-none cursor-grab active:cursor-grabbing"
+      >
+        <span className="text-[10px] theme-muted font-bold pl-1 shrink-0">
+          Supermercado:
+        </span>
+        {CADENAS_FILTRO.map((cad) => {
+          const activa = cadenaActiva === cad;
+          return (
+            <button
+              key={cad}
+              type="button"
+              onClick={() => {
+                if (dragInfoRef.current.hasMoved) return;
+                setCadenaActiva(cad);
+              }}
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 border ${
+                activa
+                  ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-sm'
+                  : 'theme-btn-sec border-[var(--border-card)] hover:border-sky-500'
+              }`}
+            >
+              {cad}
+            </button>
+          );
+        })}
       </div>
 
       {/* CARRUSEL DE CATEGORÍAS */}
@@ -1126,24 +1356,16 @@ export default function HomePage() {
         <button
           type="button"
           onClick={() => desplazarCategorias('izq')}
-          className="hidden sm:flex items-center justify-center w-7 h-7 rounded-full theme-btn-sec border shadow-md mr-1.5 shrink-0 cursor-pointer transition"
+          className="hidden sm:flex items-center justify-center w-7 h-7 rounded-full theme-btn-sec border shadow-md mr-1.5 shrink-0 cursor-pointer transition hover:border-slate-400"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
 
         <div
           ref={categoriasRef}
-          onMouseDown={handleMouseDownCat}
-          onMouseLeave={detenerDragCat}
-          onMouseUp={detenerDragCat}
-          onMouseMove={handleMouseMoveCat}
-          onWheel={(e) => {
-            if (e.deltaY !== 0 && categoriasRef.current) {
-              categoriasRef.current.scrollLeft += e.deltaY;
-            }
-          }}
-          className={`flex gap-2 overflow-x-auto py-1 scrollbar-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'
-            }`}
+          onMouseDown={(e) => iniciarArrastre(e, categoriasRef)}
+          onWheel={(e) => manejarRuedaHorizontal(e, categoriasRef)}
+          className="flex gap-2 overflow-x-auto py-1 scrollbar-none select-none cursor-grab active:cursor-grabbing"
         >
           {CATEGORIAS.map((cat) => {
             const conf = CONFIG_CATEGORIAS[cat] || CONFIG_CATEGORIAS.Todos;
@@ -1154,11 +1376,15 @@ export default function HomePage() {
               <button
                 key={cat}
                 type="button"
-                onClick={() => setCategoriaActiva(cat)}
-                className={`px-3.5 py-2 rounded-xl whitespace-nowrap font-bold transition text-xs cursor-pointer flex items-center gap-1.5 border shrink-0 ${activa
-                  ? conf.pillActiva
-                  : 'theme-btn-sec hover:border-slate-400'
-                  }`}
+                onClick={() => {
+                  if (dragInfoRef.current.hasMoved) return;
+                  setCategoriaActiva(cat);
+                }}
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap font-bold transition text-xs cursor-pointer flex items-center gap-1.5 border shrink-0 ${
+                  activa
+                    ? conf.pillActiva
+                    : 'theme-btn-sec hover:border-slate-400'
+                }`}
               >
                 <IconoCat className={`w-3.5 h-3.5 ${activa ? 'stroke-[2.5]' : conf.acento}`} />
                 <span>{cat}</span>
@@ -1170,16 +1396,111 @@ export default function HomePage() {
         <button
           type="button"
           onClick={() => desplazarCategorias('der')}
-          className="hidden sm:flex items-center justify-center w-7 h-7 rounded-full theme-btn-sec border shadow-md ml-1.5 shrink-0 cursor-pointer transition"
+          className="hidden sm:flex items-center justify-center w-7 h-7 rounded-full theme-btn-sec border shadow-md ml-1.5 shrink-0 cursor-pointer transition hover:border-slate-400"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
-      {/* BARRA DE CONTROLES ULTRA-RESPONSIVE (OPTIMIZADA CELULAR Y DESKTOP) */}
-      <div className="theme-card border rounded-2xl p-1.5 sm:p-2.5 shadow-sm space-y-1.5 sm:space-y-2">
+      {/* CARRUSEL HERO: PRECIOS DESTACADOS BOMBA CON RESPALDO VECTORIAL */}
+      {busqueda === '' && categoriaActiva === 'Todos' && cadenaActiva === 'Todos' && modoVista === 'gondola' && ofertasBomba.length > 0 && (
+        <section className="space-y-2 pt-1 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Precios Destacados de Bariloche</span>
+            </h2>
 
-        {/* FILA 1: Control segmentado uniforme (3 columnas idénticas) */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => desplazarBomba('izq')}
+                className="w-6 h-6 rounded-full theme-btn-sec border flex items-center justify-center cursor-pointer transition hover:border-amber-500"
+                title="Ver anteriores"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => desplazarBomba('der')}
+                className="w-6 h-6 rounded-full theme-btn-sec border flex items-center justify-center cursor-pointer transition hover:border-amber-500"
+                title="Ver siguientes"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={bombaRef}
+            onMouseDown={(e) => iniciarArrastre(e, bombaRef)}
+            onWheel={(e) => manejarRuedaHorizontal(e, bombaRef)}
+            className="flex gap-3 overflow-x-auto pb-2 scrollbar-none select-none cursor-grab active:cursor-grabbing"
+          >
+            {ofertasBomba.map((item) => {
+              const confRubroBomba = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Almacén;
+              const IconoRubroBomba = confRubroBomba.icono;
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    if (dragInfoRef.current.hasMoved) return;
+                    abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt);
+                  }}
+                  className="shrink-0 w-64 theme-card border border-amber-500/30 rounded-2xl p-3 shadow-md bg-gradient-to-br from-amber-500/5 via-transparent to-transparent flex flex-col justify-between space-y-2 cursor-pointer hover:border-amber-400 transition"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 flex items-center gap-1">
+                      <Zap className="w-2.5 h-2.5 fill-slate-950" />
+                      Destacado
+                    </span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${obtenerEstiloComercio(item._comercio)}`}>
+                      <Store className="w-2.5 h-2.5" />
+                      <span>{item._comercio}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {/* Caja de imagen con ícono de fondo por si la foto falla */}
+                    <div className="w-12 h-12 rounded-xl border overflow-hidden shrink-0 theme-card-sub flex items-center justify-center relative">
+                      <IconoRubroBomba className={`w-6 h-6 stroke-[1.75] absolute ${confRubroBomba.acento}`} />
+                      {item._foto && (
+                        <img
+                          src={item._foto}
+                          alt={item._producto}
+                          className="w-full h-full object-cover relative z-10 bg-[var(--bg-card)]"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-black theme-title truncate">{item._producto}</h4>
+                      <p className="text-[10px] theme-muted truncate">{item._marca} • {item._presentacion}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-baseline justify-between pt-1 border-t border-[var(--border-card)]">
+                    <span className="text-base font-black font-mono text-emerald-500">
+                      ${Number(item._precio).toLocaleString('es-AR')}
+                    </span>
+                    {item._refUnitario && (
+                      <span className="text-[9px] theme-muted font-bold">
+                        x {item._refUnitario.unidad}: {item._refUnitario.valor}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* BARRA DE CONTROLES */}
+      <div className="theme-card border rounded-2xl p-1.5 sm:p-2.5 shadow-sm space-y-1.5 sm:space-y-2">
         <div className="grid grid-cols-3 gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
           <button
             type="button"
@@ -1221,15 +1542,13 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* FILA 2: GPS y Selector de Orden alineados sin desbordes */}
         {modoVista === 'gondola' && (
           <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-[var(--border-card)]">
             <span className="text-[11px] theme-muted font-medium hidden md:inline pl-1">
-              Filtros de góndola:
+              Filtros activos:
             </span>
 
             <div className="flex items-center gap-1.5 w-full md:w-auto">
-              {/* Chip GPS */}
               <button
                 type="button"
                 onClick={handleActivarUbicacion}
@@ -1244,7 +1563,6 @@ export default function HomePage() {
                 <span>{pidiendoGps ? 'Buscando...' : userCoords ? 'GPS Activo' : 'Cerca mío'}</span>
               </button>
 
-              {/* Desplegable de orden */}
               <select
                 value={orden}
                 onChange={(e) => {
@@ -1258,12 +1576,11 @@ export default function HomePage() {
                 <option value="recientes">Más recientes</option>
                 <option value="precio_asc">Menor precio</option>
                 <option value="precio_desc">Mayor precio</option>
-                <option value="distancia_asc">📍 Más cercanos</option>
+                <option value="distancia_asc">Más cercanos</option>
               </select>
             </div>
           </div>
         )}
-
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
@@ -1272,33 +1589,37 @@ export default function HomePage() {
           {[1, 2, 3, 4].map((n) => (
             <div key={n} className="theme-card border rounded-2xl p-4 h-36 animate-pulse flex flex-col justify-between">
               <div className="flex gap-3">
-                <div className="w-14 h-14 rounded-xl bg-slate-300" />
+                <div className="w-14 h-14 rounded-xl bg-slate-300 dark:bg-slate-700" />
                 <div className="flex-1 space-y-2">
-                  <div className="w-28 h-4 bg-slate-300 rounded-full" />
-                  <div className="w-40 h-4 bg-slate-300 rounded-full" />
-                  <div className="w-24 h-3 bg-slate-300 rounded-full" />
+                  <div className="w-28 h-4 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                  <div className="w-40 h-4 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                  <div className="w-24 h-3 bg-slate-300 dark:bg-slate-700 rounded-full" />
                 </div>
               </div>
               <div className="flex justify-between items-center pt-2 border-t theme-card-sub">
-                <div className="w-20 h-6 bg-slate-300 rounded-lg" />
-                <div className="w-28 h-7 bg-slate-300 rounded-xl" />
+                <div className="w-20 h-6 bg-slate-300 dark:bg-slate-700 rounded-lg" />
+                <div className="w-28 h-7 bg-slate-300 dark:bg-slate-700 rounded-xl" />
               </div>
             </div>
           ))}
         </div>
       ) : ofertasFiltradas.length === 0 ? (
         <div className="text-center py-16 theme-muted text-xs theme-card rounded-3xl border space-y-3 shadow-sm">
-          <p>No encontramos precios cargados en "{categoriaActiva}".</p>
-          <Link
-            href="/cargar"
-            className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 px-4 py-2 rounded-xl text-xs font-bold transition"
+          <p>No encontramos precios con esos filtros.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setCategoriaActiva('Todos');
+              setCadenaActiva('Todos');
+              setBusqueda('');
+            }}
+            className="inline-flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 border border-sky-500/30 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Cargar el primer precio
-          </Link>
+            Limpiar filtros
+          </button>
         </div>
       ) : modoVista === 'milista' ? (
-        /* --- VISTA MI LISTA --- */
+        /* --- VISTA MI LISTA (CON MODO COMPRA CHECKLIST Y AHORRO COMBINADO) --- */
         <div className="space-y-4">
           {changuito.length === 0 ? (
             <div className="text-center py-16 theme-card rounded-3xl border p-6 space-y-3 shadow-sm">
@@ -1307,7 +1628,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-sm font-black theme-title">Tu lista de compras está vacía</h3>
               <p className="text-xs theme-muted max-w-sm mx-auto">
-                Tocá <strong className="text-sky-600">+ Mi lista</strong> en los productos que necesitás comprar y te calculamos en qué supermercado de Bariloche gastás menos.
+                Tocá <strong className="text-sky-600">+ Mi lista</strong> en los productos que necesitás y te calculamos dónde te conviene comprar.
               </p>
               <button
                 type="button"
@@ -1319,63 +1640,153 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {/* TARJETA COMPARATIVA */}
+              {simulacionChanguito?.ahorroCombinado > 0 && (
+                <div className="bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border border-emerald-500/40 rounded-2xl p-4 space-y-2 shadow-md">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="w-5 h-5 text-emerald-500" />
+                    <h4 className="text-xs font-black uppercase tracking-wider text-emerald-500">
+                      Oportunidad de ahorro inteligente
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="theme-card-sub p-2.5 rounded-xl border border-[var(--border-card)]">
+                      <p className="text-[10px] theme-muted font-bold">Opción Cómoda (1 solo súper):</p>
+                      <p className="text-sm font-black theme-title">
+                        {simulacionChanguito.ganador?.comercio}: ${simulacionChanguito.ganador?.totalEstimado.toLocaleString('es-AR')}
+                      </p>
+                    </div>
+                    <div className="bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/30">
+                      <p className="text-[10px] text-emerald-600 font-bold">Opción Inteligente (Comprar lo más barato):</p>
+                      <p className="text-sm font-black text-emerald-500">
+                        ${simulacionChanguito.totalCompraCombinada.toLocaleString('es-AR')}{' '}
+                        <span className="text-[11px] font-bold text-emerald-400">
+                          (¡Ahorrás ${simulacionChanguito.ahorroCombinado.toLocaleString('es-AR')}!)
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* BARRA DE ACCIÓN: MODO COMPRA */}
               <div className="theme-card border rounded-2xl p-4 space-y-3 shadow-lg">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <h3 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-2">
-                    <ListChecks className="w-4 h-4 text-emerald-600" />
-                    Resumen de tu lista ({changuito.length} ítems)
-                  </h3>
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-2">
+                      <ListChecks className="w-4 h-4 text-emerald-600" />
+                      Tu Lista ({changuito.length} ítems)
+                    </h3>
+                    {modoCompraActivo && (
+                      <p className="text-[11px] font-bold text-sky-400 mt-0.5">
+                        Llevás {simulacionChanguito?.itemsCompradosCount} de {simulacionChanguito?.totalItems} • Gastado: ${simulacionChanguito?.gastoAcumulado.toLocaleString('es-AR')}
+                      </p>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setModoCompraActivo(!modoCompraActivo)}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm ${
+                        modoCompraActivo
+                          ? 'bg-amber-500 text-slate-950 border border-amber-400'
+                          : 'bg-sky-500 hover:bg-sky-400 text-slate-950'
+                      }`}
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      <span>{modoCompraActivo ? 'Salir de Modo Compra' : 'Iniciar compra en góndola'}</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => compartirListaWhatsApp(simulacionChanguito, changuito.length)}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] p-2 rounded-xl transition cursor-pointer"
+                      title="Compartir por WhatsApp"
                     >
                       <WhatsAppIcon className="w-3.5 h-3.5" />
-                      <span>Compartir Lista</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={limpiarChanguito}
-                      className="text-[11px] text-rose-500 hover:text-rose-600 font-bold cursor-pointer flex items-center gap-1"
+                      className="text-[11px] text-rose-500 hover:text-rose-600 font-bold cursor-pointer p-1.5"
+                      title="Vaciar lista"
                     >
-                      <Trash2 className="w-3.5 h-3.5" /> Vaciar lista
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
+                {/* LISTA CON CASILLAS */}
                 <div className="divide-y theme-card-sub rounded-xl border overflow-hidden">
-                  {simulacionChanguito?.productosElegidos.map((prod) => (
-                    <div key={prod.clave} className="p-3 flex items-center justify-between gap-3 text-xs">
-                      <div className="min-w-0">
-                        <p className="font-bold theme-title truncate">{prod.nombre}</p>
-                        <p className="text-[10px] theme-muted">
-                          Mejor precio en <strong className="text-emerald-600">{prod.mejorComercio}</strong>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="font-mono font-black theme-title">
-                          ${prod.minPrecio.toLocaleString('es-AR')}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => toggleProductoChanguito(prod.nombre)}
-                          className="p-1 theme-muted hover:text-rose-500 cursor-pointer"
+                  {simulacionChanguito?.productosElegidos
+                    .sort((a, b) => {
+                      const tachadoA = itemsTachados.includes(a.clave);
+                      const tachadoB = itemsTachados.includes(b.clave);
+                      if (tachadoA && !tachadoB) return 1;
+                      if (!tachadoA && tachadoB) return -1;
+                      return 0;
+                    })
+                    .map((prod) => {
+                      const tachado = itemsTachados.includes(prod.clave);
+                      return (
+                        <div
+                          key={prod.clave}
+                          onClick={() => modoCompraActivo && toggleItemTachado(prod.clave)}
+                          className={`p-3 flex items-center justify-between gap-3 text-xs transition select-none ${
+                            modoCompraActivo ? 'cursor-pointer hover:bg-black/10' : ''
+                          } ${tachado ? 'opacity-40 line-through bg-black/15' : ''}`}
                         >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {modoCompraActivo && (
+                              <button
+                                type="button"
+                                className="shrink-0 text-sky-400"
+                              >
+                                {tachado ? (
+                                  <CheckSquare className="w-4 h-4 text-emerald-500" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-400" />
+                                )}
+                              </button>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-bold theme-title truncate">{prod.nombre}</p>
+                              <p className="text-[10px] theme-muted">
+                                Mejor precio en <strong className="text-emerald-600">{prod.mejorComercio}</strong>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="font-mono font-black theme-title">
+                              ${prod.minPrecio.toLocaleString('es-AR')}
+                            </span>
+                            {!modoCompraActivo && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleProductoChanguito(prod.nombre);
+                                }}
+                                className="p-1 theme-muted hover:text-rose-500 cursor-pointer"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
 
+              {/* COMPARATIVA POR CADENA */}
               <div className="theme-card border rounded-2xl p-4 space-y-3 shadow-lg">
                 <h3 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-2">
                   <Calculator className="w-4 h-4 text-sky-600" />
-                  Comparativa por Supermercado
+                  Comparativa por Cadena
                 </h3>
                 <div className="space-y-2.5">
                   {simulacionChanguito?.rankingSupermercados.map((sup, idx) => {
@@ -1422,10 +1833,10 @@ export default function HomePage() {
           )}
         </div>
       ) : modoVista === 'comparar' ? (
-        /* --- VISTA COMPARADOR INTELIGENTE: PRECIO VS DISTANCIA --- */
+        /* --- VISTA COMPARADOR INTELIGENTE --- */
         <div className="space-y-3.5">
-          {productosComparados.map((grupo) => {
-            const confRubro = CONFIG_CATEGORIAS[grupo.rubro] || CONFIG_CATEGORIAS.Súper;
+          {productosComparados.slice(0, limiteVisibles).map((grupo) => {
+            const confRubro = CONFIG_CATEGORIAS[grupo.rubro] || CONFIG_CATEGORIAS.Almacén;
             const IconoRubro = confRubro.icono;
             const enChanguito = changuito.includes(grupo.claveProd);
 
@@ -1453,19 +1864,21 @@ export default function HomePage() {
                       } ${confRubro.cajaIcono}`}
                       title={grupo.foto ? 'Tocar para ampliar foto' : undefined}
                     >
-                      {grupo.foto ? (
+                      <IconoRubro className={`w-6 h-6 absolute ${confRubro.acento}`} />
+                      {grupo.foto && (
                         <>
                           <img
                             src={grupo.foto}
                             alt={grupo.producto}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 relative z-10 bg-[var(--bg-card)]"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
                             <ZoomIn className="w-4 h-4 text-white drop-shadow" />
                           </div>
                         </>
-                      ) : (
-                        <IconoRubro className="w-6 h-6" />
                       )}
                     </div>
                     <div className="min-w-0">
@@ -1531,19 +1944,17 @@ export default function HomePage() {
 
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              {/* BOTÓN CON FICHA Y GOOGLE MAPS */}
                               <button
                                 type="button"
                                 onClick={() => abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt)}
                                 className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 cursor-pointer hover:opacity-80 active:scale-95 transition ${estiloCom}`}
-                                title="Tocar para ver dirección y cómo llegar en Google Maps"
+                                title="Ver cómo llegar en Google Maps"
                               >
                                 <Store className="w-2.5 h-2.5" />
                                 <span>{item._comercio}</span>
                                 <MapPin className="w-2.5 h-2.5 text-sky-400 ml-0.5" />
                               </button>
 
-                              {/* INSIGNIAS PRECIO VS CERCANÍA */}
                               {esOpcionIdeal ? (
                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
                                   <Sparkles className="w-2.5 h-2.5" />
@@ -1591,9 +2002,25 @@ export default function HomePage() {
               </section>
             );
           })}
+
+          {productosComparados.length > limiteVisibles && (
+            <div className="flex justify-center pt-3 pb-1">
+              <button
+                type="button"
+                onClick={() => setLimiteVisibles((prev) => prev + CANTIDAD_POR_PAGINA)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl theme-btn-sec border border-[var(--border-sub)] font-bold text-xs hover:border-sky-500/60 transition shadow-sm cursor-pointer active:scale-95"
+              >
+                <span>Mostrar más comparaciones</span>
+                <span className="theme-muted font-mono font-medium text-[11px]">
+                  ({Math.min(limiteVisibles, productosComparados.length)} de {productosComparados.length})
+                </span>
+                <ChevronDown className="w-4 h-4 text-sky-500" />
+              </button>
+            </div>
+          )}
         </div>
       ) : (
-        /* --- VISTA GÓNDOLA (TARJETAS PAGINADAS) --- */
+        /* --- VISTA GÓNDOLA: CON RESPALDO VECTORIAL SI LA IMAGEN NO CARGA --- */
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {ofertasVisibles.map((item) => {
@@ -1609,7 +2036,7 @@ export default function HomePage() {
               const votoActual = votosRealizados[claveVoto];
               const yaVoto = Boolean(votoActual);
 
-              const confRubro = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Súper;
+              const confRubro = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Almacén;
               const IconoRubro = confRubro.icono;
               const estiloComercio = obtenerEstiloComercio(item._comercio);
               const esMejorPrecio = mejoresPreciosIds.has(item.id);
@@ -1628,26 +2055,35 @@ export default function HomePage() {
                         : 'hover:border-slate-400'
                   }`}
                 >
-                  {/* PISO 1: CABECERA SUPERIOR BLINDADA CONTRA PANTALLAS PARTIDAS */}
+                  {/* PISO 1: CABECERA */}
                   <div className="flex items-center justify-between gap-1.5 border-b border-[var(--border-card)] pb-2.5">
                     <div className="flex items-center gap-1 min-w-0 flex-1">
-                      {/* BOTÓN CON FICHA Y GOOGLE MAPS */}
                       <button
                         type="button"
                         onClick={() => abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt)}
                         className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 min-w-0 shrink transition cursor-pointer hover:opacity-80 active:scale-95 ${estiloComercio}`}
-                        title="Tocar para ver ubicación y cómo llegar en Google Maps"
+                        title="Ver ubicación en Google Maps"
                       >
                         <Store className="w-3 h-3 shrink-0" />
                         <span className="truncate max-w-[110px] xs:max-w-[140px] md:max-w-[170px]">{item._comercio}</span>
                         <MapPin className="w-2.5 h-2.5 text-sky-400 shrink-0 ml-0.5" />
                       </button>
 
-                      {/* DISTANCIA EN KM SI EL VECINO TIENE GPS */}
                       {item._distanciaTxt && (
                         <span className="text-[9px] font-bold text-sky-500 bg-sky-500/10 border border-sky-500/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0">
                           <MapPin className="w-2.5 h-2.5" />
                           <span>{item._distanciaTxt}</span>
+                        </span>
+                      )}
+
+                      {item._estadoVenc && (
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border flex items-center gap-1 ${
+                          item._estadoVenc.tipo === 'vencido'
+                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/25'
+                            : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                        }`}>
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{item._estadoVenc.texto}</span>
                         </span>
                       )}
 
@@ -1690,7 +2126,7 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* PISO 2: CUERPO DEL PRODUCTO (Con foto ampliable al toque) */}
+                  {/* PISO 2: CUERPO (SIEMPRE MUESTRA EL ÍCONO ABAJO POR SI LA FOTO FALLA) */}
                   <div className="flex gap-3 items-start flex-1 py-0.5">
                     <div
                       onClick={() => {
@@ -1704,25 +2140,29 @@ export default function HomePage() {
                           });
                         }
                       }}
-                      className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${
-                        tieneFoto ? 'theme-card-sub cursor-zoom-in' : confRubro.cajaIcono
+                      className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${confRubro.cajaIcono} ${
+                        tieneFoto ? 'cursor-zoom-in' : ''
                       }`}
                       title={tieneFoto ? 'Tocar para ampliar foto' : undefined}
                     >
-                      {tieneFoto ? (
+                      {/* Ícono de respaldo garantizado */}
+                      <IconoRubro className={`w-7 h-7 stroke-[1.75] absolute ${confRubro.acento}`} />
+
+                      {tieneFoto && (
                         <>
                           <img
                             src={item._foto}
                             alt={item._producto}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 relative z-10 bg-[var(--bg-card)]"
                             loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
                             <ZoomIn className="w-5 h-5 text-white drop-shadow" />
                           </div>
                         </>
-                      ) : (
-                        <IconoRubro className="w-7 h-7 stroke-[1.75]" />
                       )}
                     </div>
 
@@ -1773,7 +2213,7 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* PISO 3: PRECIOS Y VALIDACIÓN VISUAL */}
+                  {/* PISO 3: PRECIOS */}
                   <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
                     <div className="flex items-end justify-between gap-2">
                       <div className="space-y-1">
@@ -1793,7 +2233,6 @@ export default function HomePage() {
                           </p>
                         )}
 
-                        {/* MICRO-INSIGNIAS VISUALES DE CONFIANZA */}
                         <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                           {item._esCatalogo ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
@@ -1877,8 +2316,8 @@ export default function HomePage() {
                       <div className="theme-card-sub border border-amber-500/40 rounded-xl p-2.5 space-y-2">
                         <p className="text-[10px] theme-muted leading-tight">
                           {item._esCatalogo
-                            ? 'Avisanos si cambió el precio oficial. Si otro vecino coincide, se actualizará solo:'
-                            : 'Ingresá el nuevo valor visto en góndola (se reiniciará la votación para este nuevo precio):'}
+                            ? 'Avisanos si cambió el precio oficial:'
+                            : 'Ingresá el nuevo valor visto en góndola:'}
                         </p>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1.5 flex-1">
@@ -1902,30 +2341,17 @@ export default function HomePage() {
                               <span>{item._esCatalogo ? 'Enviar aviso' : 'Actualizar'}</span>
                               <ArrowRight className="w-3 h-3" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleConfirmar(item, 'subio');
-                                setEditandoPrecioId(null);
-                              }}
-                              className="text-[10px] theme-muted hover:text-amber-600 px-2 py-1 rounded-lg border theme-btn-sec cursor-pointer"
-                              title="Avisar que subió cuando no recordás el monto exacto"
-                            >
-                              Solo subió
-                            </button>
                           </div>
                         </div>
                       </div>
                     )}
                   </div>
-
                 </article>
               );
             })}
           </div>
 
-          {/* BOTÓN "MOSTRAR MÁS OFERTAS" */}
-          {ofertasFiltradas.length > limiteVisibles && (
+          {ofertasGondolaDesduplicadas.length > limiteVisibles && (
             <div className="flex justify-center pt-3 pb-1">
               <button
                 type="button"
@@ -1934,7 +2360,7 @@ export default function HomePage() {
               >
                 <span>Mostrar más ofertas</span>
                 <span className="theme-muted font-mono font-medium text-[11px]">
-                  ({ofertasVisibles.length} de {ofertasFiltradas.length})
+                  ({ofertasVisibles.length} de {ofertasGondolaDesduplicadas.length})
                 </span>
                 <ChevronDown className="w-4 h-4 text-sky-500" />
               </button>
@@ -1943,7 +2369,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* MODAL / VISOR DE FOTO EN ALTA RESOLUCIÓN */}
+      {/* MODAL / VISOR DE FOTO MEJORADO */}
       {fotoModal && (
         <div
           className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
@@ -1991,11 +2417,17 @@ export default function HomePage() {
                 src={fotoModal.foto}
                 alt={fotoModal.producto}
                 className="max-h-[65vh] w-auto max-w-full object-contain rounded-xl shadow-lg"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             </div>
 
             <div className="p-2.5 sm:p-3 text-center border-t border-[var(--border-card)] theme-card-sub text-[11px] theme-muted flex items-center justify-between px-4">
-              <span>Foto capturada en góndola</span>
+              <span className="flex items-center gap-1.5 text-[11px] theme-muted font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
+                <span>Imagen de referencia del producto</span>
+              </span>
               <button
                 type="button"
                 onClick={() => setFotoModal(null)}
@@ -2008,7 +2440,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* MODAL / FICHA DE UBICACIÓN DEL COMERCIO Y CÓMO LLEGAR */}
+      {/* MODAL / FICHA DE UBICACIÓN Y GOOGLE MAPS */}
       {comercioModal && (
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
@@ -2052,7 +2484,7 @@ export default function HomePage() {
 
               {comercioModal.distancia && (
                 <p className="text-[11px] text-sky-400 font-bold pl-6">
-                  📍 A solo {comercioModal.distancia} de tu ubicación actual
+                  A solo {comercioModal.distancia} de tu ubicación actual
                 </p>
               )}
             </div>
@@ -2076,7 +2508,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* BARRA FLOTANTE INFERIOR (MI LISTA) */}
+      {/* BARRA FLOTANTE INFERIOR */}
       {changuito.length > 0 && modoVista !== 'milista' && (
         <div className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
           <div className="theme-card backdrop-blur-md border border-sky-500/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3">
@@ -2093,7 +2525,7 @@ export default function HomePage() {
                 </p>
                 {simulacionChanguito?.ganador && (
                   <p className="text-[11px] text-emerald-600 font-bold truncate">
-                    Conviene ir a {simulacionChanguito.ganador.comercio} (${simulacionChanguito.ganador.totalEstimado.toLocaleString('es-AR')})
+                    Conviene en {simulacionChanguito.ganador.comercio} (${simulacionChanguito.ganador.totalEstimado.toLocaleString('es-AR')})
                   </p>
                 )}
               </div>
@@ -2102,28 +2534,11 @@ export default function HomePage() {
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                onClick={() => compartirListaWhatsApp(simulacionChanguito, changuito.length)}
-                className="p-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition cursor-pointer shadow-md"
-                title="Compartir lista por WhatsApp"
-              >
-                <WhatsAppIcon className="w-4 h-4" />
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setModoVista('milista')}
                 className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-lg shadow-sky-500/20"
               >
                 <Calculator className="w-3.5 h-3.5" />
-                <span>Ver Mi Lista</span>
-              </button>
-              <button
-                type="button"
-                onClick={limpiarChanguito}
-                className="p-2 rounded-xl theme-btn-sec hover:text-rose-500 transition cursor-pointer border"
-                title="Vaciar lista"
-              >
-                <Trash2 className="w-4 h-4" />
+                <span>Ver Lista</span>
               </button>
             </div>
           </div>

@@ -29,7 +29,10 @@ import {
   MapPin,
   Navigation,
   Edit2,
-  PackagePlus
+  PackagePlus,
+  RefreshCw,
+  CheckCircle2,
+  Package
 } from 'lucide-react';
 
 const ADMIN_EMAILS = [
@@ -53,6 +56,10 @@ export default function AdminPage() {
   const [productos, setProductos] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(false);
 
+  // Estados de Sincronización Open Food Facts
+  const [sincronizandoFotos, setSincronizandoFotos] = useState(false);
+  const [resultadoFotos, setResultadoFotos] = useState(null);
+
   // Edición rápida de ofertas
   const [editandoId, setEditandoId] = useState(null);
   const [precioEdit, setPrecioEdit] = useState('');
@@ -62,7 +69,7 @@ export default function AdminPage() {
   const [nuevoComercioDireccion, setNuevoComercioDireccion] = useState('');
   const [nuevoProdNombre, setNuevoProdNombre] = useState('');
   const [nuevoProdMarca, setNuevoProdMarca] = useState('');
-  const [nuevoProdCat, setNuevoProdCat] = useState('Súper');
+  const [nuevoProdCat, setNuevoProdCat] = useState('Almacén');
   const [guardandoMaestro, setGuardandoMaestro] = useState(false);
 
   // Edición de comercios (Ubicación / GPS)
@@ -75,7 +82,7 @@ export default function AdminPage() {
   const [editandoProdId, setEditandoProdId] = useState(null);
   const [editProdNombre, setEditProdNombre] = useState('');
   const [editProdMarca, setEditProdMarca] = useState('');
-  const [editProdCat, setEditProdCat] = useState('Súper');
+  const [editProdCat, setEditProdCat] = useState('Almacén');
 
   // Control local de productos ya validados por el admin
   const [prodsValidados, setProdsValidados] = useState([]);
@@ -129,7 +136,7 @@ export default function AdminPage() {
       const [resOfertas, resComercios, resProductos] = await Promise.all([
         supabase.from('ofertas').select(`
           id, precio, precio_propuesto, votos_propuesto, votos_positivos, votos_negativos, motivo_revision, es_catalogo, estado, foto_url, creado_en, usuario_id,
-          productos ( id, nombre, marca, categoria, creado_en ),
+          productos ( id, nombre, marca, categoria, foto_url, creado_en ),
           comercios ( id, nombre, direccion, latitud, longitud, creado_en )
         `).order('creado_en', { ascending: false }),
         supabase.from('comercios').select('*').order('nombre'),
@@ -170,6 +177,22 @@ export default function AdminPage() {
       setAdminError(err.message || 'Error al iniciar sesión');
     } finally {
       setAdminCargando(false);
+    }
+  };
+
+  const ejecutarSincronizacionFotos = async () => {
+    setSincronizandoFotos(true);
+    setResultadoFotos(null);
+    try {
+      const res = await fetch('/api/buscar-fotos', { method: 'POST' });
+      const data = await res.json();
+      setResultadoFotos(data);
+      // Recarga inmediata de Supabase para refrescar métricas
+      await cargarTodo();
+    } catch (err) {
+      setResultadoFotos({ exito: false, error: 'Ocurrió un error al conectar con la API.' });
+    } finally {
+      setSincronizandoFotos(false);
     }
   };
 
@@ -293,12 +316,22 @@ export default function AdminPage() {
     }
   };
 
-  // Productos Nuevos: Validar / Marcar como revisado
+  // Productos Nuevos: Validar
   const handleValidarProducto = (prodId) => {
     const nuevosValidados = [...prodsValidados, prodId];
     setProdsValidados(nuevosValidados);
     try {
       localStorage.setItem('bariahorra_prods_validados', JSON.stringify(nuevosValidados));
+    } catch (e) { }
+  };
+
+  // Validar todos los productos pendientes de una sola vez
+  const handleValidarTodosLosProductos = () => {
+    const todosIds = productosNuevosComunidad.map((p) => p.id);
+    const combinados = Array.from(new Set([...prodsValidados, ...todosIds]));
+    setProdsValidados(combinados);
+    try {
+      localStorage.setItem('bariahorra_prods_validados', JSON.stringify(combinados));
     } catch (e) { }
   };
 
@@ -459,12 +492,11 @@ export default function AdminPage() {
     };
   };
 
-  // Productos nuevos de la comunidad (últimos 7 días y no validados aún)
+  // Productos nuevos creados por vecinos que requieren revisión (excluye catálogo oficial ya aprobado)
   const productosNuevosComunidad = useMemo(() => {
-    const haceSieteDias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     return productos.filter((p) => {
-      const fecha = new Date(p.creado_en || 0);
-      return fecha >= haceSieteDias && !prodsValidados.includes(p.id);
+      // Si el producto fue subido por el admin o ya validado, no pide revisión
+      return !prodsValidados.includes(p.id) && !p.nombre.toLowerCase().includes('catalogo') && p.estado === 'por_revisar';
     });
   }, [productos, prodsValidados]);
 
@@ -477,6 +509,17 @@ export default function AdminPage() {
   const comerciosSinUbicacion = useMemo(() => {
     return comercios.filter((c) => !c.direccion || !c.latitud);
   }, [comercios]);
+
+  // Cálculo preciso de fotos en el catálogo de productos
+  const metricasFotos = useMemo(() => {
+    const total = productos.length;
+    const con = productos.filter((p) => Boolean(p.foto_url && p.foto_url.trim().length > 5)).length;
+    return {
+      total,
+      con,
+      sin: Math.max(0, total - con)
+    };
+  }, [productos]);
 
   const ofertasFiltradas = useMemo(() => {
     const listaBase = vistaActual === 'pendientes' ? ofertasPendientes : ofertas;
@@ -723,6 +766,24 @@ export default function AdminPage() {
               <ShoppingBag className="w-4 h-4" />
               <span>Productos ({productos.length})</span>
             </button>
+
+            {/* NUEVA PESTAÑA: FOTOS OPEN FOOD FACTS */}
+            <button
+              onClick={() => { setVistaActual('fotos'); setBusqueda(''); }}
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+                vistaActual === 'fotos'
+                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+                  : 'theme-btn-sec border text-cyan-400'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Fotos Open Food Facts</span>
+              {metricasFotos.sin > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  {metricasFotos.sin}
+                </span>
+              )}
+            </button>
           </div>
 
           {vistaActual === 'pendientes' && ofertasPendientes.length > 1 && (
@@ -737,49 +798,139 @@ export default function AdminPage() {
         </div>
 
         {/* BUSCADOR */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 theme-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por producto, súper o motivo de alerta..."
-              className="w-full theme-input border rounded-2xl pl-10 pr-8 py-2.5 text-xs placeholder-slate-400 outline-none focus:border-emerald-500 transition shadow-sm"
-            />
-            {busqueda && (
-              <button type="button" onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 theme-muted hover:theme-title">
-                <X className="w-3.5 h-3.5" />
-              </button>
+        {vistaActual !== 'fotos' && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 theme-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por producto, súper o motivo de alerta..."
+                className="w-full theme-input border rounded-2xl pl-10 pr-8 py-2.5 text-xs placeholder-slate-400 outline-none focus:border-emerald-500 transition shadow-sm"
+              />
+              {busqueda && (
+                <button type="button" onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 theme-muted hover:theme-title">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {(vistaActual === 'ofertas' || vistaActual === 'pendientes') && (
+              <div className="flex items-center gap-1.5 theme-btn-sec border px-3.5 py-2 rounded-2xl text-xs shrink-0">
+                <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <select
+                  value={ordenAdmin}
+                  onChange={(e) => setOrdenAdmin(e.target.value)}
+                  className="bg-transparent theme-title font-bold outline-none cursor-pointer text-xs"
+                >
+                  <option value="recientes" className="theme-card">Más recientes primero</option>
+                  <option value="producto_asc" className="theme-card">Ordenar por Producto (A-Z)</option>
+                  <option value="antiguos" className="theme-card">Más antiguos primero</option>
+                  <option value="precio_asc" className="theme-card">Menor precio ($)</option>
+                  <option value="precio_desc" className="theme-card">Mayor precio ($)</option>
+                </select>
+              </div>
             )}
           </div>
-
-          {(vistaActual === 'ofertas' || vistaActual === 'pendientes') && (
-            <div className="flex items-center gap-1.5 theme-btn-sec border px-3.5 py-2 rounded-2xl text-xs shrink-0">
-              <ArrowUpDown className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <select
-                value={ordenAdmin}
-                onChange={(e) => setOrdenAdmin(e.target.value)}
-                className="bg-transparent theme-title font-bold outline-none cursor-pointer text-xs"
-              >
-                <option value="recientes" className="theme-card">Más recientes primero</option>
-                <option value="producto_asc" className="theme-card">Ordenar por Producto (A-Z)</option>
-                <option value="antiguos" className="theme-card">Más antiguos primero</option>
-                <option value="precio_asc" className="theme-card">Menor precio ($)</option>
-                <option value="precio_desc" className="theme-card">Mayor precio ($)</option>
-              </select>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* CONTENIDO PRINCIPAL */}
         <div className="min-h-[50vh]">
           {cargandoDatos ? (
             <div className="text-center py-16 theme-muted text-xs">Cargando registros...</div>
+          ) : vistaActual === 'fotos' ? (
+            /* --- NUEVA PESTAÑA: FOTOS OPEN FOOD FACTS --- */
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="theme-card border rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs theme-muted font-bold flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-sky-500" /> Total Catálogo
+                  </p>
+                  <p className="text-xl font-black font-mono theme-title mt-1">{metricasFotos.total}</p>
+                </div>
+
+                <div className="theme-card border rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs theme-muted font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Con Foto Lista
+                  </p>
+                  <p className="text-xl font-black font-mono text-emerald-500 mt-1">{metricasFotos.con}</p>
+                </div>
+
+                <div className="theme-card border rounded-2xl p-4 shadow-sm">
+                  <p className="text-xs theme-muted font-bold flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" /> Sin Foto
+                  </p>
+                  <p className="text-xl font-black font-mono text-amber-500 mt-1">{metricasFotos.sin}</p>
+                </div>
+              </div>
+
+              <div className="theme-card border rounded-3xl p-5 shadow-lg space-y-3.5">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-black theme-title flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                    <span>Sincronizador Inteligente con Open Food Facts</span>
+                  </h3>
+                  <p className="text-xs theme-muted leading-relaxed">
+                    Buscá en lotes de 30 productos para no saturar la red. Cuando termine cada tanda, podés volver a presionarlo para seguir completando el resto del catálogo.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    disabled={sincronizandoFotos || metricasFotos.sin === 0}
+                    onClick={ejecutarSincronizacionFotos}
+                    className="bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black text-xs px-6 py-3 rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-95 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${sincronizandoFotos ? 'animate-spin' : ''}`} />
+                    <span>
+                      {sincronizandoFotos
+                        ? 'Buscando 30 imágenes en Open Food Facts...'
+                        : metricasFotos.sin === 0
+                        ? '¡Catálogo 100% completo con fotos!'
+                        : `Autocompletar siguientes 30 fotos (Quedan ${metricasFotos.sin})`}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={cargarTodo}
+                    className="p-3 theme-btn-sec border rounded-2xl theme-muted hover:theme-title transition cursor-pointer"
+                    title="Recargar métricas"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {resultadoFotos && (
+                  <div className={`p-4 rounded-2xl border text-xs space-y-2 mt-4 animate-in fade-in duration-200 ${
+                    resultadoFotos.exito
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
+                  }`}>
+                    <p className="font-bold flex items-center gap-2 text-sm">
+                      {resultadoFotos.exito ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                      <span>{resultadoFotos.mensaje || resultadoFotos.error}</span>
+                    </p>
+
+                    {resultadoFotos.detalles?.length > 0 && (
+                      <div className="max-h-52 overflow-y-auto space-y-1 pt-2 border-t border-emerald-500/20 font-mono text-[11px] theme-subtitle">
+                        {resultadoFotos.detalles.map((d, idx) => (
+                          <p key={idx} className="truncate">
+                            • <strong>{d.producto}</strong>: {d.estado}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           ) : vistaActual === 'pendientes' ? (
             <div className="space-y-4">
 
-              {/* SECCIÓN OPCIÓN A: PRODUCTOS NUEVOS DE LA COMUNIDAD */}
+              {/* SECCIÓN PRODUCTOS NUEVOS DE LA COMUNIDAD */}
               {productosNuevosComunidad.length > 0 && (
                 <div className="theme-card border-2 border-sky-500/40 rounded-3xl p-4 sm:p-5 shadow-xl space-y-3">
                   <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[var(--border-card)] pb-3">
@@ -796,6 +947,15 @@ export default function AdminPage() {
                         </p>
                       </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={handleValidarTodosLosProductos}
+                      className="text-xs bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 border border-sky-500/30 font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 transition"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      <span>Validar todos</span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
@@ -826,12 +986,17 @@ export default function AdminPage() {
                                   onChange={(e) => setEditProdCat(e.target.value)}
                                   className="w-full theme-input text-xs px-2 py-1 rounded-lg border outline-none font-bold text-amber-500"
                                 >
-                                  <option value="Súper">Súper</option>
+                                  <option value="Almacén">Almacén</option>
                                   <option value="Carnicería">Carnicería</option>
+                                  <option value="Pescados y Mariscos">Pescados y Mariscos</option>
+                                  <option value="Congelados">Congelados</option>
                                   <option value="Verdulería">Verdulería</option>
                                   <option value="Lácteos">Lácteos</option>
-                                  <option value="Bebidas">Bebidas</option>
+                                  <option value="Veggie">Veggie</option>
+                                  <option value="Sin TACC">Sin TACC</option>
+                                  <option value="Higiene Personal">Higiene Personal</option>
                                   <option value="Limpieza">Limpieza</option>
+                                  <option value="Bebidas">Bebidas</option>
                                 </select>
                               </div>
                               <div className="flex items-center justify-end gap-1.5 pt-1">
@@ -856,7 +1021,7 @@ export default function AdminPage() {
                               <div className="min-w-0 flex-1">
                                 <h4 className="text-xs font-black theme-title truncate">{prod.nombre}</h4>
                                 <p className="text-[10px] theme-muted mt-0.5 truncate">
-                                  <span className="theme-subtitle font-bold">{prod.marca || 'S/M'}</span> • <span className="text-amber-500 font-semibold">{prod.categoria || 'Súper'}</span>
+                                  <span className="theme-subtitle font-bold">{prod.marca || 'S/M'}</span> • <span className="text-amber-500 font-semibold">{prod.categoria || 'Almacén'}</span>
                                 </p>
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
@@ -866,7 +1031,7 @@ export default function AdminPage() {
                                     setEditandoProdId(prod.id);
                                     setEditProdNombre(prod.nombre || '');
                                     setEditProdMarca(prod.marca || '');
-                                    setEditProdCat(prod.categoria || 'Súper');
+                                    setEditProdCat(prod.categoria || 'Almacén');
                                   }}
                                   className="p-1.5 theme-btn-sec rounded-lg border text-sky-500 hover:border-sky-500 transition cursor-pointer"
                                   title="Corregir nombre, marca o rubro"
@@ -887,7 +1052,7 @@ export default function AdminPage() {
                                   className="p-1.5 theme-muted hover:text-rose-500 cursor-pointer"
                                   title="Eliminar producto"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
@@ -947,7 +1112,7 @@ export default function AdminPage() {
                               </div>
                               <h3 className="text-xs font-black theme-title truncate">{item.productos?.nombre || 'Producto'}</h3>
                               <p className="text-[11px] theme-muted truncate mt-0.5">
-                                <span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-500">{item.productos?.categoria || 'Súper'}</span>
+                                <span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-500">{item.productos?.categoria || 'Almacén'}</span>
                               </p>
                             </div>
                           </div>
@@ -1076,7 +1241,7 @@ export default function AdminPage() {
                                     <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 text-[9px] font-black">OFICIAL</span>
                                   )}
                                 </div>
-                                <p className="text-[10px] theme-muted"><span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-500">{item.productos?.categoria || 'Súper'}</span></p>
+                                <p className="text-[10px] theme-muted"><span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-500">{item.productos?.categoria || 'Almacén'}</span></p>
                               </td>
                               <td className="p-3">
                                 <div>
@@ -1210,7 +1375,7 @@ export default function AdminPage() {
                         </td>
                         <td className="p-3">
                           <p className="font-black theme-title">{item.productos?.nombre || 'Producto'}</p>
-                          <p className="text-[10px] theme-muted">{item.productos?.marca || 'Genérica'} • {item.productos?.categoria || 'Súper'}</p>
+                          <p className="text-[10px] theme-muted">{item.productos?.marca || 'Genérica'} • {item.productos?.categoria || 'Almacén'}</p>
                         </td>
                         <td className="p-3">
                           <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-500 border border-sky-500/20 font-bold text-[11px]">
@@ -1319,7 +1484,7 @@ export default function AdminPage() {
                             className="p-1.5 theme-muted hover:text-rose-500 cursor-pointer"
                             title="Eliminar comercio"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -1419,12 +1584,17 @@ export default function AdminPage() {
                   onChange={(e) => setNuevoProdCat(e.target.value)}
                   className="theme-input text-xs text-amber-500 font-bold px-3 py-2 rounded-xl border outline-none cursor-pointer"
                 >
-                  <option value="Súper" className="theme-card">Súper</option>
+                  <option value="Almacén" className="theme-card">Almacén</option>
                   <option value="Carnicería" className="theme-card">Carnicería</option>
+                  <option value="Pescados y Mariscos" className="theme-card">Pescados y Mariscos</option>
+                  <option value="Congelados" className="theme-card">Congelados</option>
                   <option value="Verdulería" className="theme-card">Verdulería</option>
                   <option value="Lácteos" className="theme-card">Lácteos</option>
-                  <option value="Bebidas" className="theme-card">Bebidas</option>
+                  <option value="Veggie" className="theme-card">Veggie</option>
+                  <option value="Sin TACC" className="theme-card">Sin TACC</option>
+                  <option value="Higiene Personal" className="theme-card">Higiene Personal</option>
                   <option value="Limpieza" className="theme-card">Limpieza</option>
+                  <option value="Bebidas" className="theme-card">Bebidas</option>
                 </select>
                 <button type="submit" disabled={guardandoMaestro} className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2 rounded-xl text-xs transition cursor-pointer shadow">
                   + Producto
@@ -1434,9 +1604,18 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                 {productosFiltrados.map((prod) => (
                   <div key={prod.id} className="theme-card p-3 rounded-2xl border flex justify-between items-center shadow-sm">
-                    <div className="min-w-0 pr-2">
-                      <p className="text-xs font-bold theme-title truncate">{prod.nombre}</p>
-                      <p className="text-[10px] text-amber-500"><span className="theme-muted">{prod.marca || 'S/M'}</span> • {prod.categoria}</p>
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      <div className="w-8 h-8 rounded-lg border theme-card-sub shrink-0 overflow-hidden flex items-center justify-center">
+                        {prod.foto_url ? (
+                          <img src={prod.foto_url} alt={prod.nombre} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="w-4 h-4 text-slate-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold theme-title truncate">{prod.nombre}</p>
+                        <p className="text-[10px] text-amber-500 truncate"><span className="theme-muted">{prod.marca || 'S/M'}</span> • {prod.categoria}</p>
+                      </div>
                     </div>
                     <button onClick={() => handleEliminarMaestro('productos', prod.id)} className="p-1.5 theme-muted hover:text-rose-500 cursor-pointer shrink-0">
                       <Trash2 className="w-3.5 h-3.5" />

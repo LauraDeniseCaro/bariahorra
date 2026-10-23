@@ -12,6 +12,7 @@ export async function POST(req) {
 
     const formData = await req.formData();
     const archivo = formData.get('foto');
+    const tipo = formData.get('tipo') || 'gondola'; // 'gondola' o 'ticket'
 
     if (!archivo) {
       return NextResponse.json(
@@ -24,25 +25,48 @@ export async function POST(req) {
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
     const mimeType = archivo.type || 'image/jpeg';
 
-    const prompt = `
-Sos un digitalizador de carteles de precios de supermercados argentinos.
-Analizá la foto y extraé producto y precio.
-NO agregues razonamiento, NO agregues explicaciones, NO uses etiquetas de pensamiento.
+    // 1. Prompts especializados según el tipo de escaneo seleccionado por el vecino
+    const promptGondola = `
+Sos un digitalizador de carteles de precios y etiquetas de góndola de supermercados argentinos (La Anónima, Todo, ChangoMás, Carrefour, Diarco, etc.).
+Analizá la foto de la etiqueta/cartel y extraé el producto y su precio de venta final al público.
+NO agregues razonamiento, NO agregues explicaciones, NO uses etiquetas de pensamiento (<think>).
 Tu respuesta debe comenzar directamente con el caracter { y terminar con }.
 
 JSON obligatorio:
 {
-  "producto": "Nombre legible del producto o corte de carne",
-  "marca": null,
-  "cantidad": "1",
-  "unidad_medida": "kg",
+  "producto": "Nombre limpio del producto o corte (ej: Leche descremada, Bola de lomo, Aceite girasol)",
+  "marca": "Marca si figura (ej: La Serenísima, Natura) o null",
+  "cantidad": "Número (ej: 1, 500, 900) o null",
+  "unidad_medida": "ml, l, gr, kg o u",
   "precio": 8490,
-  "rubro": "Carnicería",
-  "comercio": "La Anónima"
+  "rubro": "Súper, Carnicería, Verdulería, Lácteos, Limpieza o Bebidas",
+  "comercio": "La Anónima, Todo, ChangoMás, Carrefour, Diarco o null"
 }
 `;
 
-    // Consultar modelos gratuitos con visión activos
+    const promptTicket = `
+Sos un digitalizador de tickets de supermercados argentinos (La Anónima, Todo, ChangoMás, Carrefour, Diarco, etc.).
+Analizá la foto del ticket fiscal o recibo:
+1. Identificá la cadena o supermercado emisor (desde el encabezado o logo: La Anónima, Todo, ChangoMás, etc.).
+2. Identificá el ítem más representativo o principal del ticket junto con su importe cobrado.
+NO agregues razonamiento, NO agregues explicaciones, NO uses etiquetas de pensamiento (<think>).
+Tu respuesta debe comenzar directamente con el caracter { y terminar con }.
+
+JSON obligatorio:
+{
+  "producto": "Nombre legible del producto principal del ticket (ej: Pan lactal, Yerba mate, Fideos)",
+  "marca": null,
+  "cantidad": "1",
+  "unidad_medida": "u",
+  "precio": 2350,
+  "rubro": "Súper, Carnicería, Verdulería, Lácteos, Limpieza o Bebidas",
+  "comercio": "La Anónima, Todo, ChangoMás, Carrefour, Diarco o null"
+}
+`;
+
+    const promptFinal = tipo === 'ticket' ? promptTicket : promptGondola;
+
+    // 2. Consultar modelos gratuitos con visión activos
     let modelosDisponibles = [];
     try {
       const resModels = await fetch('https://openrouter.ai/api/v1/models');
@@ -62,7 +86,7 @@ JSON obligatorio:
       console.warn('Fallo lista dinámica:', e.message);
     }
 
-    // Ponemos primero el modelo de Nvidia que ya confirmó que funciona en tu cuenta
+    // Priorizamos Nvidia Nemotron que ya sabemos que responde bien en tu cuenta
     const listaCandidatos = [
       'nvidia/nemotron-3.5-super-vl:free',
       ...modelosDisponibles,
@@ -76,25 +100,25 @@ JSON obligatorio:
 
     for (const modelId of modelosAProbar) {
       try {
-        console.log(`📡 Consultando modelo: ${modelId}...`);
+        console.log(`📡 Consultando modelo: ${modelId} (${tipo})...`);
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'http://localhost:3000',
+            'HTTP-Referer': 'https://bariahorra.vercel.app',
             'X-Title': 'BariAhorra'
           },
           body: JSON.stringify({
             model: modelId,
-            max_tokens: 2500, // Espacio suficiente para completar el JSON sin truncarse
+            max_tokens: 2500,
             temperature: 0.1,
             messages: [
               {
                 role: 'user',
                 content: [
-                  { type: 'text', text: prompt },
+                  { type: 'text', text: promptFinal },
                   {
                     type: 'image_url',
                     image_url: {
@@ -112,7 +136,6 @@ JSON obligatorio:
           const contenido = data?.choices?.[0]?.message?.content;
           if (contenido) {
             console.log(`✅ Respuesta recibida con: ${modelId}`);
-            console.log('📄 Texto crudo devuelto:\n', contenido);
             respuestaExitosa = contenido;
             break;
           }
@@ -129,15 +152,13 @@ JSON obligatorio:
 
     if (!respuestaExitosa) {
       return NextResponse.json(
-        { ok: false, error: 'Los proveedores gratuitos están saturados. Reintentá en unos segundos.' },
+        { ok: false, error: 'Los proveedores gratuitos están momentáneamente saturados. Podés cargar los datos a mano.' },
         { status: 502 }
       );
     }
 
-    // Extracción limpia entre la primera llave { y la última }
+    // 3. Limpieza de razonamiento y extracción estricta del JSON
     let textoLimpio = respuestaExitosa.trim();
-    
-    // Si contiene etiquetas <think>...</think>, las removemos
     textoLimpio = textoLimpio.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
     const primerLlave = textoLimpio.indexOf('{');
@@ -150,7 +171,7 @@ JSON obligatorio:
     const resultado = JSON.parse(textoLimpio);
     return NextResponse.json({ ok: true, datos: resultado });
   } catch (error) {
-    console.error('❌ Error parseando JSON de la foto:', error);
+    console.error('❌ Error analizando foto con IA:', error);
     return NextResponse.json(
       { ok: false, error: error.message || 'Error al procesar los datos de la imagen' },
       { status: 500 }

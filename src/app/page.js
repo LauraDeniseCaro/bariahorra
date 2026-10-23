@@ -6,10 +6,6 @@ import { supabase } from '@/lib/supabase';
 import {
   Search,
   Plus,
-  ThumbsUp,
-  User,
-  Store,
-  Scale,
   Smartphone,
   Download,
   X,
@@ -23,33 +19,25 @@ import {
   Wine,
   Layers,
   ListFilter,
-  Clock,
-  Award,
-  RefreshCw,
-  ArrowRight,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   ShoppingBag,
-  Trash2,
-  Calculator,
-  ListChecks,
-  ShieldCheck,
-  AlertTriangle,
-  Share2,
-  ZoomIn,
-  MapPin,
   Navigation,
   Fish,
   Snowflake,
   Leaf,
   Wheat,
   Smile,
-  CheckSquare,
-  Square,
-  Zap,
-  TrendingDown
+  Calculator
 } from 'lucide-react';
+
+import FotoModal from '@/components/FotoModal';
+import ComercioModal from '@/components/ComercioModal';
+import GondolaCard from '@/components/GondolaCard';
+import PreciosBomba from '@/components/PreciosBomba';
+import ComparadorView from '@/components/ComparadorView';
+import MiListaView from '@/components/MiListaView';
 
 const CANTIDAD_POR_PAGINA = 12;
 
@@ -68,85 +56,85 @@ const CONFIG_CATEGORIAS = {
   Todos: {
     icono: LayoutGrid,
     pillActiva: 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 border-amber-400',
-    acento: 'text-amber-600 dark:text-amber-400',
-    cajaIcono: 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
+    acento: 'text-amber-500',
+    cajaIcono: 'bg-amber-500/10 border-amber-500/30 text-amber-500',
     bordeBuscador: 'focus:border-amber-500/60'
   },
   Almacén: {
     icono: ShoppingCart,
     pillActiva: 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 border-emerald-400',
-    acento: 'text-emerald-600 dark:text-emerald-400',
-    cajaIcono: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400',
+    acento: 'text-emerald-500',
+    cajaIcono: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500',
     bordeBuscador: 'focus:border-emerald-500/60'
   },
   Carnicería: {
     icono: Beef,
     pillActiva: 'bg-rose-500 text-white shadow-lg shadow-rose-500/25 border-rose-400',
-    acento: 'text-rose-600 dark:text-rose-400',
-    cajaIcono: 'bg-rose-500/10 border-rose-500/25 text-rose-600 dark:text-rose-400',
+    acento: 'text-rose-500',
+    cajaIcono: 'bg-rose-500/10 border-rose-500/25 text-rose-500',
     bordeBuscador: 'focus:border-rose-500/60'
   },
   'Pescados y Mariscos': {
     icono: Fish,
     pillActiva: 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 border-cyan-400',
-    acento: 'text-cyan-600 dark:text-cyan-400',
-    cajaIcono: 'bg-cyan-500/10 border-cyan-500/25 text-cyan-600 dark:text-cyan-400',
+    acento: 'text-cyan-500',
+    cajaIcono: 'bg-cyan-500/10 border-cyan-500/25 text-cyan-500',
     bordeBuscador: 'focus:border-cyan-500/60'
   },
   Congelados: {
     icono: Snowflake,
     pillActiva: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 border-indigo-400',
-    acento: 'text-indigo-600 dark:text-indigo-400',
-    cajaIcono: 'bg-indigo-500/10 border-indigo-500/25 text-indigo-600 dark:text-indigo-400',
+    acento: 'text-indigo-500',
+    cajaIcono: 'bg-indigo-500/10 border-indigo-500/25 text-indigo-500',
     bordeBuscador: 'focus:border-indigo-500/60'
   },
   Verdulería: {
     icono: Apple,
     pillActiva: 'bg-lime-400 text-slate-950 shadow-lg shadow-lime-400/20 border-lime-300',
-    acento: 'text-lime-600 dark:text-lime-400',
-    cajaIcono: 'bg-lime-500/10 border-lime-500/25 text-lime-600 dark:text-lime-400',
+    acento: 'text-lime-500',
+    cajaIcono: 'bg-lime-500/10 border-lime-500/25 text-lime-500',
     bordeBuscador: 'focus:border-lime-400/60'
   },
   Lácteos: {
     icono: Milk,
     pillActiva: 'bg-sky-400 text-slate-950 shadow-lg shadow-sky-400/20 border-sky-300',
-    acento: 'text-sky-600 dark:text-sky-400',
-    cajaIcono: 'bg-sky-500/10 border-sky-500/25 text-sky-600 dark:text-sky-400',
+    acento: 'text-sky-500',
+    cajaIcono: 'bg-sky-500/10 border-sky-500/25 text-sky-500',
     bordeBuscador: 'focus:border-sky-400/60'
   },
   Veggie: {
     icono: Leaf,
     pillActiva: 'bg-teal-500 text-white shadow-lg shadow-teal-500/20 border-teal-400',
-    acento: 'text-teal-600 dark:text-teal-400',
-    cajaIcono: 'bg-teal-500/10 border-teal-500/25 text-teal-600 dark:text-teal-400',
+    acento: 'text-teal-500',
+    cajaIcono: 'bg-teal-500/10 border-teal-500/25 text-teal-500',
     bordeBuscador: 'focus:border-teal-500/60'
   },
   'Sin TACC': {
     icono: Wheat,
     pillActiva: 'bg-yellow-500 text-slate-950 shadow-lg shadow-yellow-500/20 border-yellow-400',
-    acento: 'text-yellow-600 dark:text-yellow-400',
-    cajaIcono: 'bg-yellow-500/10 border-yellow-500/25 text-yellow-600 dark:text-yellow-400',
+    acento: 'text-yellow-500',
+    cajaIcono: 'bg-yellow-500/10 border-yellow-500/25 text-yellow-500',
     bordeBuscador: 'focus:border-yellow-500/60'
   },
   'Higiene Personal': {
     icono: Smile,
     pillActiva: 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/20 border-fuchsia-400',
-    acento: 'text-fuchsia-600 dark:text-fuchsia-400',
-    cajaIcono: 'bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-600 dark:text-fuchsia-400',
+    acento: 'text-fuchsia-500',
+    cajaIcono: 'bg-fuchsia-500/10 border-fuchsia-500/25 text-fuchsia-500',
     bordeBuscador: 'focus:border-fuchsia-500/60'
   },
   Limpieza: {
     icono: Sparkles,
     pillActiva: 'bg-violet-500 text-white shadow-lg shadow-violet-500/25 border-violet-400',
-    acento: 'text-violet-600 dark:text-violet-400',
-    cajaIcono: 'bg-violet-500/10 border-violet-500/25 text-violet-600 dark:text-violet-400',
+    acento: 'text-violet-500',
+    cajaIcono: 'bg-violet-500/10 border-violet-500/25 text-violet-500',
     bordeBuscador: 'focus:border-violet-500/60'
   },
   Bebidas: {
     icono: Wine,
     pillActiva: 'bg-orange-500 text-slate-950 shadow-lg shadow-orange-500/20 border-orange-400',
-    acento: 'text-orange-600 dark:text-orange-400',
-    cajaIcono: 'bg-orange-500/10 border-orange-500/25 text-orange-600 dark:text-orange-400',
+    acento: 'text-orange-500',
+    cajaIcono: 'bg-orange-500/10 border-orange-500/25 text-orange-500',
     bordeBuscador: 'focus:border-orange-500/60'
   }
 };
@@ -345,14 +333,6 @@ function obtenerClaveVoto(ofertaId, precioActual) {
   return `${ofertaId}_${Math.round(Number(precioActual || 0))}`;
 }
 
-function WhatsAppIcon({ className = 'w-3.5 h-3.5' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 11.66c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43s-.56-1.34-.76-1.84c-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.44.06-.66.31-.23.25-.87.85-.87 2.07s.89 2.4 1.02 2.57c.12.17 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.53.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.1-.22-.16-.47-.28" />
-    </svg>
-  );
-}
-
 function compartirOfertaWhatsApp(item) {
   const precioFormateado = Number(item._precio || 0).toLocaleString('es-AR');
   const unitario = item._refUnitario ? ` ($${item._refUnitario.valor} x ${item._refUnitario.unidad})` : '';
@@ -361,7 +341,7 @@ function compartirOfertaWhatsApp(item) {
     `🛒 *¡Mirá este precio en Bariloche!*
 
 *${item._producto}* (${item._marca})
-🏪 *${item._comercio}*
+🏪 *${item._cadena || item._comercio}*
 💵 *$${precioFormateado}*${unitario}
 
 Encontrá más precios y compará en 👇
@@ -427,13 +407,12 @@ export default function HomePage() {
 
   const [changuito, setChanguito] = useState([]);
 
-  // Referencias para carruseles con soporte de arrastre en PC
+  // Referencias para carruseles con drag
   const categoriasRef = useRef(null);
   const bombaRef = useRef(null);
   const popularesRef = useRef(null);
   const cadenasRef = useRef(null);
 
-  // Estado unificado para drag con mouse
   const dragInfoRef = useRef({
     isDown: false,
     startX: 0,
@@ -452,7 +431,7 @@ export default function HomePage() {
     try {
       const coordsGuardadas = sessionStorage.getItem('bariahorra_gps');
       if (coordsGuardadas) setUserCoords(JSON.parse(coordsGuardadas));
-    } catch (e) { }
+    } catch (e) {}
 
     const esStandalone =
       typeof window !== 'undefined' &&
@@ -469,9 +448,11 @@ export default function HomePage() {
       if (changuitoGuardado) setChanguito(JSON.parse(changuitoGuardado));
       const tachadosGuardados = localStorage.getItem('bariahorra_tachados');
       if (tachadosGuardados) setItemsTachados(JSON.parse(tachadosGuardados));
-    } catch (e) { }
+    } catch (e) {}
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUsuario(session?.user || null);
     });
 
@@ -525,7 +506,7 @@ export default function HomePage() {
 
   const abrirUbicacionComercio = (comercioNombre, direccion = null, lat = null, lng = null, distancia = null) => {
     setComercioModal({
-      nombre: comercioNombre,
+      nombre: normalizarCadena(comercioNombre),
       direccion: direccion,
       lat: lat,
       lng: lng,
@@ -533,7 +514,6 @@ export default function HomePage() {
     });
   };
 
-  // CONTROLADORES DE ARRASTRE Y RUEDA
   const iniciarArrastre = (e, contenedorRef) => {
     if (!contenedorRef?.current) return;
     dragInfoRef.current = {
@@ -600,10 +580,10 @@ export default function HomePage() {
         setPidiendoGps(false);
         try {
           sessionStorage.setItem('bariahorra_gps', JSON.stringify(coords));
-        } catch (e) { }
+        } catch (e) {}
         mostrarToast('Ubicación activada. Ahora podés ver las distancias.');
       },
-      (err) => {
+      () => {
         setPidiendoGps(false);
         alert('Para ver qué súper te queda más cerca, permití el acceso a tu ubicación.');
       },
@@ -618,7 +598,7 @@ export default function HomePage() {
       const nuevo = existe ? prev.filter((item) => item !== clave) : [...prev, clave];
       try {
         localStorage.setItem('bariahorra_changuito', JSON.stringify(nuevo));
-      } catch (e) { }
+      } catch (e) {}
       return nuevo;
     });
   };
@@ -629,7 +609,7 @@ export default function HomePage() {
       const nuevo = existe ? prev.filter((k) => k !== clave) : [...prev, clave];
       try {
         localStorage.setItem('bariahorra_tachados', JSON.stringify(nuevo));
-      } catch (e) { }
+      } catch (e) {}
       return nuevo;
     });
   };
@@ -641,7 +621,7 @@ export default function HomePage() {
     try {
       localStorage.removeItem('bariahorra_changuito');
       localStorage.removeItem('bariahorra_tachados');
-    } catch (e) { }
+    } catch (e) {}
   };
 
   const cargarVotosDesdeStorage = () => {
@@ -655,7 +635,7 @@ export default function HomePage() {
         }
       }
       setVotosRealizados(guardados);
-    } catch (e) { }
+    } catch (e) {}
   };
 
   const handleInstalarApp = async () => {
@@ -669,7 +649,9 @@ export default function HomePage() {
         console.error('Error al solicitar instalación:', err);
       }
     } else {
-      alert('Para instalar BariAhorra:\n• En Android: Tocá los 3 puntos y seleccioná "Instalar aplicación".\n• En iPhone (Safari): Tocá Compartir y elegí "Agregar a inicio".');
+      alert(
+        'Para instalar BariAhorra:\n• En Android: Tocá los 3 puntos y seleccioná "Instalar aplicación".\n• En iPhone (Safari): Tocá Compartir y elegí "Agregar a inicio".'
+      );
     }
   };
 
@@ -680,7 +662,9 @@ export default function HomePage() {
 
   const obtenerSesionYOfertas = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
       const user = session?.user || null;
       setUsuario(user);
       await cargarOfertas(user);
@@ -806,7 +790,7 @@ export default function HomePage() {
           _esCatalogo: esCatalogoOficial,
           _estadoVenc: estadoVenc,
           _votosPositivos: votosPos,
-          _votosNegativos: votosNeg,
+          _votosNegativos: votosNeg
         };
       });
 
@@ -830,17 +814,14 @@ export default function HomePage() {
       const pasaARevision = tipo === 'subio' && (oferta._esCatalogo || nuevoNegativo >= 3);
       const payloadUpdate = {
         votos_positivos: nuevoPositivo,
-        votos_negativos: nuevoNegativo,
+        votos_negativos: nuevoNegativo
       };
       if (pasaARevision) {
         payloadUpdate.estado = 'en_revision';
         payloadUpdate.motivo_revision = 'Reportado como aumentado por varios vecinos';
       }
 
-      const { error } = await supabase
-        .from('ofertas')
-        .update(payloadUpdate)
-        .eq('id', oferta.id);
+      const { error } = await supabase.from('ofertas').update(payloadUpdate).eq('id', oferta.id);
 
       if (!error) {
         if (tipo === 'sigue' && oferta.usuario_id) {
@@ -865,17 +846,17 @@ export default function HomePage() {
         try {
           localStorage.setItem(`bariahorra_voto_${claveVoto}`, tipo);
           setVotosRealizados((prev) => ({ ...prev, [claveVoto]: tipo }));
-        } catch (e) { }
+        } catch (e) {}
 
         setOfertas((prev) =>
           prev.map((o) =>
             o.id === oferta.id
               ? {
-                ...o,
-                _votosPositivos: nuevoPositivo,
-                _votosNegativos: nuevoNegativo,
-                estado: pasaARevision ? 'en_revision' : o.estado
-              }
+                  ...o,
+                  _votosPositivos: nuevoPositivo,
+                  _votosNegativos: nuevoNegativo,
+                  estado: pasaARevision ? 'en_revision' : o.estado
+                }
               : o
           )
         );
@@ -906,7 +887,7 @@ export default function HomePage() {
     try {
       const diferenciaPorcentual = Math.abs(valorNum - oferta._precio) / oferta._precio;
 
-      if (diferenciaPorcentual > 0.50) {
+      if (diferenciaPorcentual > 0.5) {
         await supabase
           .from('ofertas')
           .update({
@@ -967,7 +948,6 @@ export default function HomePage() {
     }
   };
 
-  // Filtrado reactivo (Categoría + Cadena + Buscador)
   const ofertasFiltradas = useMemo(() => {
     const catNorm = limpiarTexto(categoriaActiva);
     const cadenaNorm = limpiarTexto(cadenaActiva);
@@ -1138,7 +1118,7 @@ export default function HomePage() {
         clave,
         nombre: mejor?._producto || clave,
         minPrecio: mejor?._precio || 0,
-        mejorComercio: mejor?._comercio || '',
+        mejorComercio: normalizarCadena(mejor?._comercio || ''),
         mejorCadena: mejor?._cadena || mejor?._comercio || '',
         ofertasPorComercio: coincidencias
       };
@@ -1213,7 +1193,6 @@ export default function HomePage() {
       onMouseUp={detenerArrastre}
       className="w-full max-w-4xl mx-auto p-3.5 sm:p-6 space-y-3.5 pb-24"
     >
-
       {/* TOAST FLOTANTE */}
       {avisoFeedback && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 theme-card border border-sky-500/40 theme-title px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold">
@@ -1228,7 +1207,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2 min-w-0">
             <Smartphone className="w-4 h-4 text-sky-500 shrink-0" />
             <p className="text-[11px] sm:text-xs font-bold theme-subtitle truncate">
-              Instalá <span className="text-sky-600 font-black">BariAhorra</span> en tu pantalla de inicio
+              Instalá <span className="text-sky-500 font-black">BariAhorra</span> en tu pantalla de inicio
             </p>
           </div>
 
@@ -1253,11 +1232,13 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* BUSCADOR CON NUBE DE TÉRMINOS POPULARES */}
+      {/* BUSCADOR */}
       <div className="space-y-1.5 relative">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${estiloCatActiva.acento}`} />
+            <Search
+              className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${estiloCatActiva.acento}`}
+            />
             <input
               type="text"
               value={busqueda}
@@ -1286,7 +1267,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* NUBE POPULARES (DESPLAZABLE CON MOUSE Y RUEDA) */}
+        {/* NUBE DE TÉRMINOS POPULARES */}
         {(buscadorFoco || busqueda.length > 0) && (
           <div
             ref={popularesRef}
@@ -1319,7 +1300,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* FILTRO POR CADENA (DESPLAZABLE CON MOUSE Y RUEDA) */}
+      {/* FILTRO DE SUPERMERCADOS */}
       <div
         ref={cadenasRef}
         onMouseDown={(e) => iniciarArrastre(e, cadenasRef)}
@@ -1381,9 +1362,7 @@ export default function HomePage() {
                   setCategoriaActiva(cat);
                 }}
                 className={`px-3.5 py-2 rounded-xl whitespace-nowrap font-bold transition text-xs cursor-pointer flex items-center gap-1.5 border shrink-0 ${
-                  activa
-                    ? conf.pillActiva
-                    : 'theme-btn-sec hover:border-slate-400'
+                  activa ? conf.pillActiva : 'theme-btn-sec hover:border-slate-400'
                 }`}
               >
                 <IconoCat className={`w-3.5 h-3.5 ${activa ? 'stroke-[2.5]' : conf.acento}`} />
@@ -1402,104 +1381,25 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* CARRUSEL HERO: PRECIOS DESTACADOS BOMBA CON RESPALDO VECTORIAL */}
-      {busqueda === '' && categoriaActiva === 'Todos' && cadenaActiva === 'Todos' && modoVista === 'gondola' && ofertasBomba.length > 0 && (
-        <section className="space-y-2 pt-1 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>Precios Destacados de Bariloche</span>
-            </h2>
+      {/* COMPONENTE: PRECIOS BOMBA */}
+      {busqueda === '' &&
+        categoriaActiva === 'Todos' &&
+        cadenaActiva === 'Todos' &&
+        modoVista === 'gondola' && (
+          <PreciosBomba
+            ofertasBomba={ofertasBomba}
+            bombaRef={bombaRef}
+            iniciarArrastre={iniciarArrastre}
+            manejarRuedaHorizontal={manejarRuedaHorizontal}
+            desplazarBomba={desplazarBomba}
+            abrirUbicacionComercio={abrirUbicacionComercio}
+            dragInfoRef={dragInfoRef}
+            CONFIG_CATEGORIAS={CONFIG_CATEGORIAS}
+            obtenerEstiloComercio={obtenerEstiloComercio}
+          />
+        )}
 
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => desplazarBomba('izq')}
-                className="w-6 h-6 rounded-full theme-btn-sec border flex items-center justify-center cursor-pointer transition hover:border-amber-500"
-                title="Ver anteriores"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => desplazarBomba('der')}
-                className="w-6 h-6 rounded-full theme-btn-sec border flex items-center justify-center cursor-pointer transition hover:border-amber-500"
-                title="Ver siguientes"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          <div
-            ref={bombaRef}
-            onMouseDown={(e) => iniciarArrastre(e, bombaRef)}
-            onWheel={(e) => manejarRuedaHorizontal(e, bombaRef)}
-            className="flex gap-3 overflow-x-auto pb-2 scrollbar-none select-none cursor-grab active:cursor-grabbing"
-          >
-            {ofertasBomba.map((item) => {
-              const confRubroBomba = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Almacén;
-              const IconoRubroBomba = confRubroBomba.icono;
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => {
-                    if (dragInfoRef.current.hasMoved) return;
-                    abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt);
-                  }}
-                  className="shrink-0 w-64 theme-card border border-amber-500/30 rounded-2xl p-3 shadow-md bg-gradient-to-br from-amber-500/5 via-transparent to-transparent flex flex-col justify-between space-y-2 cursor-pointer hover:border-amber-400 transition"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 flex items-center gap-1">
-                      <Zap className="w-2.5 h-2.5 fill-slate-950" />
-                      Destacado
-                    </span>
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${obtenerEstiloComercio(item._comercio)}`}>
-                      <Store className="w-2.5 h-2.5" />
-                      <span>{item._comercio}</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    {/* Caja de imagen con ícono de fondo por si la foto falla */}
-                    <div className="w-12 h-12 rounded-xl border overflow-hidden shrink-0 theme-card-sub flex items-center justify-center relative">
-                      <IconoRubroBomba className={`w-6 h-6 stroke-[1.75] absolute ${confRubroBomba.acento}`} />
-                      {item._foto && (
-                        <img
-                          src={item._foto}
-                          alt={item._producto}
-                          className="w-full h-full object-cover relative z-10 bg-[var(--bg-card)]"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-black theme-title truncate">{item._producto}</h4>
-                      <p className="text-[10px] theme-muted truncate">{item._marca} • {item._presentacion}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-baseline justify-between pt-1 border-t border-[var(--border-card)]">
-                    <span className="text-base font-black font-mono text-emerald-500">
-                      ${Number(item._precio).toLocaleString('es-AR')}
-                    </span>
-                    {item._refUnitario && (
-                      <span className="text-[9px] theme-muted font-bold">
-                        x {item._refUnitario.unidad}: {item._refUnitario.valor}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* BARRA DE CONTROLES */}
+      {/* BARRA DE NAVEGACIÓN Y TABS */}
       <div className="theme-card border rounded-2xl p-1.5 sm:p-2.5 shadow-sm space-y-1.5 sm:space-y-2">
         <div className="grid grid-cols-3 gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
           <button
@@ -1583,7 +1483,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* FEED PRINCIPAL */}
       {cargando ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
           {[1, 2, 3, 4].map((n) => (
@@ -1619,734 +1519,69 @@ export default function HomePage() {
           </button>
         </div>
       ) : modoVista === 'milista' ? (
-        /* --- VISTA MI LISTA (CON MODO COMPRA CHECKLIST Y AHORRO COMBINADO) --- */
-        <div className="space-y-4">
-          {changuito.length === 0 ? (
-            <div className="text-center py-16 theme-card rounded-3xl border p-6 space-y-3 shadow-sm">
-              <div className="w-12 h-12 bg-sky-500/10 text-sky-600 rounded-2xl flex items-center justify-center mx-auto">
-                <ShoppingBag className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-black theme-title">Tu lista de compras está vacía</h3>
-              <p className="text-xs theme-muted max-w-sm mx-auto">
-                Tocá <strong className="text-sky-600">+ Mi lista</strong> en los productos que necesitás y te calculamos dónde te conviene comprar.
-              </p>
-              <button
-                type="button"
-                onClick={() => setModoVista('gondola')}
-                className="mt-2 bg-sky-500 text-slate-950 font-black text-xs px-4 py-2 rounded-xl cursor-pointer shadow-md"
-              >
-                Ver góndola de productos
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* TARJETA COMPARATIVA */}
-              {simulacionChanguito?.ahorroCombinado > 0 && (
-                <div className="bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border border-emerald-500/40 rounded-2xl p-4 space-y-2 shadow-md">
-                  <div className="flex items-center gap-2">
-                    <TrendingDown className="w-5 h-5 text-emerald-500" />
-                    <h4 className="text-xs font-black uppercase tracking-wider text-emerald-500">
-                      Oportunidad de ahorro inteligente
-                    </h4>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div className="theme-card-sub p-2.5 rounded-xl border border-[var(--border-card)]">
-                      <p className="text-[10px] theme-muted font-bold">Opción Cómoda (1 solo súper):</p>
-                      <p className="text-sm font-black theme-title">
-                        {simulacionChanguito.ganador?.comercio}: ${simulacionChanguito.ganador?.totalEstimado.toLocaleString('es-AR')}
-                      </p>
-                    </div>
-                    <div className="bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/30">
-                      <p className="text-[10px] text-emerald-600 font-bold">Opción Inteligente (Comprar lo más barato):</p>
-                      <p className="text-sm font-black text-emerald-500">
-                        ${simulacionChanguito.totalCompraCombinada.toLocaleString('es-AR')}{' '}
-                        <span className="text-[11px] font-bold text-emerald-400">
-                          (¡Ahorrás ${simulacionChanguito.ahorroCombinado.toLocaleString('es-AR')}!)
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* BARRA DE ACCIÓN: MODO COMPRA */}
-              <div className="theme-card border rounded-2xl p-4 space-y-3 shadow-lg">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-2">
-                      <ListChecks className="w-4 h-4 text-emerald-600" />
-                      Tu Lista ({changuito.length} ítems)
-                    </h3>
-                    {modoCompraActivo && (
-                      <p className="text-[11px] font-bold text-sky-400 mt-0.5">
-                        Llevás {simulacionChanguito?.itemsCompradosCount} de {simulacionChanguito?.totalItems} • Gastado: ${simulacionChanguito?.gastoAcumulado.toLocaleString('es-AR')}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setModoCompraActivo(!modoCompraActivo)}
-                      className={`px-3 py-1.5 rounded-xl text-[11px] font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm ${
-                        modoCompraActivo
-                          ? 'bg-amber-500 text-slate-950 border border-amber-400'
-                          : 'bg-sky-500 hover:bg-sky-400 text-slate-950'
-                      }`}
-                    >
-                      <CheckSquare className="w-3.5 h-3.5" />
-                      <span>{modoCompraActivo ? 'Salir de Modo Compra' : 'Iniciar compra en góndola'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => compartirListaWhatsApp(simulacionChanguito, changuito.length)}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] p-2 rounded-xl transition cursor-pointer"
-                      title="Compartir por WhatsApp"
-                    >
-                      <WhatsAppIcon className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={limpiarChanguito}
-                      className="text-[11px] text-rose-500 hover:text-rose-600 font-bold cursor-pointer p-1.5"
-                      title="Vaciar lista"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* LISTA CON CASILLAS */}
-                <div className="divide-y theme-card-sub rounded-xl border overflow-hidden">
-                  {simulacionChanguito?.productosElegidos
-                    .sort((a, b) => {
-                      const tachadoA = itemsTachados.includes(a.clave);
-                      const tachadoB = itemsTachados.includes(b.clave);
-                      if (tachadoA && !tachadoB) return 1;
-                      if (!tachadoA && tachadoB) return -1;
-                      return 0;
-                    })
-                    .map((prod) => {
-                      const tachado = itemsTachados.includes(prod.clave);
-                      return (
-                        <div
-                          key={prod.clave}
-                          onClick={() => modoCompraActivo && toggleItemTachado(prod.clave)}
-                          className={`p-3 flex items-center justify-between gap-3 text-xs transition select-none ${
-                            modoCompraActivo ? 'cursor-pointer hover:bg-black/10' : ''
-                          } ${tachado ? 'opacity-40 line-through bg-black/15' : ''}`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {modoCompraActivo && (
-                              <button
-                                type="button"
-                                className="shrink-0 text-sky-400"
-                              >
-                                {tachado ? (
-                                  <CheckSquare className="w-4 h-4 text-emerald-500" />
-                                ) : (
-                                  <Square className="w-4 h-4 text-slate-400" />
-                                )}
-                              </button>
-                            )}
-                            <div className="min-w-0">
-                              <p className="font-bold theme-title truncate">{prod.nombre}</p>
-                              <p className="text-[10px] theme-muted">
-                                Mejor precio en <strong className="text-emerald-600">{prod.mejorComercio}</strong>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className="font-mono font-black theme-title">
-                              ${prod.minPrecio.toLocaleString('es-AR')}
-                            </span>
-                            {!modoCompraActivo && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleProductoChanguito(prod.nombre);
-                                }}
-                                className="p-1 theme-muted hover:text-rose-500 cursor-pointer"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-
-              {/* COMPARATIVA POR CADENA */}
-              <div className="theme-card border rounded-2xl p-4 space-y-3 shadow-lg">
-                <h3 className="text-xs font-black uppercase tracking-wider theme-subtitle flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-sky-600" />
-                  Comparativa por Cadena
-                </h3>
-                <div className="space-y-2.5">
-                  {simulacionChanguito?.rankingSupermercados.map((sup, idx) => {
-                    const esGanador = idx === 0;
-                    const estiloCom = obtenerEstiloComercio(sup.comercio);
-                    return (
-                      <div
-                        key={sup.comercio}
-                        className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                          esGanador ? 'bg-emerald-500/10 border-emerald-500/40' : 'theme-card-sub'
-                        }`}
-                      >
-                        <div className="space-y-0.5 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center ${
-                              esGanador ? 'bg-emerald-500 text-slate-950' : 'theme-btn-sec border'
-                            }`}>
-                              {idx + 1}
-                            </span>
-                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${estiloCom}`}>
-                              <Store className="w-3 h-3" />
-                              {sup.comercio}
-                            </span>
-                            {esGanador && (
-                              <span className="text-[10px] font-black text-emerald-600">¡Más económico!</span>
-                            )}
-                          </div>
-                          <p className="text-[10px] theme-muted pl-7">
-                            Encontrados {sup.encontrados} de {sup.totalProductos} productos
-                          </p>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <p className="text-sm sm:text-base font-black font-mono theme-title">
-                            ${sup.totalEstimado.toLocaleString('es-AR')}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        /* COMPONENTE: MI LISTA */
+        <MiListaView
+          changuito={changuito}
+          simulacionChanguito={simulacionChanguito}
+          modoCompraActivo={modoCompraActivo}
+          setModoCompraActivo={setModoCompraActivo}
+          itemsTachados={itemsTachados}
+          toggleItemTachado={toggleItemTachado}
+          toggleProductoChanguito={toggleProductoChanguito}
+          limpiarChanguito={limpiarChanguito}
+          compartirListaWhatsApp={compartirListaWhatsApp}
+          setModoVista={setModoVista}
+          obtenerEstiloComercio={obtenerEstiloComercio}
+        />
       ) : modoVista === 'comparar' ? (
-        /* --- VISTA COMPARADOR INTELIGENTE --- */
-        <div className="space-y-3.5">
-          {productosComparados.slice(0, limiteVisibles).map((grupo) => {
-            const confRubro = CONFIG_CATEGORIAS[grupo.rubro] || CONFIG_CATEGORIAS.Almacén;
-            const IconoRubro = confRubro.icono;
-            const enChanguito = changuito.includes(grupo.claveProd);
-
-            return (
-              <section
-                key={grupo.clave}
-                className="theme-card border rounded-2xl p-4 space-y-3 shadow-sm hover:shadow-md transition"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      onClick={() => {
-                        if (grupo.foto) {
-                          setFotoModal({
-                            foto: grupo.foto,
-                            producto: grupo.producto,
-                            marca: grupo.marca,
-                            comercio: grupo.items[0]?._comercio,
-                            precio: grupo.minPrecio
-                          });
-                        }
-                      }}
-                      className={`w-12 h-12 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${
-                        grupo.foto ? 'cursor-zoom-in' : ''
-                      } ${confRubro.cajaIcono}`}
-                      title={grupo.foto ? 'Tocar para ampliar foto' : undefined}
-                    >
-                      <IconoRubro className={`w-6 h-6 absolute ${confRubro.acento}`} />
-                      {grupo.foto && (
-                        <>
-                          <img
-                            src={grupo.foto}
-                            alt={grupo.producto}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 relative z-10 bg-[var(--bg-card)]"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                            <ZoomIn className="w-4 h-4 text-white drop-shadow" />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-black theme-title truncate">{grupo.producto}</h3>
-                      <p className="text-xs theme-muted truncate mt-0.5">
-                        <span className="theme-subtitle font-bold">{grupo.marca}</span> • <span className={`font-bold ${confRubro.acento}`}>{grupo.rubro}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {grupo.ahorro > 0 && (
-                      <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-[10px] font-black px-2.5 py-1 rounded-xl flex items-center gap-1">
-                        <Award className="w-3.5 h-3.5 text-emerald-600" />
-                        Ahorrás ${grupo.ahorro.toLocaleString('es-AR')}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => toggleProductoChanguito(grupo.producto)}
-                      className={`px-2.5 py-1 rounded-xl border text-[10px] font-black flex items-center gap-1 transition cursor-pointer ${
-                        enChanguito
-                          ? 'bg-sky-500 text-slate-950 border-sky-400'
-                          : 'btn-changuito-add hover:border-sky-500'
-                      }`}
-                    >
-                      <ShoppingBag className="w-3 h-3" />
-                      <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="divide-y theme-card-sub rounded-xl border overflow-hidden">
-                  {grupo.items.map((item, idx) => {
-                    const estiloCom = obtenerEstiloComercio(item._comercio);
-                    const esElMasBarato = item.id === grupo.masBaratoId && grupo.items.length > 1;
-                    const esElMasCercano = item.id === grupo.masCercanoId && grupo.items.length > 1;
-                    const esOpcionIdeal = grupo.esOpcionIdeal && esElMasBarato;
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`p-3 flex items-center justify-between gap-3 ${
-                          esOpcionIdeal
-                            ? 'bg-emerald-500/15'
-                            : esElMasBarato
-                              ? 'bg-emerald-500/10'
-                              : esElMasCercano
-                                ? 'bg-sky-500/10'
-                                : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
-                            esOpcionIdeal || esElMasBarato
-                              ? 'bg-emerald-500 text-slate-950'
-                              : esElMasCercano
-                                ? 'bg-sky-500 text-slate-950'
-                                : 'theme-btn-sec border'
-                          }`}>
-                            {idx + 1}
-                          </span>
-
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <button
-                                type="button"
-                                onClick={() => abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt)}
-                                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 cursor-pointer hover:opacity-80 active:scale-95 transition ${estiloCom}`}
-                                title="Ver cómo llegar en Google Maps"
-                              >
-                                <Store className="w-2.5 h-2.5" />
-                                <span>{item._comercio}</span>
-                                <MapPin className="w-2.5 h-2.5 text-sky-400 ml-0.5" />
-                              </button>
-
-                              {esOpcionIdeal ? (
-                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                  <Sparkles className="w-2.5 h-2.5" />
-                                  ¡Opción Ideal! (Más barato y cerca)
-                                </span>
-                              ) : esElMasBarato ? (
-                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/15 px-1.5 py-0.5 rounded-md">
-                                  Más barato
-                                </span>
-                              ) : esElMasCercano ? (
-                                <span className="text-[10px] font-black text-sky-500 bg-sky-500/15 px-1.5 py-0.5 rounded-md flex items-center gap-1">
-                                  <Navigation className="w-2.5 h-2.5" />
-                                  Más cerca tuyo
-                                </span>
-                              ) : null}
-                            </div>
-
-                            <p className="text-[10px] theme-muted mt-1 flex items-center gap-2 flex-wrap">
-                              <span>{tiempoRelativo(item.creado_en)}</span>
-
-                              {item._distanciaTxt && (
-                                <span className="text-sky-500 font-bold flex items-center gap-0.5">
-                                  • <MapPin className="w-2.5 h-2.5" /> a {item._distanciaTxt}
-                                </span>
-                              )}
-
-                              {item._refUnitario && (
-                                <span>• <strong className="precio-ref-unitario">{item._refUnitario.valor} x {item._refUnitario.unidad}</strong></span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="text-right shrink-0">
-                          <p className={`text-sm sm:text-base font-black font-mono ${
-                            esElMasBarato ? 'text-emerald-600' : 'theme-title'
-                          }`}>
-                            ${Number(item._precio || 0).toLocaleString('es-AR')}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-
-          {productosComparados.length > limiteVisibles && (
-            <div className="flex justify-center pt-3 pb-1">
-              <button
-                type="button"
-                onClick={() => setLimiteVisibles((prev) => prev + CANTIDAD_POR_PAGINA)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-2xl theme-btn-sec border border-[var(--border-sub)] font-bold text-xs hover:border-sky-500/60 transition shadow-sm cursor-pointer active:scale-95"
-              >
-                <span>Mostrar más comparaciones</span>
-                <span className="theme-muted font-mono font-medium text-[11px]">
-                  ({Math.min(limiteVisibles, productosComparados.length)} de {productosComparados.length})
-                </span>
-                <ChevronDown className="w-4 h-4 text-sky-500" />
-              </button>
-            </div>
-          )}
-        </div>
+        /* COMPONENTE: COMPARADOR */
+        <ComparadorView
+          productosComparados={productosComparados}
+          limiteVisibles={limiteVisibles}
+          setLimiteVisibles={setLimiteVisibles}
+          cantidadPorPagina={CANTIDAD_POR_PAGINA}
+          changuito={changuito}
+          toggleProductoChanguito={toggleProductoChanguito}
+          setFotoModal={setFotoModal}
+          abrirUbicacionComercio={abrirUbicacionComercio}
+          tiempoRelativo={tiempoRelativo}
+          CONFIG_CATEGORIAS={CONFIG_CATEGORIAS}
+          obtenerEstiloComercio={obtenerEstiloComercio}
+        />
       ) : (
-        /* --- VISTA GÓNDOLA: CON RESPALDO VECTORIAL SI LA IMAGEN NO CARGA --- */
+        /* VISTA GÓNDOLA: TARJETAS MODULARIZADAS */
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {ofertasVisibles.map((item) => {
-              const tieneFoto = Boolean(item._foto);
-              const esAnonimo = limpiarTexto(item._usuario).includes('anonimo');
-              const formatoUsuario = esAnonimo
-                ? 'Vecino anónimo'
-                : item._usuario.startsWith('@')
-                  ? item._usuario
-                  : `@${item._usuario}`;
-
+              const confRubro = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Almacén;
               const claveVoto = obtenerClaveVoto(item.id, item._precio);
               const votoActual = votosRealizados[claveVoto];
-              const yaVoto = Boolean(votoActual);
-
-              const confRubro = CONFIG_CATEGORIAS[item._rubro] || CONFIG_CATEGORIAS.Almacén;
-              const IconoRubro = confRubro.icono;
-              const estiloComercio = obtenerEstiloComercio(item._comercio);
               const esMejorPrecio = mejoresPreciosIds.has(item.id);
               const enChanguito = changuito.includes(item._claveProducto);
 
-              const verificadoComunidad = !item._esCatalogo && item._votosPositivos >= 3 && item._votosNegativos === 0;
-
               return (
-                <article
+                <GondolaCard
                   key={item.id}
-                  className={`theme-card border rounded-2xl p-3.5 flex flex-col justify-between transition gap-3 relative shadow-sm hover:shadow-md ${
-                    verificadoComunidad
-                      ? 'border-emerald-500/60 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500/20'
-                      : esMejorPrecio
-                        ? 'border-emerald-500/50 shadow-emerald-500/10'
-                        : 'hover:border-slate-400'
-                  }`}
-                >
-                  {/* PISO 1: CABECERA */}
-                  <div className="flex items-center justify-between gap-1.5 border-b border-[var(--border-card)] pb-2.5">
-                    <div className="flex items-center gap-1 min-w-0 flex-1">
-                      <button
-                        type="button"
-                        onClick={() => abrirUbicacionComercio(item._comercio, item._comercioDireccion, item._comercioLat, item._comercioLng, item._distanciaTxt)}
-                        className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg flex items-center gap-1 min-w-0 shrink transition cursor-pointer hover:opacity-80 active:scale-95 ${estiloComercio}`}
-                        title="Ver ubicación en Google Maps"
-                      >
-                        <Store className="w-3 h-3 shrink-0" />
-                        <span className="truncate max-w-[110px] xs:max-w-[140px] md:max-w-[170px]">{item._comercio}</span>
-                        <MapPin className="w-2.5 h-2.5 text-sky-400 shrink-0 ml-0.5" />
-                      </button>
-
-                      {item._distanciaTxt && (
-                        <span className="text-[9px] font-bold text-sky-500 bg-sky-500/10 border border-sky-500/25 px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0">
-                          <MapPin className="w-2.5 h-2.5" />
-                          <span>{item._distanciaTxt}</span>
-                        </span>
-                      )}
-
-                      {item._estadoVenc && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border flex items-center gap-1 ${
-                          item._estadoVenc.tipo === 'vencido'
-                            ? 'bg-rose-500/10 text-rose-500 border-rose-500/25'
-                            : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
-                        }`}>
-                          <Clock className="w-2.5 h-2.5" />
-                          <span>{item._estadoVenc.texto}</span>
-                        </span>
-                      )}
-
-                      {verificadoComunidad ? (
-                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 whitespace-nowrap">
-                          <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                          <span>Destacado</span>
-                        </span>
-                      ) : esMejorPrecio ? (
-                        <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 whitespace-nowrap">
-                          <Award className="w-2.5 h-2.5 text-emerald-600" />
-                          <span>Mejor</span>
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => compartirOfertaWhatsApp(item)}
-                        className="flex items-center justify-center p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-slate-950 transition cursor-pointer"
-                        title="Compartir oferta por WhatsApp"
-                      >
-                        <WhatsAppIcon className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => toggleProductoChanguito(item._producto)}
-                        className={`px-2 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition cursor-pointer shrink-0 ${
-                          enChanguito
-                            ? 'bg-sky-500 text-slate-950 border-sky-400'
-                            : 'btn-changuito-add hover:border-sky-500'
-                        }`}
-                        title="Sumar a mi lista"
-                      >
-                        <ShoppingCart className="w-3 h-3" />
-                        <span>{enChanguito ? 'En lista' : '+ Lista'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* PISO 2: CUERPO (SIEMPRE MUESTRA EL ÍCONO ABAJO POR SI LA FOTO FALLA) */}
-                  <div className="flex gap-3 items-start flex-1 py-0.5">
-                    <div
-                      onClick={() => {
-                        if (tieneFoto) {
-                          setFotoModal({
-                            foto: item._foto,
-                            producto: item._producto,
-                            marca: item._marca,
-                            comercio: item._comercio,
-                            precio: item._precio
-                          });
-                        }
-                      }}
-                      className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${confRubro.cajaIcono} ${
-                        tieneFoto ? 'cursor-zoom-in' : ''
-                      }`}
-                      title={tieneFoto ? 'Tocar para ampliar foto' : undefined}
-                    >
-                      {/* Ícono de respaldo garantizado */}
-                      <IconoRubro className={`w-7 h-7 stroke-[1.75] absolute ${confRubro.acento}`} />
-
-                      {tieneFoto && (
-                        <>
-                          <img
-                            src={item._foto}
-                            alt={item._producto}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 relative z-10 bg-[var(--bg-card)]"
-                            loading="lazy"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                            <ZoomIn className="w-5 h-5 text-white drop-shadow" />
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-xs sm:text-sm font-black theme-title leading-snug line-clamp-2">
-                        {item._producto}
-                      </h3>
-
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <span className="text-[11px] font-bold theme-subtitle">
-                          {item._marca}
-                        </span>
-                        {item._presentacion && (
-                          <span className="text-[11px] theme-muted">• {item._presentacion}</span>
-                        )}
-                        <span className={`text-[10px] font-bold ${confRubro.acento}`}>
-                          • {item._rubro}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-1.5 text-[10px] theme-muted flex-wrap">
-                        {item._esCatalogo ? (
-                          <span className="flex items-center gap-1 text-amber-600 font-bold bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
-                            <ShieldCheck className="w-3 h-3 text-amber-500 shrink-0" />
-                            <span>Catálogo Oficial</span>
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 truncate">
-                            <User className="w-3 h-3 theme-muted shrink-0" />
-                            <span className={!esAnonimo ? 'text-sky-600 font-bold truncate' : 'truncate'}>
-                              {formatoUsuario}
-                            </span>
-                          </span>
-                        )}
-
-                        {verificadoComunidad && (
-                          <span className="flex items-center gap-1 text-emerald-600 font-bold bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded-md">
-                            <Check className="w-2.5 h-2.5 text-emerald-600" />
-                            <span>Verificado</span>
-                          </span>
-                        )}
-
-                        <span className="flex items-center gap-1 theme-muted shrink-0">
-                          <Clock className="w-2.5 h-2.5" />
-                          {tiempoRelativo(item.creado_en)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* PISO 3: PRECIOS */}
-                  <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
-                    <div className="flex items-end justify-between gap-2">
-                      <div className="space-y-1">
-                        <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none block">
-                          ${Number(item._precio || 0).toLocaleString('es-AR')}
-                        </span>
-
-                        {item._refUnitario && (
-                          <p className="text-[10px] theme-muted flex items-center gap-1 leading-tight">
-                            <Scale className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span>
-                              x {item._refUnitario.unidad}:{' '}
-                              <strong className="precio-ref-unitario font-mono font-bold">
-                                {item._refUnitario.valor}
-                              </strong>
-                            </span>
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                          {item._esCatalogo ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
-                              <ShieldCheck className="w-3 h-3 text-amber-500" />
-                              <span>Referencia oficial</span>
-                            </span>
-                          ) : (
-                            <>
-                              {item._votosPositivos > 0 ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                                  <ThumbsUp className="w-2.5 h-2.5 text-emerald-600" />
-                                  <span>
-                                    {item._votosPositivos} {item._votosPositivos === 1 ? 'confirmó' : 'confirmaron'}
-                                  </span>
-                                </span>
-                              ) : (
-                                <span className="text-[10px] theme-muted">Sin confirmar aún</span>
-                              )}
-
-                              {item._votosNegativos > 0 && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
-                                  <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
-                                  <span>
-                                    {item._votosNegativos} {item._votosNegativos === 1 ? 'aviso de cambio' : 'avisos de cambio'}
-                                  </span>
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {!item._esCatalogo && (
-                          <button
-                            type="button"
-                            onClick={() => handleConfirmar(item, 'sigue')}
-                            disabled={confirmandoId === item.id || yaVoto}
-                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 ${
-                              votoActual === 'sigue'
-                                ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-600'
-                                : yaVoto
-                                  ? 'btn-voto-accion opacity-60 cursor-not-allowed'
-                                  : 'btn-voto-accion cursor-pointer hover:border-emerald-500/60'
-                            }`}
-                          >
-                            {votoActual === 'sigue' ? (
-                              <Check className="w-3 h-3 text-emerald-600" />
-                            ) : (
-                              <ThumbsUp className="w-3 h-3 text-emerald-600" />
-                            )}
-                            <span>{votoActual === 'sigue' ? 'Confirmado' : 'Sigue igual'}</span>
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (editandoPrecioId === item.id) {
-                              setEditandoPrecioId(null);
-                            } else {
-                              setEditandoPrecioId(item.id);
-                              setNuevoPrecioInput('');
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition active:scale-95 cursor-pointer ${
-                            editandoPrecioId === item.id || votoActual === 'reportado' || votoActual === 'subio'
-                              ? 'bg-amber-500/20 border border-amber-500 text-amber-600'
-                              : 'btn-voto-accion hover:border-amber-500/60'
-                          }`}
-                        >
-                          <RefreshCw className="w-3 h-3 text-amber-500" />
-                          <span>
-                            {item._esCatalogo ? '¿Cambió? Avisar' : 'Cambió'}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {editandoPrecioId === item.id && (
-                      <div className="theme-card-sub border border-amber-500/40 rounded-xl p-2.5 space-y-2">
-                        <p className="text-[10px] theme-muted leading-tight">
-                          {item._esCatalogo
-                            ? 'Avisanos si cambió el precio oficial:'
-                            : 'Ingresá el nuevo valor visto en góndola:'}
-                        </p>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 flex-1">
-                            <span className="text-[11px] font-bold text-amber-600">$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={nuevoPrecioInput}
-                              onChange={(e) => setNuevoPrecioInput(e.target.value)}
-                              placeholder={`Actual: ${item._precio}`}
-                              className="w-full theme-input border rounded-lg px-2.5 py-1 text-xs font-mono font-bold focus:outline-none focus:border-amber-400"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              disabled={guardandoPrecio || !nuevoPrecioInput}
-                              onClick={() => handleProponerNuevoPrecio(item)}
-                              className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
-                            >
-                              <span>{item._esCatalogo ? 'Enviar aviso' : 'Actualizar'}</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </article>
+                  item={item}
+                  confRubro={confRubro}
+                  esMejorPrecio={esMejorPrecio}
+                  enChanguito={enChanguito}
+                  votoActual={votoActual}
+                  confirmandoId={confirmandoId}
+                  editandoPrecioId={editandoPrecioId}
+                  setEditandoPrecioId={setEditandoPrecioId}
+                  nuevoPrecioInput={nuevoPrecioInput}
+                  setNuevoPrecioInput={setNuevoPrecioInput}
+                  guardandoPrecio={guardandoPrecio}
+                  handleProponerNuevoPrecio={handleProponerNuevoPrecio}
+                  handleConfirmar={handleConfirmar}
+                  toggleProductoChanguito={toggleProductoChanguito}
+                  abrirUbicacionComercio={abrirUbicacionComercio}
+                  compartirOfertaWhatsApp={compartirOfertaWhatsApp}
+                  setFotoModal={setFotoModal}
+                  tiempoRelativo={tiempoRelativo}
+                  obtenerEstiloComercio={obtenerEstiloComercio}
+                />
               );
             })}
           </div>
@@ -2369,146 +1604,20 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* MODAL / VISOR DE FOTO MEJORADO */}
-      {fotoModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
-          onClick={() => setFotoModal(null)}
-        >
-          <div
-            className="relative max-w-lg w-full theme-card border border-[var(--border-card)] rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-[var(--border-card)]">
-              <div className="min-w-0 pr-2">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  {fotoModal.comercio && (
-                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${obtenerEstiloComercio(fotoModal.comercio)}`}>
-                      <Store className="w-3 h-3" />
-                      <span>{fotoModal.comercio}</span>
-                    </span>
-                  )}
-                  {fotoModal.precio > 0 && (
-                    <span className="font-mono font-black text-xs text-emerald-600">
-                      ${Number(fotoModal.precio).toLocaleString('es-AR')}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-xs sm:text-sm font-black theme-title truncate">
-                  {fotoModal.producto}
-                </h3>
-                {fotoModal.marca && (
-                  <p className="text-[11px] theme-muted font-bold">{fotoModal.marca}</p>
-                )}
-              </div>
+      {/* COMPONENTES MODALES MODULARIZADOS */}
+      <FotoModal
+        modalData={fotoModal}
+        alCerrar={() => setFotoModal(null)}
+        obtenerEstiloComercio={obtenerEstiloComercio}
+      />
 
-              <button
-                type="button"
-                onClick={() => setFotoModal(null)}
-                className="w-8 h-8 rounded-full theme-btn-sec border flex items-center justify-center theme-muted hover:theme-title transition shrink-0 cursor-pointer"
-                title="Cerrar visor"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <ComercioModal
+        comercioModal={comercioModal}
+        alCerrar={() => setComercioModal(null)}
+        obtenerEstiloComercio={obtenerEstiloComercio}
+      />
 
-            <div className="p-2 sm:p-3 bg-black/20 flex items-center justify-center overflow-auto flex-1">
-              <img
-                src={fotoModal.foto}
-                alt={fotoModal.producto}
-                className="max-h-[65vh] w-auto max-w-full object-contain rounded-xl shadow-lg"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            </div>
-
-            <div className="p-2.5 sm:p-3 text-center border-t border-[var(--border-card)] theme-card-sub text-[11px] theme-muted flex items-center justify-between px-4">
-              <span className="flex items-center gap-1.5 text-[11px] theme-muted font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-500" />
-                <span>Imagen de referencia del producto</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setFotoModal(null)}
-                className="text-sky-600 font-bold hover:underline cursor-pointer"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL / FICHA DE UBICACIÓN Y GOOGLE MAPS */}
-      {comercioModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => setComercioModal(null)}
-        >
-          <div
-            className="relative max-w-sm w-full theme-card border border-[var(--border-card)] rounded-3xl p-5 shadow-2xl space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-2 border-b border-[var(--border-card)] pb-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-10 h-10 rounded-2xl bg-sky-500/15 text-sky-500 flex items-center justify-center shrink-0 border border-sky-500/30">
-                  <Store className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${obtenerEstiloComercio(comercioModal.nombre)}`}>
-                    Comercio
-                  </span>
-                  <h3 className="text-sm font-black theme-title truncate mt-0.5">
-                    {comercioModal.nombre}
-                  </h3>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setComercioModal(null)}
-                className="w-7 h-7 rounded-full theme-btn-sec border flex items-center justify-center theme-muted hover:theme-title cursor-pointer transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-2 theme-subtitle">
-                <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span className="font-bold">
-                  {comercioModal.direccion || 'San Carlos de Bariloche'}
-                </span>
-              </div>
-
-              {comercioModal.distancia && (
-                <p className="text-[11px] text-sky-400 font-bold pl-6">
-                  A solo {comercioModal.distancia} de tu ubicación actual
-                </p>
-              )}
-            </div>
-
-            <div className="pt-2">
-              <a
-                href={
-                  comercioModal.lat && comercioModal.lng
-                    ? `https://www.google.com/maps/search/?api=1&query=${comercioModal.lat},${comercioModal.lng}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(comercioModal.nombre + ' San Carlos de Bariloche')}`
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-95 text-xs"
-              >
-                <Navigation className="w-4 h-4" />
-                <span>Cómo llegar en Google Maps</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* BARRA FLOTANTE INFERIOR */}
+      {/* BARRA FLOTANTE INFERIOR: CHANGUITO */}
       {changuito.length > 0 && modoVista !== 'milista' && (
         <div className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
           <div className="theme-card backdrop-blur-md border border-sky-500/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3">
@@ -2524,8 +1633,9 @@ export default function HomePage() {
                   Tu Lista de Compras ({changuito.length} ítems)
                 </p>
                 {simulacionChanguito?.ganador && (
-                  <p className="text-[11px] text-emerald-600 font-bold truncate">
-                    Conviene en {simulacionChanguito.ganador.comercio} (${simulacionChanguito.ganador.totalEstimado.toLocaleString('es-AR')})
+                  <p className="text-[11px] text-emerald-500 font-bold truncate">
+                    Conviene en {simulacionChanguito.ganador.comercio} ($
+                    {simulacionChanguito.ganador.totalEstimado.toLocaleString('es-AR')})
                   </p>
                 )}
               </div>
@@ -2544,7 +1654,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -22,8 +22,15 @@ import {
   Sparkles,
   Wine,
   ShieldCheck,
-  Check
+  Check,
+  Receipt,
+  Tag,
+  PenTool
 } from 'lucide-react';
+
+const ADMIN_EMAILS = [
+  'lauradenisecaro87@gmail.com'
+];
 
 const CONFIG_RUBROS = {
   Súper: { icono: ShoppingCart, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40', acento: 'text-emerald-400' },
@@ -54,7 +61,7 @@ const REGLAS_UNIDAD_CANTIDAD = [
   { palabras: ['queso', 'dulce de leche'], cantidad: '500', unidad: 'gr' },
   { palabras: ['lomo', 'asado', 'vacio', 'picada', 'carne', 'pollo', 'milanesa', 'nalga', 'peceto', 'bife'], cantidad: '1', unidad: 'kg' },
   { palabras: ['papa', 'tomate', 'cebolla', 'zanahoria', 'manzana', 'banana', 'naranja', 'limon'], cantidad: '1', unidad: 'kg' },
-  { palabras: ['huevos', 'huevo'], cantidad: '12', unidad: 'u' },
+  { palabras: ['huevos', 'huevo'], cantidad: '30', unidad: 'u' },
   { palabras: ['rollo', 'rollos', 'papel higienico', 'papel higiénico'], cantidad: '4', unidad: 'u' },
   { palabras: ['detergente'], cantidad: '500', unidad: 'ml' },
   { palabras: ['lavandina', 'suavizante', 'jabon liquido'], cantidad: '1', unidad: 'l' }
@@ -67,6 +74,11 @@ export default function CargarPage() {
 
   const [usuario, setUsuario] = useState(null);
   const [esCatalogo, setEsCatalogo] = useState(false);
+
+  // Modo de ingreso: 'manual' o 'ia'
+  const [modoIngreso, setModoIngreso] = useState('manual');
+  // Submodo de IA: 'gondola' o 'ticket'
+  const [tipoEscaneoIA, setTipoEscaneoIA] = useState('gondola');
 
   const [productosData, setProductosData] = useState([]);
   const [productosLista, setProductosLista] = useState([]);
@@ -97,8 +109,14 @@ export default function CargarPage() {
   const [enviando, setEnviando] = useState(false);
   const [errorMensaje, setErrorMensaje] = useState('');
 
+  const abortControllerRef = useRef(null);
   const inputCamaraRef = useRef(null);
   const inputGaleriaRef = useRef(null);
+
+  // Verificación estricta de Administrador
+  const esAdmin = Boolean(
+    usuario?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase().trim() === usuario.email.toLowerCase().trim())
+  );
 
   useEffect(() => {
     comprobarUsuarioYDatos();
@@ -120,9 +138,17 @@ export default function CargarPage() {
       ]);
 
       if (resComercios.data) {
-        const nombresComercios = [...new Set(resComercios.data.map((c) => c.nombre).filter(Boolean))];
-        setComerciosLista(nombresComercios);
+        // Limpia cualquier texto entre paréntesis y unifica duplicados
+        const nombresLimpios = [
+          ...new Set(
+            resComercios.data
+              .map((c) => (c.nombre ? c.nombre.replace(/\s*\([^)]*\)/g, '').trim() : ''))
+              .filter(Boolean)
+          )
+        ];
+        setComerciosLista(nombresLimpios);
       }
+
       if (resProductos.data) {
         setProductosData(resProductos.data);
         const nombresProductos = [...new Set(resProductos.data.map((p) => p.nombre).filter(Boolean))];
@@ -208,12 +234,17 @@ export default function CargarPage() {
   const handleCambioComercio = (e) => {
     const valor = e.target.value;
     setComercio(valor);
+
+    const filtrados = comerciosLista.filter((c) =>
+      c.toLowerCase().includes(valor.toLowerCase())
+    );
+
     if (valor.trim().length > 0) {
-      const filtrados = comerciosLista.filter((c) => c.toLowerCase().includes(valor.toLowerCase()));
       setSugerenciasComercio(filtrados);
       setMostrarDropdownComercio(true);
     } else {
-      setMostrarDropdownComercio(false);
+      setSugerenciasComercio(comerciosLista.slice(0, 10));
+      setMostrarDropdownComercio(comerciosLista.length > 0);
     }
   };
 
@@ -222,16 +253,20 @@ export default function CargarPage() {
     setMostrarDropdownComercio(false);
   };
 
-  const analizarFotoConIA = async (file) => {
+  const analizarFotoConIA = async (file, tipo) => {
     setAnalizandoIA(true);
     setAvisoIA('');
+    abortControllerRef.current = new AbortController();
+
     try {
       const form = new FormData();
       form.append('foto', file);
+      form.append('tipo', tipo);
 
       const res = await fetch('/api/analizar-foto', {
         method: 'POST',
-        body: form
+        body: form,
+        signal: abortControllerRef.current.signal
       });
 
       const json = await res.json();
@@ -250,18 +285,36 @@ export default function CargarPage() {
         } else if (d.producto) {
           aplicarInferenciaProducto(d.producto);
         }
-        if (d.comercio) setComercio(d.comercio);
+        if (d.comercio) {
+          const cLimpio = d.comercio.replace(/\s*\([^)]*\)/g, '').trim();
+          setComercio(cLimpio);
+        }
 
-        setAvisoIA('¡Cartel leído con IA! Revisá los datos y confirmá.');
+        setAvisoIA(
+          tipo === 'ticket'
+            ? '¡Ticket leído con éxito! Verificá los datos antes de publicar.'
+            : '¡Cartel leído con IA! Revisá que el precio y el producto coincidan.'
+        );
       } else {
-        setAvisoIA('No pudimos leer todos los datos del cartel, pero podés completarlos a mano.');
+        setAvisoIA('No se pudieron leer todos los datos de forma nítida. Podés completarlos a mano abajo.');
       }
     } catch (err) {
-      console.error('Error al analizar cartel con IA:', err);
-      setAvisoIA('No se pudo analizar la foto automáticamente.');
+      if (err.name === 'AbortError') {
+        setAvisoIA('Escaneo cancelado. Completá los campos a mano.');
+      } else {
+        console.error('Error al analizar foto con IA:', err);
+        setAvisoIA('No se pudo procesar la foto automáticamente. Podés ingresar los datos a mano.');
+      }
     } finally {
       setAnalizandoIA(false);
     }
+  };
+
+  const cancelarAnalisisIA = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setAnalizandoIA(false);
   };
 
   const handleArchivoSeleccionado = (e) => {
@@ -269,7 +322,10 @@ export default function CargarPage() {
     if (file) {
       setArchivoFoto(file);
       setFotoPreview(URL.createObjectURL(file));
-      analizarFotoConIA(file);
+
+      if (modoIngreso === 'ia') {
+        analizarFotoConIA(file, tipoEscaneoIA);
+      }
     }
   };
 
@@ -284,7 +340,7 @@ export default function CargarPage() {
     setErrorMensaje('');
 
     if (!producto.trim() || !comercio.trim() || !precio || isNaN(precio) || Number(precio) <= 0) {
-      setErrorMensaje('Completá el producto, el supermercado y un precio válido.');
+      setErrorMensaje('Completá el producto, el supermercado o comercio y un precio válido.');
       return;
     }
 
@@ -302,6 +358,7 @@ export default function CargarPage() {
 
       const nombreComercio = comercio.trim();
       let comId = null;
+
       const { data: comExistente } = await supabase
         .from('comercios')
         .select('id')
@@ -353,22 +410,24 @@ export default function CargarPage() {
         prodId = nuevoProd?.id;
       }
 
+      const esOficialFinal = esAdmin && esCatalogo;
+
       const payloadOferta = {
         producto_id: prodId,
         comercio_id: comId,
         precio: Number(precio),
         foto_url: urlFotoSubida,
         usuario_id: userId,
-        es_catalogo: esCatalogo,
-        estado: esCatalogo ? 'catalogo' : 'activa',
-        votos_positivos: esCatalogo ? 100 : 1,
+        es_catalogo: esOficialFinal,
+        estado: esOficialFinal ? 'catalogo' : 'activa',
+        votos_positivos: esOficialFinal ? 100 : 1,
         votos_negativos: 0
       };
 
       const { error: errOferta } = await supabase.from('ofertas').insert([payloadOferta]);
       if (errOferta) throw errOferta;
 
-      if (userId && !esCatalogo) {
+      if (userId && !esOficialFinal) {
         try {
           const { data: perf } = await supabase
             .from('perfiles')
@@ -408,17 +467,17 @@ export default function CargarPage() {
         </div>
 
         <div className="theme-card border rounded-3xl p-5 sm:p-6 shadow-2xl relative">
-          <div className="flex items-start justify-between mb-5">
+          <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 transition-colors ${confRubroActivo.color}`}>
                 <IconoRubroActivo className="w-5 h-5" />
               </div>
               <div>
                 <h1 className="text-lg font-black theme-title leading-tight">
-                  Cargar precio
+                  Aportar precio
                 </h1>
                 <p className="text-xs theme-muted mt-0.5">
-                  Subí una foto o cargá el valor a mano (+10 pts)
+                  Sumá un precio visto en Bariloche (+10 pts)
                 </p>
               </div>
             </div>
@@ -427,18 +486,56 @@ export default function CargarPage() {
             </Link>
           </div>
 
+          {/* SELECTOR DE MODO: CARGA MANUAL VS ESCANEAR CON IA */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 theme-card-sub rounded-2xl border mb-4">
+            <button
+              type="button"
+              onClick={() => {
+                setModoIngreso('manual');
+                setAvisoIA('');
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                modoIngreso === 'manual'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-md'
+                  : 'theme-muted hover:theme-title'
+              }`}
+            >
+              <PenTool className="w-3.5 h-3.5" />
+              <span>Carga manual</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setModoIngreso('ia');
+                setAvisoIA('');
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                modoIngreso === 'ia'
+                  ? 'bg-gradient-to-r from-sky-400 to-indigo-400 text-slate-950 font-black shadow-md'
+                  : 'theme-muted hover:theme-title'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Escanear con IA</span>
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* OPCIÓN CATÁLOGO OFICIAL */}
-            {usuario && (
-              <label className={`flex items-center justify-between gap-3 p-3 rounded-2xl border cursor-pointer transition ${esCatalogo
-                  ? 'bg-amber-500/15 border-amber-500/50 text-amber-400'
-                  : 'theme-card-sub border theme-subtitle hover:border-amber-500/30'
-                }`}>
+            {/* OPCIÓN CATÁLOGO OFICIAL: SOLO VISIBLE PARA TU CORREO */}
+            {esAdmin && (
+              <label
+                className={`flex items-center justify-between gap-3 p-3 rounded-2xl border cursor-pointer transition ${
+                  esCatalogo
+                    ? 'bg-amber-500/15 border-amber-500/50 text-amber-400'
+                    : 'theme-card-sub border theme-subtitle hover:border-amber-500/30'
+                }`}
+              >
                 <div className="flex items-center gap-2.5">
                   <ShieldCheck className={`w-4 h-4 ${esCatalogo ? 'text-amber-400' : 'theme-muted'}`} />
                   <div>
                     <p className="text-xs font-bold leading-tight theme-title">Marcar como Precio Oficial de Catálogo</p>
-                    <p className="text-[10px] theme-muted">Queda verificado de una. Los vecinos solo podrán avisar si cambia.</p>
+                    <p className="text-[10px] theme-muted">Exclusivo Admin ({usuario.email}). Nace verificado con 100 votos.</p>
                   </div>
                 </div>
                 <input
@@ -450,70 +547,192 @@ export default function CargarPage() {
               </label>
             )}
 
-            {/* SECCIÓN DE FOTO CON LECTOR DE IA */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold theme-subtitle flex items-center gap-1.5">
-                  <span>Foto del cartel de góndola</span>
-                  <span className="text-[10px] bg-gradient-to-r from-sky-400 to-indigo-400 text-slate-950 font-black px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                    <Sparkles className="w-2.5 h-2.5" /> Autocompleta con IA
+            {/* SECCIÓN FOTO SEGÚN EL MODO */}
+            {modoIngreso === 'ia' ? (
+              <div className="theme-card-sub border border-sky-500/30 p-3.5 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold theme-title flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                    ¿Qué querés escanear?
                   </span>
-                </label>
+                  <span className="text-[10px] text-sky-400 font-mono font-bold">Lector Inteligente</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipoEscaneoIA('gondola')}
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      tipoEscaneoIA === 'gondola'
+                        ? 'bg-sky-500/20 border-sky-400 text-sky-300'
+                        : 'theme-card border theme-muted hover:theme-title'
+                    }`}
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>Cartel de góndola</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTipoEscaneoIA('ticket')}
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      tipoEscaneoIA === 'ticket'
+                        ? 'bg-sky-500/20 border-sky-400 text-sky-300'
+                        : 'theme-card border theme-muted hover:theme-title'
+                    }`}
+                  >
+                    <Receipt className="w-3.5 h-3.5" />
+                    <span>Ticket de compra</span>
+                  </button>
+                </div>
+
+                <input type="file" ref={inputCamaraRef} accept="image/*" capture="environment" onChange={handleArchivoSeleccionado} className="hidden" />
+                <input type="file" ref={inputGaleriaRef} accept="image/*" onChange={handleArchivoSeleccionado} className="hidden" />
+
+                {fotoPreview ? (
+                  <div className="relative rounded-2xl overflow-hidden border theme-card h-40 flex items-center justify-center">
+                    <img src={fotoPreview} alt="Vista previa" className="h-full w-full object-cover" />
+
+                    {analizandoIA && (
+                      <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white p-4 text-center animate-in fade-in">
+                        <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
+                        <p className="text-xs font-black text-sky-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                          <span>Analizando {tipoEscaneoIA === 'ticket' ? 'ticket' : 'cartel'} con IA...</span>
+                        </p>
+                        <p className="text-[10px] text-slate-400">Extrayendo producto, marca y precio en góndola</p>
+
+                        <button
+                          type="button"
+                          onClick={cancelarAnalisisIA}
+                          className="mt-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[10px] font-bold border border-slate-700 cursor-pointer"
+                        >
+                          Cancelar y cargar a mano
+                        </button>
+                      </div>
+                    )}
+
+                    {!analizandoIA && (
+                      <button
+                        type="button"
+                        onClick={eliminarFoto}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-rose-500/90 hover:bg-rose-600 text-white transition shadow-lg cursor-pointer"
+                        title="Quitar foto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => inputCamaraRef.current?.click()}
+                      className="p-3 rounded-xl theme-card border hover:border-sky-500/50 flex flex-col items-center justify-center gap-1 transition cursor-pointer"
+                    >
+                      <Camera className="w-5 h-5 text-sky-400" />
+                      <span className="text-xs font-bold theme-title">Sacar foto</span>
+                      <span className="text-[10px] theme-muted">Cámara del celular</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => inputGaleriaRef.current?.click()}
+                      className="p-3 rounded-xl theme-card border hover:border-sky-500/50 flex flex-col items-center justify-center gap-1 transition cursor-pointer"
+                    >
+                      <ImageIcon className="w-5 h-5 text-indigo-400" />
+                      <span className="text-xs font-bold theme-title">Subir foto</span>
+                      <span className="text-[10px] theme-muted">Desde tu galería</span>
+                    </button>
+                  </div>
+                )}
+
+                {avisoIA && (
+                  <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-400 text-[11px] font-bold flex items-center gap-2">
+                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>{avisoIA}</span>
+                  </div>
+                )}
               </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold theme-subtitle mb-1.5">
+                  Foto de comprobante <span className="text-[10px] theme-muted font-normal">(Opcional)</span>
+                </label>
 
-              <input type="file" ref={inputCamaraRef} accept="image/*" capture="environment" onChange={handleArchivoSeleccionado} className="hidden" />
-              <input type="file" ref={inputGaleriaRef} accept="image/*" onChange={handleArchivoSeleccionado} className="hidden" />
+                <input type="file" ref={inputCamaraRef} accept="image/*" capture="environment" onChange={handleArchivoSeleccionado} className="hidden" />
+                <input type="file" ref={inputGaleriaRef} accept="image/*" onChange={handleArchivoSeleccionado} className="hidden" />
 
-              {fotoPreview ? (
-                <div className="relative rounded-2xl overflow-hidden border theme-card-sub h-36 flex items-center justify-center">
-                  <img src={fotoPreview} alt="Vista previa" className="h-full w-full object-cover" />
-
-                  {analizandoIA && (
-                    <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white p-4 text-center">
-                      <Loader2 className="w-6 h-6 animate-spin text-sky-400" />
-                      <p className="text-xs font-black text-sky-300 flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                        Escaneando cartel con IA...
-                      </p>
-                      <p className="text-[10px] text-slate-400">Detectando producto, marca y precio en góndola</p>
-                    </div>
-                  )}
-
-                  {!analizandoIA && (
+                {fotoPreview ? (
+                  <div className="relative rounded-2xl overflow-hidden border theme-card-sub h-28 flex items-center justify-center">
+                    <img src={fotoPreview} alt="Vista previa" className="h-full w-full object-cover" />
                     <button
                       type="button"
                       onClick={eliminarFoto}
                       className="absolute top-2 right-2 p-1.5 rounded-full bg-rose-500/90 hover:bg-rose-600 text-white transition shadow-lg cursor-pointer"
+                      title="Quitar foto"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => inputCamaraRef.current?.click()}
-                    className="p-3 rounded-2xl theme-card-sub border hover:border-amber-500/40 flex flex-col items-center justify-center gap-1 transition cursor-pointer"
-                  >
-                    <Camera className="w-5 h-5 text-amber-400" />
-                    <span className="text-xs font-bold theme-title">Sacar foto al cartel</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => inputGaleriaRef.current?.click()}
-                    className="p-3 rounded-2xl theme-card-sub border hover:border-sky-500/40 flex flex-col items-center justify-center gap-1 transition cursor-pointer"
-                  >
-                    <ImageIcon className="w-5 h-5 text-sky-400" />
-                    <span className="text-xs font-bold theme-title">Subir de galería</span>
-                  </button>
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => inputCamaraRef.current?.click()}
+                      className="p-2.5 rounded-xl theme-card-sub border hover:border-slate-500 flex items-center justify-center gap-2 transition cursor-pointer"
+                    >
+                      <Camera className="w-4 h-4 text-amber-500" />
+                      <span className="text-xs font-bold theme-title">Sacar foto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => inputGaleriaRef.current?.click()}
+                      className="p-2.5 rounded-xl theme-card-sub border hover:border-slate-500 flex items-center justify-center gap-2 transition cursor-pointer"
+                    >
+                      <ImageIcon className="w-4 h-4 text-sky-400" />
+                      <span className="text-xs font-bold theme-title">De galería</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
-              {avisoIA && (
-                <div className="mt-2 p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-400 text-[11px] font-bold flex items-center gap-2">
-                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>{avisoIA}</span>
+            {/* SUPERMERCADO O COMERCIO (BÚSQUEDA PREDICTIVA LIMPIA) */}
+            <div className="relative">
+              <label className="block text-xs font-bold theme-subtitle mb-1">Supermercado o comercio</label>
+              <div className="relative">
+                <Store className="w-3.5 h-3.5 theme-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={comercio}
+                  onChange={handleCambioComercio}
+                  onFocus={(e) => handleCambioComercio(e)}
+                  onBlur={() => setTimeout(() => setMostrarDropdownComercio(false), 200)}
+                  placeholder="La Anónima, Todo, ChangoMás, Verdulería de barrio..."
+                  className="w-full theme-input border rounded-xl pl-9 pr-3 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-sm font-medium"
+                />
+              </div>
+              {mostrarDropdownComercio && (
+                <div className="absolute top-full left-0 right-0 mt-1 theme-card border rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
+                  {sugerenciasComercio.map((sug) => (
+                    <button
+                      type="button"
+                      key={sug}
+                      onMouseDown={() => seleccionarComercio(sug)}
+                      className="w-full text-left px-3.5 py-2 text-xs theme-subtitle hover:theme-card-sub flex items-center justify-between cursor-pointer"
+                    >
+                      <span>{sug}</span>
+                    </button>
+                  ))}
+                  {comercio.trim() && !comerciosLista.some((c) => c.toLowerCase() === comercio.trim().toLowerCase()) && (
+                    <button
+                      type="button"
+                      onMouseDown={() => seleccionarComercio(comercio.trim())}
+                      className="w-full text-left px-3.5 py-2 text-xs text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-t border-slate-700/40 flex items-center gap-1.5 font-bold cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Agregar "{comercio.trim()}" como nuevo
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -528,7 +747,7 @@ export default function CargarPage() {
                 value={producto}
                 onChange={handleCambioProducto}
                 placeholder="Ej: Leche descremada, Bola de lomo, Aceite..."
-                className="w-full theme-input border rounded-xl px-3.5 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-sm"
+                className="w-full theme-input border rounded-xl px-3.5 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-sm font-medium"
               />
               {mostrarDropdownProducto && (
                 <div className="absolute top-full left-0 right-0 mt-1 theme-card border rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
@@ -536,8 +755,8 @@ export default function CargarPage() {
                     <button
                       type="button"
                       key={sug}
-                      onClick={() => seleccionarProducto(sug)}
-                      className="w-full text-left px-3.5 py-2 text-xs theme-subtitle hover:theme-card-sub flex items-center justify-between"
+                      onMouseDown={() => seleccionarProducto(sug)}
+                      className="w-full text-left px-3.5 py-2 text-xs theme-subtitle hover:theme-card-sub flex items-center justify-between cursor-pointer"
                     >
                       <span>{sug}</span>
                     </button>
@@ -545,8 +764,8 @@ export default function CargarPage() {
                   {producto.trim() && !productosLista.some((p) => p.toLowerCase() === producto.trim().toLowerCase()) && (
                     <button
                       type="button"
-                      onClick={() => seleccionarProducto(producto.trim())}
-                      className="w-full text-left px-3.5 py-2 text-xs text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-t border-slate-700/40 flex items-center gap-1.5 font-bold"
+                      onMouseDown={() => seleccionarProducto(producto.trim())}
+                      className="w-full text-left px-3.5 py-2 text-xs text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-t border-slate-700/40 flex items-center gap-1.5 font-bold cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" /> Agregar "{producto.trim()}" como nuevo
                     </button>
@@ -569,10 +788,9 @@ export default function CargarPage() {
                       type="button"
                       key={nombreRubro}
                       onClick={() => setRubro(nombreRubro)}
-                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${activo
-                          ? conf.color
-                          : 'theme-btn-sec border theme-muted hover:theme-title'
-                        }`}
+                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
+                        activo ? conf.color : 'theme-btn-sec border theme-muted hover:theme-title'
+                      }`}
                     >
                       <Icono className={`w-3.5 h-3.5 ${activo ? '' : conf.acento}`} />
                       <span>{nombreRubro}</span>
@@ -592,7 +810,7 @@ export default function CargarPage() {
                 onFocus={(e) => handleCambioMarca(e)}
                 onBlur={() => setTimeout(() => setMostrarDropdownMarca(false), 180)}
                 placeholder="Ej: La Serenísima, Natura, Genérica..."
-                className="w-full theme-input border rounded-xl px-3.5 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-sm"
+                className="w-full theme-input border rounded-xl px-3.5 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-sm font-medium"
               />
               {mostrarDropdownMarca && (
                 <div className="absolute top-full left-0 right-0 mt-1 theme-card border rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
@@ -600,8 +818,8 @@ export default function CargarPage() {
                     <button
                       type="button"
                       key={sug}
-                      onClick={() => seleccionarMarca(sug)}
-                      className="w-full text-left px-3.5 py-2 text-xs theme-subtitle hover:theme-card-sub flex items-center justify-between"
+                      onMouseDown={() => seleccionarMarca(sug)}
+                      className="w-full text-left px-3.5 py-2 text-xs theme-subtitle hover:theme-card-sub flex items-center justify-between cursor-pointer"
                     >
                       <span>{sug}</span>
                     </button>
@@ -609,8 +827,8 @@ export default function CargarPage() {
                   {marca.trim() && !sugerenciasMarca.some((m) => m.toLowerCase() === marca.trim().toLowerCase()) && (
                     <button
                       type="button"
-                      onClick={() => seleccionarMarca(marca.trim())}
-                      className="w-full text-left px-3.5 py-2 text-xs text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-t border-slate-700/40 flex items-center gap-1.5 font-bold"
+                      onMouseDown={() => seleccionarMarca(marca.trim())}
+                      className="w-full text-left px-3.5 py-2 text-xs text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-t border-slate-700/40 flex items-center gap-1.5 font-bold cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" /> Usar marca "{marca.trim()}"
                     </button>
@@ -636,10 +854,9 @@ export default function CargarPage() {
                       type="button"
                       key={u}
                       onClick={() => setUnidad(u)}
-                      className={`py-1.5 px-2.5 rounded-lg text-xs font-black uppercase transition cursor-pointer ${unidad === u
-                          ? 'bg-sky-500 text-slate-950 shadow'
-                          : 'theme-muted hover:theme-title'
-                        }`}
+                      className={`py-1.5 px-2.5 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
+                        unidad === u ? 'bg-sky-500 text-slate-950 shadow' : 'theme-muted hover:theme-title'
+                      }`}
                     >
                       {u}
                     </button>
@@ -648,58 +865,19 @@ export default function CargarPage() {
               </div>
             </div>
 
-            {/* COMERCIO Y PRECIO */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* PRECIO */}
+            <div>
+              <label className="block text-xs font-bold theme-subtitle mb-1">Precio en góndola</label>
               <div className="relative">
-                <label className="block text-xs font-bold theme-subtitle mb-1">Supermercado o comercio</label>
-                <div className="relative">
-                  <Store className="w-3.5 h-3.5 theme-muted absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={comercio}
-                    onChange={handleCambioComercio}
-                    placeholder="La Anónima, Todo..."
-                    className="w-full theme-input border rounded-xl pl-9 pr-3 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-sm"
-                  />
-                </div>
-                {mostrarDropdownComercio && (
-                  <div className="absolute top-full left-0 right-0 mt-1 theme-card border rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
-                    {sugerenciasComercio.map((sug) => (
-                      <button
-                        type="button"
-                        key={sug}
-                        onClick={() => seleccionarComercio(sug)}
-                        className="w-full text-left px-3.5 py-2 text-xs theme-subtitle hover:theme-card-sub"
-                      >
-                        <span>{sug}</span>
-                      </button>
-                    ))}
-                    {comercio.trim() && !comerciosLista.some((c) => c.toLowerCase() === comercio.trim().toLowerCase()) && (
-                      <button
-                        type="button"
-                        onClick={() => seleccionarComercio(comercio.trim())}
-                        className="w-full text-left px-3.5 py-2 text-xs text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-t border-slate-700/40 flex items-center gap-1.5 font-bold"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Agregar "{comercio.trim()}"
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold theme-subtitle mb-1">Precio en góndola</label>
-                <div className="relative">
-                  <span className="text-sky-400 absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={precio}
-                    onChange={(e) => setPrecio(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full theme-input border rounded-xl pl-7 pr-3 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition font-mono font-bold shadow-sm"
-                  />
-                </div>
+                <span className="text-sky-400 absolute left-3 top-1/2 -translate-y-1/2 font-black text-xs">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={precio}
+                  onChange={(e) => setPrecio(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full theme-input border rounded-xl pl-7 pr-3 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition font-mono font-bold shadow-sm"
+                />
               </div>
             </div>
 
@@ -717,7 +895,7 @@ export default function CargarPage() {
               <button
                 type="submit"
                 disabled={enviando || subiendoFoto || analizandoIA}
-                className="w-2/3 py-3 rounded-xl bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950 border-t border-white/30 font-black text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 cursor-pointer active:scale-95"
+                className="w-2/3 py-3 rounded-xl bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950 border-t border-white/30 font-black text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 {enviando || subiendoFoto ? (
                   <>

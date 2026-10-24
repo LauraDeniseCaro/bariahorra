@@ -65,81 +65,69 @@ export default function PerfilPage() {
   const cargarDatosPerfil = async () => {
     setCargando(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
+      // 1. Obtener usuario de la sesión activa
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      let activeUser = user;
+
+      if (authErr || !activeUser) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUser = sessionData?.session?.user || null;
+      }
+
+      if (!activeUser) {
         router.push('/');
         return;
       }
 
-      const user = session.user;
-      setUsuario(user);
+      setUsuario(activeUser);
 
-      // 1. Cargar Perfil buscando por id o email
-      let datosPerfil = null;
-      const { data: perfilPorId } = await supabase
+      // 2. Consultar perfil fresco directo de la base de datos
+      const { data: perfilDB } = await supabase
         .from('perfiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', activeUser.id)
         .maybeSingle();
 
-      if (perfilPorId) {
-        datosPerfil = perfilPorId;
-      } else {
-        const { data: perfilPorEmail } = await supabase
-          .from('perfiles')
-          .select('*')
-          .eq('email', user.email)
-          .maybeSingle();
-        if (perfilPorEmail) datosPerfil = perfilPorEmail;
-      }
-
-      // 2. Extraer apodo asegurando que nunca quede vacío
-      const cacheLocal = localStorage.getItem('bariahorra_perfil');
-      let apodoCache = '';
-      let avatarCache = '';
-      if (cacheLocal) {
-        try {
-          const parsed = JSON.parse(cacheLocal);
-          apodoCache = parsed.apodo;
-          avatarCache = parsed.avatar_url;
-        } catch (e) { }
-      }
-
+      // Apodo prioritario: de la tabla perfiles -> luego metadata -> luego parte previa del email -> fallback 'vecino'
       const apodoDefinido =
-        datosPerfil?.apodo ||
-        apodoCache ||
-        user.user_metadata?.apodo ||
-        user.user_metadata?.username ||
-        user.email?.split('@')[0] ||
-        'lauchiña';
+        perfilDB?.apodo ||
+        perfilDB?.username ||
+        activeUser.user_metadata?.apodo ||
+        activeUser.user_metadata?.username ||
+        activeUser.email?.split('@')[0] ||
+        'vecino';
 
       const avatarDefinido =
-        datosPerfil?.avatar_url ||
-        avatarCache ||
-        user.user_metadata?.avatar_url ||
+        perfilDB?.avatar_url ||
+        activeUser.user_metadata?.avatar_url ||
         AVATAR_DEFAULT;
 
       const perfilCompleto = {
-        ...datosPerfil,
+        ...perfilDB,
+        id: activeUser.id,
         apodo: apodoDefinido,
+        username: apodoDefinido,
         avatar_url: avatarDefinido,
-        puntos: datosPerfil?.puntos || 0,
-        precios_aportados: datosPerfil?.precios_aportados || 0
+        puntos: perfilDB?.puntos || 0,
+        precios_aportados: perfilDB?.precios_aportados || 0
       };
 
       setPerfil(perfilCompleto);
       setNuevoApodo(apodoDefinido);
       setNuevoAvatar(avatarDefinido);
 
-      localStorage.setItem('bariahorra_perfil', JSON.stringify(perfilCompleto));
+      // Sincronizar en localStorage
+      try {
+        localStorage.setItem('bariahorra_perfil', JSON.stringify(perfilCompleto));
+      } catch (e) { }
 
       // 3. Cargar ofertas del usuario
       const { data: rawOfertas } = await supabase
         .from('ofertas')
         .select('*');
 
-      const userIdStr = String(user.id).toLowerCase();
-      const userEmail = String(user.email || '').toLowerCase();
+      const userIdStr = String(activeUser.id).toLowerCase();
+      const userEmail = String(activeUser.email || '').toLowerCase();
 
       const ofertasDelUsuario = (rawOfertas || []).filter((o) => {
         const oUser = String(o.usuario_id || o.user_id || '').toLowerCase();
@@ -147,7 +135,7 @@ export default function PerfilPage() {
         return oUser === userIdStr || (oEmail && oEmail === userEmail);
       });
 
-      // 4. Traer productos y comercios para resolver nombres si tienen UUIDs
+      // 4. Traer productos y comercios para resolver nombres
       const [resProd, resCom] = await Promise.allSettled([
         supabase.from('productos').select('*'),
         supabase.from('comercios').select('*')
@@ -187,7 +175,9 @@ export default function PerfilPage() {
   };
 
   const handleCerrarSesion = async () => {
-    localStorage.removeItem('bariahorra_perfil');
+    try {
+      localStorage.removeItem('bariahorra_perfil');
+    } catch (e) { }
     await supabase.auth.signOut();
     router.push('/');
   };
@@ -238,8 +228,10 @@ export default function PerfilPage() {
       };
 
       setPerfil(nuevoEstadoPerfil);
-      localStorage.setItem('bariahorra_perfil', JSON.stringify(nuevoEstadoPerfil));
-      window.dispatchEvent(new Event('perfil_actualizado'));
+      try {
+        localStorage.setItem('bariahorra_perfil', JSON.stringify(nuevoEstadoPerfil));
+        window.dispatchEvent(new Event('perfil_actualizado'));
+      } catch (e) { }
 
       setEditando(false);
     } catch (err) {
@@ -315,7 +307,7 @@ export default function PerfilPage() {
             />
             <div>
               <h1 className="text-base sm:text-lg font-black theme-title">
-                @{perfil?.apodo || usuario?.email?.split('@')[0] || 'vecino'}
+                @{perfil?.apodo || perfil?.username || usuario?.email?.split('@')[0] || 'vecino'}
               </h1>
               <p className="text-xs theme-muted font-mono">
                 {usuario?.email}
@@ -465,7 +457,7 @@ export default function PerfilPage() {
                     type="text"
                     value={nuevoApodo}
                     onChange={(e) => setNuevoApodo(e.target.value)}
-                    placeholder="lauchiña"
+                    placeholder="Escribí tu apodo..."
                     className="w-full theme-input border rounded-xl pl-7 pr-3 py-2 text-xs focus:outline-none focus:border-sky-500 transition font-bold shadow-sm"
                   />
                 </div>

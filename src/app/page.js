@@ -431,7 +431,7 @@ export default function HomePage() {
     try {
       const coordsGuardadas = sessionStorage.getItem('bariahorra_gps');
       if (coordsGuardadas) setUserCoords(JSON.parse(coordsGuardadas));
-    } catch (e) {}
+    } catch (e) { }
 
     const esStandalone =
       typeof window !== 'undefined' &&
@@ -448,7 +448,7 @@ export default function HomePage() {
       if (changuitoGuardado) setChanguito(JSON.parse(changuitoGuardado));
       const tachadosGuardados = localStorage.getItem('bariahorra_tachados');
       if (tachadosGuardados) setItemsTachados(JSON.parse(tachadosGuardados));
-    } catch (e) {}
+    } catch (e) { }
 
     const {
       data: { subscription }
@@ -580,7 +580,7 @@ export default function HomePage() {
         setPidiendoGps(false);
         try {
           sessionStorage.setItem('bariahorra_gps', JSON.stringify(coords));
-        } catch (e) {}
+        } catch (e) { }
         mostrarToast('Ubicación activada. Ahora podés ver las distancias.');
       },
       () => {
@@ -598,7 +598,7 @@ export default function HomePage() {
       const nuevo = existe ? prev.filter((item) => item !== clave) : [...prev, clave];
       try {
         localStorage.setItem('bariahorra_changuito', JSON.stringify(nuevo));
-      } catch (e) {}
+      } catch (e) { }
       return nuevo;
     });
   };
@@ -609,7 +609,7 @@ export default function HomePage() {
       const nuevo = existe ? prev.filter((k) => k !== clave) : [...prev, clave];
       try {
         localStorage.setItem('bariahorra_tachados', JSON.stringify(nuevo));
-      } catch (e) {}
+      } catch (e) { }
       return nuevo;
     });
   };
@@ -621,7 +621,7 @@ export default function HomePage() {
     try {
       localStorage.removeItem('bariahorra_changuito');
       localStorage.removeItem('bariahorra_tachados');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const cargarVotosDesdeStorage = () => {
@@ -635,7 +635,7 @@ export default function HomePage() {
         }
       }
       setVotosRealizados(guardados);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const handleInstalarApp = async () => {
@@ -846,23 +846,23 @@ export default function HomePage() {
         try {
           localStorage.setItem(`bariahorra_voto_${claveVoto}`, tipo);
           setVotosRealizados((prev) => ({ ...prev, [claveVoto]: tipo }));
-        } catch (e) {}
+        } catch (e) { }
 
         setOfertas((prev) =>
           prev.map((o) =>
             o.id === oferta.id
               ? {
-                  ...o,
-                  _votosPositivos: nuevoPositivo,
-                  _votosNegativos: nuevoNegativo,
-                  estado: pasaARevision ? 'en_revision' : o.estado
-                }
+                ...o,
+                _votosPositivos: nuevoPositivo,
+                _votosNegativos: nuevoNegativo,
+                estado: pasaARevision ? 'en_revision' : o.estado
+              }
               : o
           )
         );
 
         if (tipo === 'sigue') {
-          mostrarToast('Confirmaste que el precio sigue vigente (+2 pts al autor).');
+          mostrarToast('¡Precio confirmado! Gracias por colaborar.');
         } else {
           mostrarToast('Aviso registrado. Gracias por colaborar.');
         }
@@ -1320,11 +1320,10 @@ export default function HomePage() {
                 if (dragInfoRef.current.hasMoved) return;
                 setCadenaActiva(cad);
               }}
-              className={`px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 border ${
-                activa
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 border ${activa
                   ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-sm'
                   : 'theme-btn-sec border-[var(--border-card)] hover:border-sky-500'
-              }`}
+                }`}
             >
               {cad}
             </button>
@@ -1361,9 +1360,8 @@ export default function HomePage() {
                   if (dragInfoRef.current.hasMoved) return;
                   setCategoriaActiva(cat);
                 }}
-                className={`px-3.5 py-2 rounded-xl whitespace-nowrap font-bold transition text-xs cursor-pointer flex items-center gap-1.5 border shrink-0 ${
-                  activa ? conf.pillActiva : 'theme-btn-sec hover:border-slate-400'
-                }`}
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap font-bold transition text-xs cursor-pointer flex items-center gap-1.5 border shrink-0 ${activa ? conf.pillActiva : 'theme-btn-sec hover:border-slate-400'
+                  }`}
               >
                 <IconoCat className={`w-3.5 h-3.5 ${activa ? 'stroke-[2.5]' : conf.acento}`} />
                 <span>{cat}</span>
@@ -1405,11 +1403,10 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setModoVista('gondola')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${
-              modoVista === 'gondola'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'gondola'
                 ? 'bg-amber-500 text-slate-950 shadow-md font-black'
                 : 'theme-muted hover:theme-title'
-            }`}
+              }`}
           >
             <ListFilter className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Góndola</span>
@@ -1418,11 +1415,10 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setModoVista('comparar')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${
-              modoVista === 'comparar'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'comparar'
                 ? 'bg-sky-500 text-slate-950 shadow-md font-black'
                 : 'theme-muted hover:theme-title'
-            }`}
+              }`}
           >
             <Layers className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Comparar</span>
@@ -1431,11 +1427,10 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setModoVista('milista')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${
-              modoVista === 'milista'
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'milista'
                 ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
                 : 'theme-muted hover:theme-title'
-            }`}
+              }`}
           >
             <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">Mi Lista ({changuito.length})</span>
@@ -1452,11 +1447,10 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleActivarUbicacion}
-                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${
-                  userCoords
+                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${userCoords
                     ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
                     : 'theme-btn-sec text-sky-400 border-sky-500/30 hover:border-sky-500'
-                }`}
+                  }`}
                 title={userCoords ? 'Ubicación activa' : 'Activar GPS para calcular distancias'}
               >
                 <Navigation className={`w-3 h-3 ${userCoords ? 'text-emerald-500' : 'text-sky-400'}`} />

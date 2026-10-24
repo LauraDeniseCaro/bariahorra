@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { obtenerAvatar } from '@/lib/avatars';
 import {
   Trophy,
   Award,
@@ -16,8 +17,6 @@ import {
   Plus,
   ThumbsUp
 } from 'lucide-react';
-
-const AVATAR_DEFAULT = 'https://api.dicebear.com/7.x/bottts/svg?seed=bariloche';
 
 function obtenerRangoComunitario(puntos = 0) {
   if (puntos >= 1000) {
@@ -68,59 +67,65 @@ export default function RankingPage() {
     setCargando(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const currentUserId = session?.user?.id ? String(session.user.id).toLowerCase() : null;
+      const currentUserId = session?.user?.id ? String(session.user.id).trim().toLowerCase() : null;
 
-      // Consultar perfiles y ofertas en simultáneo
+      // 1. Consultar perfiles y ofertas en simultáneo
       const [resPerfiles, resOfertas] = await Promise.all([
         supabase.from('perfiles').select('*'),
-        supabase.from('ofertas').select('usuario_id, votos_positivos')
+        supabase.from('ofertas').select('usuario_id, votos_positivos, es_catalogo')
       ]);
 
       const perfilesData = resPerfiles.data || [];
       const ofertasData = resOfertas.data || [];
 
-      // Mapear aportes y confirmaciones recibidas por usuario
+      // 2. Mapear aportes reales y confirmaciones recibidas por cada usuario
       const mapaStats = new Map();
       ofertasData.forEach((o) => {
-        const uId = String(o.usuario_id || '').toLowerCase();
+        // Excluimos ofertas institucionales de catálogo si no son de usuarios normales
+        if (o.es_catalogo && Number(o.votos_positivos) >= 100) return;
+
+        const uId = String(o.usuario_id || '').trim().toLowerCase();
         if (!uId) return;
+
         if (!mapaStats.has(uId)) {
           mapaStats.set(uId, { aportes: 0, confirmaciones: 0 });
         }
         const actual = mapaStats.get(uId);
         actual.aportes += 1;
-        actual.confirmaciones += Number(o.votos_positivos || 0);
+        actual.confirmaciones += Math.max(0, Number(o.votos_positivos || 0) - 1); // Descontamos el voto inicial automático
       });
 
-      // Calcular puntos reales: 10 pts por aporte + 2 pts por cada confirmación
+      // 3. Calcular puntos reales: 10 pts por aporte + 2 pts por cada confirmación comunitaria
       const perfilesCalculados = perfilesData.map((p) => {
-        const uId = String(p.id || '').toLowerCase();
+        const uId = String(p.id || '').trim().toLowerCase();
         const stats = mapaStats.get(uId) || { aportes: 0, confirmaciones: 0 };
-        
+
         const aportesReales = Math.max(Number(p.precios_aportados || 0), stats.aportes);
         const confirmacionesReales = stats.confirmaciones;
         const puntosTotales = (aportesReales * 10) + (confirmacionesReales * 2);
 
+        // Resolver avatar real de DiceBear a partir de avatar_id o URL fallback
+        const avatarObj = obtenerAvatar ? obtenerAvatar(p.avatar_id) : null;
+        const urlAvatarFinal = avatarObj?.src || p.avatar_url || `https://api.dicebear.com/10.x/gaze/svg?seed=${p.username || 'Bari'}`;
+
         return {
           ...p,
+          idLimpio: uId,
           aportes: aportesReales,
           confirmaciones: confirmacionesReales,
           puntos: puntosTotales,
-          apodo: p.apodo || p.username || 'vecino',
-          avatar_url: p.avatar_url || AVATAR_DEFAULT
+          apodo: p.username || p.apodo || 'vecino',
+          avatar_url: urlAvatarFinal
         };
       });
 
-      // Ordenar de mayor a menor puntaje
-      perfilesCalculados.sort((a, b) => b.puntos - a.puntos);
+      // 4. Ordenar de mayor a menor puntaje
+      perfilesCalculados.sort((a, b) => b.puntos - a.puntos || b.aportes - a.aportes);
       setVecinos(perfilesCalculados);
 
-      // Ubicar la fila del usuario actual si está logueado
+      // 5. Ubicar la posición del usuario conectado
       if (currentUserId && perfilesCalculados.length > 0) {
-        const index = perfilesCalculados.findIndex((v) => {
-          return String(v.id || '').toLowerCase() === currentUserId;
-        });
-
+        const index = perfilesCalculados.findIndex((v) => v.idLimpio === currentUserId);
         if (index !== -1) {
           setUsuarioActual({
             ...perfilesCalculados[index],
@@ -147,7 +152,7 @@ export default function RankingPage() {
       <div className="flex items-center justify-between px-1">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-xs theme-muted hover:text-sky-500 transition font-medium"
+          className="inline-flex items-center gap-1.5 text-xs theme-muted hover:text-sky-500 transition font-medium cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Volver a la góndola</span>
@@ -155,14 +160,14 @@ export default function RankingPage() {
 
         <Link
           href="/cargar"
-          className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20 active:scale-95"
+          className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5 stroke-[3]" />
           <span>Sumar +10 pts</span>
         </Link>
       </div>
 
-      {/* ENCABEZADO Y EXPLICACIÓN DE PUNTOS */}
+      {/* ENCABEZADO Y REGLA DE PUNTOS */}
       <div className="theme-card border rounded-3xl p-4 sm:p-6 shadow-xl space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -185,7 +190,7 @@ export default function RankingPage() {
           </div>
         </div>
 
-        {/* REGLA DE PUNTOS */}
+        {/* TARJETA EXPLICATIVA */}
         <div className="theme-card-sub border rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-sky-500/10 text-sky-500 shrink-0">
@@ -193,17 +198,17 @@ export default function RankingPage() {
             </div>
             <div>
               <p className="font-bold theme-title">
-                +10 pts por aporte • +2 pts por confirmación de vecinos
+                +10 pts por aporte • +2 pts por confirmación en góndola
               </p>
               <p className="theme-muted text-[11px] mt-0.5">
-                Cada precio confirmado en góndola te hace escalar posiciones en el podio.
+                Cada precio confirmado por otros vecinos te hace subir en el podio.
               </p>
             </div>
           </div>
 
           {usuarioActual && (
             <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl px-3 py-1.5 text-right shrink-0">
-              <span className="text-[10px] text-sky-600 block font-bold">Tu posición</span>
+              <span className="text-[10px] text-sky-400 block font-bold">Tu posición</span>
               <span className="text-xs font-black theme-title font-mono">
                 #{usuarioActual.posicion} • {usuarioActual.puntos} pts
               </span>
@@ -221,7 +226,7 @@ export default function RankingPage() {
           <p>Todavía no hay vecinos con puntos registrados.</p>
           <Link
             href="/cargar"
-            className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition"
+            className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Cargar el primer precio (+10 pts)
@@ -229,7 +234,7 @@ export default function RankingPage() {
         </div>
       ) : (
         <>
-          {/* PODIO OLÍMPICO (RESPONSIVE PARA MÓVILES ANGOSTOS) */}
+          {/* PODIO OLÍMPICO (RESPONSIVE) */}
           <section className="theme-card border rounded-3xl p-4 sm:p-6 shadow-xl">
             <h2 className="text-xs font-black uppercase tracking-wider theme-muted mb-6 text-center">
               Podio de Honor
@@ -279,13 +284,13 @@ export default function RankingPage() {
                       alt={top1.apodo}
                       className="w-13 h-13 sm:w-18 sm:h-18 rounded-full border-2 border-amber-400 object-cover mt-2 bg-slate-900 shadow-sm"
                     />
-                    <p className="text-xs sm:text-sm font-black text-amber-600 mt-1.5 truncate max-w-full text-center">
+                    <p className="text-xs sm:text-sm font-black text-amber-500 mt-1.5 truncate max-w-full text-center">
                       @{top1.apodo}
                     </p>
-                    <span className="text-xs sm:text-sm font-black text-amber-600 font-mono mt-0.5">
+                    <span className="text-xs sm:text-sm font-black text-amber-500 font-mono mt-0.5">
                       {top1.puntos} pts
                     </span>
-                    <span className="text-[9px] font-black text-amber-700 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 rounded-full mt-1">
+                    <span className="text-[9px] font-black text-amber-600 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-full mt-1">
                       {top1.confirmaciones} conf.
                     </span>
                   </div>
@@ -336,7 +341,7 @@ export default function RankingPage() {
                   const posReal = idx + 4;
                   const rango = obtenerRangoComunitario(vecino.puntos);
                   const IconoRango = rango.icono;
-                  const esYo = usuarioActual && String(usuarioActual.id).toLowerCase() === String(vecino.id).toLowerCase();
+                  const esYo = usuarioActual && usuarioActual.idLimpio === vecino.idLimpio;
 
                   return (
                     <article
@@ -362,7 +367,7 @@ export default function RankingPage() {
                               @{vecino.apodo}
                             </p>
                             {esYo && (
-                              <span className="text-[9px] font-black bg-sky-500/20 text-sky-600 border border-sky-500/30 px-1.5 py-0.2 rounded-full">
+                              <span className="text-[9px] font-black bg-sky-500/20 text-sky-400 border border-sky-500/30 px-1.5 py-0.5 rounded-full">
                                 Vos
                               </span>
                             )}
@@ -375,7 +380,7 @@ export default function RankingPage() {
                             <span>•</span>
                             <span>{vecino.aportes} aportes</span>
                             <span>•</span>
-                            <span className="flex items-center gap-0.5 text-emerald-600 font-semibold">
+                            <span className="flex items-center gap-0.5 text-emerald-500 font-semibold">
                               <ThumbsUp className="w-2.5 h-2.5" />
                               {vecino.confirmaciones}
                             </span>

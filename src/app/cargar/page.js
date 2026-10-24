@@ -346,8 +346,22 @@ export default function CargarPage() {
 
     setEnviando(true);
     try {
+      // 1. Obtener sesión activa fresca de Supabase
       const { data: authData } = await supabase.auth.getUser();
-      const userId = authData?.user?.id || usuario?.id || null;
+      const currentUser = authData?.user || usuario || null;
+      const userId = currentUser?.id || null;
+
+      // Si el usuario está logueado, aseguramos que exista en la tabla perfiles
+      if (userId) {
+        const apodo = currentUser.user_metadata?.username || 
+                      currentUser.user_metadata?.name || 
+                      currentUser.user_metadata?.full_name || 
+                      currentUser.email?.split('@')[0] || 
+                      'Vecino';
+        await supabase
+          .from('perfiles')
+          .upsert({ id: userId, username: apodo }, { onConflict: 'id' });
+      }
 
       let urlFotoSubida = null;
       if (archivoFoto) {
@@ -411,22 +425,54 @@ export default function CargarPage() {
       }
 
       const esOficialFinal = esAdmin && esCatalogo;
+      const diasVigencia = esOficialFinal ? 15 : 7;
+      const fechaVenc = new Date();
+      fechaVenc.setDate(fechaVenc.getDate() + diasVigencia);
 
-      const payloadOferta = {
-        producto_id: prodId,
-        comercio_id: comId,
-        precio: Number(precio),
-        foto_url: urlFotoSubida,
-        usuario_id: userId,
-        es_catalogo: esOficialFinal,
-        estado: esOficialFinal ? 'catalogo' : 'activa',
-        votos_positivos: esOficialFinal ? 100 : 1,
-        votos_negativos: 0
-      };
+      // 2. Control de DUPLICADOS: Si ya existe este producto en este comercio, actualizamos el precio
+      const { data: ofertaExistente } = await supabase
+        .from('ofertas')
+        .select('id')
+        .eq('producto_id', prodId)
+        .eq('comercio_id', comId)
+        .maybeSingle();
 
-      const { error: errOferta } = await supabase.from('ofertas').insert([payloadOferta]);
-      if (errOferta) throw errOferta;
+      if (ofertaExistente?.id) {
+        const payloadUpdate = {
+          precio: Number(precio),
+          vencimiento: fechaVenc.toISOString(),
+          creado_en: new Date().toISOString(),
+          votos_positivos: 1,
+          votos_negativos: 0
+        };
+        if (urlFotoSubida) payloadUpdate.foto_url = urlFotoSubida;
+        if (userId) payloadUpdate.usuario_id = userId;
 
+        const { error: errUpdate } = await supabase
+          .from('ofertas')
+          .update(payloadUpdate)
+          .eq('id', ofertaExistente.id);
+
+        if (errUpdate) throw errUpdate;
+      } else {
+        const payloadOferta = {
+          producto_id: prodId,
+          comercio_id: comId,
+          precio: Number(precio),
+          foto_url: urlFotoSubida,
+          usuario_id: userId,
+          es_catalogo: esOficialFinal,
+          estado: esOficialFinal ? 'catalogo' : 'activa',
+          vencimiento: fechaVenc.toISOString(),
+          votos_positivos: esOficialFinal ? 100 : 1,
+          votos_negativos: 0
+        };
+
+        const { error: errOferta } = await supabase.from('ofertas').insert([payloadOferta]);
+        if (errOferta) throw errOferta;
+      }
+
+      // Si está logueado, le sumamos los 10 puntos en su perfil
       if (userId && !esOficialFinal) {
         try {
           const { data: perf } = await supabase
@@ -440,13 +486,15 @@ export default function CargarPage() {
               .update({ puntos: (perf.puntos || 0) + 10 })
               .eq('id', userId);
           }
-        } catch (e) { }
+        } catch (e) {
+          console.error('Error sumando puntos:', e);
+        }
       }
 
       router.push('/');
     } catch (err) {
       console.error(err);
-      setErrorMensaje('No se pudo guardar el precio. ' + (err.message || ''));
+      setErrorMensaje('No se pudo guardar el precio: ' + (err.message || ''));
     } finally {
       setEnviando(false);
       setSubiendoFoto(false);

@@ -746,17 +746,22 @@ export default function HomePage() {
         const comercioLat = comRel?.latitud ? parseFloat(comRel.latitud) : null;
         const comercioLng = comRel?.longitud ? parseFloat(comRel.longitud) : null;
 
-        let apodoAutor = perfRel?.username || perfRel?.apodo || perfRel?.nombre || '';
+        // 1. Buscamos el apodo elegido por el usuario en la tabla perfiles
+        let apodoAutor =
+          perfRel?.username ||
+          perfRel?.apodo ||
+          '';
 
+        // 2. Si es el usuario actual conectado y en perfiles aún no figura apodo, usamos fallback
         if (!apodoAutor && userActual && String(userActual.id).toLowerCase() === userId) {
           apodoAutor =
             userActual.user_metadata?.username ||
             userActual.user_metadata?.apodo ||
-            userActual.user_metadata?.full_name ||
             userActual.email?.split('@')[0] ||
             '';
         }
 
+        // 3. Si sigue vacío, queda como anónimo
         if (!apodoAutor) apodoAutor = 'Vecino anónimo';
 
         const precioFinal = Number(item.precio || 0);
@@ -1321,8 +1326,8 @@ export default function HomePage() {
                 setCadenaActiva(cad);
               }}
               className={`px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer shrink-0 border ${activa
-                  ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-sm'
-                  : 'theme-btn-sec border-[var(--border-card)] hover:border-sky-500'
+                ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-sm'
+                : 'theme-btn-sec border-[var(--border-card)] hover:border-sky-500'
                 }`}
             >
               {cad}
@@ -1404,8 +1409,8 @@ export default function HomePage() {
             type="button"
             onClick={() => setModoVista('gondola')}
             className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'gondola'
-                ? 'bg-amber-500 text-slate-950 shadow-md font-black'
-                : 'theme-muted hover:theme-title'
+              ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+              : 'theme-muted hover:theme-title'
               }`}
           >
             <ListFilter className="w-3.5 h-3.5 shrink-0" />
@@ -1416,8 +1421,8 @@ export default function HomePage() {
             type="button"
             onClick={() => setModoVista('comparar')}
             className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'comparar'
-                ? 'bg-sky-500 text-slate-950 shadow-md font-black'
-                : 'theme-muted hover:theme-title'
+              ? 'bg-sky-500 text-slate-950 shadow-md font-black'
+              : 'theme-muted hover:theme-title'
               }`}
           >
             <Layers className="w-3.5 h-3.5 shrink-0" />
@@ -1428,8 +1433,8 @@ export default function HomePage() {
             type="button"
             onClick={() => setModoVista('milista')}
             className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-1 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer select-none ${modoVista === 'milista'
-                ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
-                : 'theme-muted hover:theme-title'
+              ? 'bg-emerald-500 text-slate-950 shadow-md font-black'
+              : 'theme-muted hover:theme-title'
               }`}
           >
             <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
@@ -1448,8 +1453,8 @@ export default function HomePage() {
                 type="button"
                 onClick={handleActivarUbicacion}
                 className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${userCoords
-                    ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
-                    : 'theme-btn-sec text-sky-400 border-sky-500/30 hover:border-sky-500'
+                  ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+                  : 'theme-btn-sec text-sky-400 border-sky-500/30 hover:border-sky-500'
                   }`}
                 title={userCoords ? 'Ubicación activa' : 'Activar GPS para calcular distancias'}
               >

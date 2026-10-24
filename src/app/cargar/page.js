@@ -346,21 +346,29 @@ export default function CargarPage() {
 
     setEnviando(true);
     try {
-      // 1. Obtener sesión activa fresca de Supabase
+      // 1. Obtener sesión de Supabase
       const { data: authData } = await supabase.auth.getUser();
       const currentUser = authData?.user || usuario || null;
       const userId = currentUser?.id || null;
 
-      // Si el usuario está logueado, aseguramos que exista en la tabla perfiles
+      // 2. Si el usuario está conectado, buscar su apodo real en la tabla perfiles
       if (userId) {
-        const apodo = currentUser.user_metadata?.username || 
-                      currentUser.user_metadata?.name || 
-                      currentUser.user_metadata?.full_name || 
-                      currentUser.email?.split('@')[0] || 
-                      'Vecino';
-        await supabase
+        const { data: perfilExistente } = await supabase
           .from('perfiles')
-          .upsert({ id: userId, username: apodo }, { onConflict: 'id' });
+          .select('username, apodo')
+          .eq('id', userId)
+          .maybeSingle();
+
+        // Si aún no tiene perfil, creamos el base
+        if (!perfilExistente) {
+          const apodoInicial = currentUser.user_metadata?.username ||
+            currentUser.user_metadata?.name ||
+            currentUser.email?.split('@')[0] ||
+            'Vecino';
+          await supabase
+            .from('perfiles')
+            .upsert({ id: userId, username: apodoInicial, avatar_id: 'avatar-1' }, { onConflict: 'id' });
+        }
       }
 
       let urlFotoSubida = null;
@@ -429,36 +437,72 @@ export default function CargarPage() {
       const fechaVenc = new Date();
       fechaVenc.setDate(fechaVenc.getDate() + diasVigencia);
 
-      // 2. Control de DUPLICADOS: Si ya existe este producto en este comercio, actualizamos el precio
-      const { data: ofertaExistente } = await supabase
+      const nuevoPrecioNum = Number(precio);
+
+      // 3. Revisamos si ya existe una oferta activa de este producto en este comercio
+      const { data: ofertaActiva } = await supabase
         .from('ofertas')
-        .select('id')
+        .select('id, precio, usuario_id, votos_positivos')
         .eq('producto_id', prodId)
         .eq('comercio_id', comId)
+        .eq('estado', 'activa')
         .maybeSingle();
 
-      if (ofertaExistente?.id) {
-        const payloadUpdate = {
-          precio: Number(precio),
-          vencimiento: fechaVenc.toISOString(),
-          creado_en: new Date().toISOString(),
-          votos_positivos: 1,
-          votos_negativos: 0
-        };
-        if (urlFotoSubida) payloadUpdate.foto_url = urlFotoSubida;
-        if (userId) payloadUpdate.usuario_id = userId;
+      if (ofertaActiva?.id) {
+        // CASO A: Mismo precio en góndola -> Funciona como confirmación comunitaria
+        if (Math.round(Number(ofertaActiva.precio)) === Math.round(nuevoPrecioNum)) {
+          await supabase
+            .from('ofertas')
+            .update({
+              votos_positivos: (Number(ofertaActiva.votos_positivos) || 1) + 1,
+              vencimiento: fechaVenc.toISOString()
+            })
+            .eq('id', ofertaActiva.id);
 
-        const { error: errUpdate } = await supabase
-          .from('ofertas')
-          .update(payloadUpdate)
-          .eq('id', ofertaExistente.id);
+          // Si el autor original era otro usuario, le sumamos +2 pts por precio certero
+          if (ofertaActiva.usuario_id && ofertaActiva.usuario_id !== userId) {
+            const { data: autorOriginal } = await supabase
+              .from('perfiles')
+              .select('puntos')
+              .eq('id', ofertaActiva.usuario_id)
+              .maybeSingle();
+            if (autorOriginal) {
+              await supabase
+                .from('perfiles')
+                .update({ puntos: (Number(autorOriginal.puntos) || 0) + 2 })
+                .eq('id', ofertaActiva.usuario_id);
+            }
+          }
+        } else {
+          // CASO B: Precio diferente -> La anterior pasa a histórica (el autor conserva sus puntos)
+          await supabase
+            .from('ofertas')
+            .update({ estado: 'historica' })
+            .eq('id', ofertaActiva.id);
 
-        if (errUpdate) throw errUpdate;
+          // Insertamos la nueva oferta con vos como autor
+          const payloadNuevaOferta = {
+            producto_id: prodId,
+            comercio_id: comId,
+            precio: nuevoPrecioNum,
+            foto_url: urlFotoSubida,
+            usuario_id: userId,
+            es_catalogo: esOficialFinal,
+            estado: esOficialFinal ? 'catalogo' : 'activa',
+            vencimiento: fechaVenc.toISOString(),
+            votos_positivos: esOficialFinal ? 100 : 1,
+            votos_negativos: 0
+          };
+
+          const { error: errNueva } = await supabase.from('ofertas').insert([payloadNuevaOferta]);
+          if (errNueva) throw errNueva;
+        }
       } else {
-        const payloadOferta = {
+        // CASO C: No existía oferta previa -> Insertamos directo
+        const payloadNuevaOferta = {
           producto_id: prodId,
           comercio_id: comId,
-          precio: Number(precio),
+          precio: nuevoPrecioNum,
           foto_url: urlFotoSubida,
           usuario_id: userId,
           es_catalogo: esOficialFinal,
@@ -468,22 +512,26 @@ export default function CargarPage() {
           votos_negativos: 0
         };
 
-        const { error: errOferta } = await supabase.from('ofertas').insert([payloadOferta]);
-        if (errOferta) throw errOferta;
+        const { error: errNueva } = await supabase.from('ofertas').insert([payloadNuevaOferta]);
+        if (errNueva) throw errNueva;
       }
 
-      // Si está logueado, le sumamos los 10 puntos en su perfil
+      // 4. Sumamos +10 puntos al usuario actual por su aporte
       if (userId && !esOficialFinal) {
         try {
           const { data: perf } = await supabase
             .from('perfiles')
-            .select('puntos')
+            .select('puntos, precios_aportados')
             .eq('id', userId)
             .maybeSingle();
+
           if (perf) {
             await supabase
               .from('perfiles')
-              .update({ puntos: (perf.puntos || 0) + 10 })
+              .update({
+                puntos: (Number(perf.puntos) || 0) + 10,
+                precios_aportados: (Number(perf.precios_aportados) || 0) + 1
+              })
               .eq('id', userId);
           }
         } catch (e) {
@@ -542,11 +590,10 @@ export default function CargarPage() {
                 setModoIngreso('manual');
                 setAvisoIA('');
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                modoIngreso === 'manual'
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${modoIngreso === 'manual'
                   ? 'bg-amber-500 text-slate-950 font-black shadow-md'
                   : 'theme-muted hover:theme-title'
-              }`}
+                }`}
             >
               <PenTool className="w-3.5 h-3.5" />
               <span>Carga manual</span>
@@ -558,11 +605,10 @@ export default function CargarPage() {
                 setModoIngreso('ia');
                 setAvisoIA('');
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                modoIngreso === 'ia'
+              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${modoIngreso === 'ia'
                   ? 'bg-gradient-to-r from-sky-400 to-indigo-400 text-slate-950 font-black shadow-md'
                   : 'theme-muted hover:theme-title'
-              }`}
+                }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Escanear con IA</span>
@@ -573,11 +619,10 @@ export default function CargarPage() {
             {/* OPCIÓN CATÁLOGO OFICIAL: SOLO VISIBLE PARA TU CORREO */}
             {esAdmin && (
               <label
-                className={`flex items-center justify-between gap-3 p-3 rounded-2xl border cursor-pointer transition ${
-                  esCatalogo
+                className={`flex items-center justify-between gap-3 p-3 rounded-2xl border cursor-pointer transition ${esCatalogo
                     ? 'bg-amber-500/15 border-amber-500/50 text-amber-400'
                     : 'theme-card-sub border theme-subtitle hover:border-amber-500/30'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2.5">
                   <ShieldCheck className={`w-4 h-4 ${esCatalogo ? 'text-amber-400' : 'theme-muted'}`} />
@@ -610,11 +655,10 @@ export default function CargarPage() {
                   <button
                     type="button"
                     onClick={() => setTipoEscaneoIA('gondola')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                      tipoEscaneoIA === 'gondola'
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${tipoEscaneoIA === 'gondola'
                         ? 'bg-sky-500/20 border-sky-400 text-sky-300'
                         : 'theme-card border theme-muted hover:theme-title'
-                    }`}
+                      }`}
                   >
                     <Tag className="w-3.5 h-3.5" />
                     <span>Cartel de góndola</span>
@@ -623,11 +667,10 @@ export default function CargarPage() {
                   <button
                     type="button"
                     onClick={() => setTipoEscaneoIA('ticket')}
-                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                      tipoEscaneoIA === 'ticket'
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${tipoEscaneoIA === 'ticket'
                         ? 'bg-sky-500/20 border-sky-400 text-sky-300'
                         : 'theme-card border theme-muted hover:theme-title'
-                    }`}
+                      }`}
                   >
                     <Receipt className="w-3.5 h-3.5" />
                     <span>Ticket de compra</span>
@@ -836,9 +879,8 @@ export default function CargarPage() {
                       type="button"
                       key={nombreRubro}
                       onClick={() => setRubro(nombreRubro)}
-                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
-                        activo ? conf.color : 'theme-btn-sec border theme-muted hover:theme-title'
-                      }`}
+                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${activo ? conf.color : 'theme-btn-sec border theme-muted hover:theme-title'
+                        }`}
                     >
                       <Icono className={`w-3.5 h-3.5 ${activo ? '' : conf.acento}`} />
                       <span>{nombreRubro}</span>
@@ -902,9 +944,8 @@ export default function CargarPage() {
                       type="button"
                       key={u}
                       onClick={() => setUnidad(u)}
-                      className={`py-1.5 px-2.5 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
-                        unidad === u ? 'bg-sky-500 text-slate-950 shadow' : 'theme-muted hover:theme-title'
-                      }`}
+                      className={`py-1.5 px-2.5 rounded-lg text-xs font-black uppercase transition cursor-pointer ${unidad === u ? 'bg-sky-500 text-slate-950 shadow' : 'theme-muted hover:theme-title'
+                        }`}
                     >
                       {u}
                     </button>

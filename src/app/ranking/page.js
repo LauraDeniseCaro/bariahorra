@@ -103,10 +103,11 @@ export default function RankingPage() {
         const aportesReales = Math.max(Number(p.precios_aportados || 0), stats.aportes);
         const confirmacionesReales = stats.confirmaciones;
         const puntosTotales = (aportesReales * 10) + (confirmacionesReales * 2);
+        // Leemos la URL exacta del avatar guardado en el perfil (el robot de Bariloche)
+        const urlAvatarFinal = p.avatar_url || (obtenerAvatar ? obtenerAvatar(p.avatar_id)?.src : null) || 'https://api.dicebear.com/7.x/bottts/svg?seed=bariloche';
 
-        // Resolver avatar real de DiceBear a partir de avatar_id o URL fallback
-        const avatarObj = obtenerAvatar ? obtenerAvatar(p.avatar_id) : null;
-        const urlAvatarFinal = avatarObj?.src || p.avatar_url || `https://api.dicebear.com/10.x/gaze/svg?seed=${p.username || 'Bari'}`;
+        // Leemos el apodo elegido por el usuario (apodo o username)
+        const apodoFinal = p.apodo || p.username || 'vecino';
 
         return {
           ...p,
@@ -114,7 +115,7 @@ export default function RankingPage() {
           aportes: aportesReales,
           confirmaciones: confirmacionesReales,
           puntos: puntosTotales,
-          apodo: p.username || p.apodo || 'vecino',
+          apodo: apodoFinal,
           avatar_url: urlAvatarFinal
         };
       });
@@ -241,7 +242,7 @@ export default function RankingPage() {
             </h2>
 
             <div className="grid grid-cols-3 gap-1.5 sm:gap-4 items-end max-w-md mx-auto pt-2">
-              
+
               {/* PUESTO 2 (Plata) */}
               <div className="flex flex-col items-center">
                 {top2 ? (
@@ -346,11 +347,10 @@ export default function RankingPage() {
                   return (
                     <article
                       key={vecino.id || idx}
-                      className={`p-3 rounded-2xl border flex items-center justify-between transition ${
-                        esYo
+                      className={`p-3 rounded-2xl border flex items-center justify-between transition ${esYo
                           ? 'bg-sky-500/10 border-sky-500/40 shadow-xs'
                           : 'theme-card-sub hover:opacity-95'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-xs font-mono font-black theme-muted w-5 text-center shrink-0">

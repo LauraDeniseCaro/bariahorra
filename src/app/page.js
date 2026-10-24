@@ -746,17 +746,17 @@ export default function HomePage() {
         const comercioLat = comRel?.latitud ? parseFloat(comRel.latitud) : null;
         const comercioLng = comRel?.longitud ? parseFloat(comRel.longitud) : null;
 
-        // 1. Buscamos el apodo elegido por el usuario en la tabla perfiles
+        // 1. Buscamos el apodo elegido por el usuario en la tabla perfiles (priorizando apodo y username)
         let apodoAutor =
-          perfRel?.username ||
           perfRel?.apodo ||
+          perfRel?.username ||
           '';
 
-        // 2. Si es el usuario actual conectado y en perfiles aún no figura apodo, usamos fallback
+        // 2. Si es el usuario actual conectado y en perfiles aún no figura, usamos su metadata
         if (!apodoAutor && userActual && String(userActual.id).toLowerCase() === userId) {
           apodoAutor =
-            userActual.user_metadata?.username ||
             userActual.user_metadata?.apodo ||
+            userActual.user_metadata?.username ||
             userActual.email?.split('@')[0] ||
             '';
         }

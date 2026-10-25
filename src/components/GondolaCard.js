@@ -253,9 +253,22 @@ export default function GondolaCard({
       <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
         <div className="flex items-end justify-between gap-2">
           <div className="space-y-1">
-            <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none block">
-              ${Number(item._precio || 0).toLocaleString('es-AR')}
-            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg sm:text-xl font-black theme-title font-mono tracking-tight leading-none block">
+                ${Number(item._tienePromo ? item._precioPromo : item._precio || 0).toLocaleString('es-AR')}
+              </span>
+              {item._tienePromo && (
+                <span className="text-xs font-mono theme-muted line-through">
+                  ${Number(item._precio || 0).toLocaleString('es-AR')}
+                </span>
+              )}
+            </div>
+
+            {item._tienePromo && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                <span>🟢 Hoy: {item._promoEtiqueta}</span>
+              </span>
+            )}
 
             {item._refUnitario && (
               <p className="text-[10px] theme-muted flex items-center gap-1 leading-tight">

@@ -18,7 +18,9 @@ import {
   X,
   Sparkles,
   Store,
-  AlertCircle
+  AlertCircle,
+  CreditCard,
+  Check
 } from 'lucide-react';
 
 const AVATARES_DISPONIBLES = [
@@ -35,6 +37,18 @@ const AVATARES_DISPONIBLES = [
 ];
 
 const AVATAR_DEFAULT = AVATARES_DISPONIBLES[0];
+
+const MEDIOS_PAGO_DISPONIBLES = [
+  { id: 'bna_modo', nombre: 'Banco Nación (MODO)', icono: '🏛️' },
+  { id: 'cuenta_dni', nombre: 'Cuenta DNI', icono: '📱' },
+  { id: 'patagonia', nombre: 'Banco Patagonia', icono: '💳' },
+  { id: 'bpn', nombre: 'BPN (Banco Neuquén)', icono: '🏔️' },
+  { id: 'galicia', nombre: 'Banco Galicia', icono: '🟠' },
+  { id: 'santander', nombre: 'Santander', icono: '🔴' },
+  { id: 'personal_pay', nombre: 'Personal Pay', icono: '⚡' },
+  { id: 'mercado_pago', nombre: 'Mercado Pago', icono: '🤝' },
+  { id: 'naranja_x', nombre: 'Naranja X', icono: '🍊' }
+];
 
 function calcularRango(puntos = 0) {
   if (puntos >= 1000) return { nombre: 'Héroe Comunitario', icono: Crown, color: 'text-amber-500 dark:text-amber-400' };
@@ -55,6 +69,7 @@ export default function PerfilPage() {
   const [editando, setEditando] = useState(false);
   const [nuevoApodo, setNuevoApodo] = useState('');
   const [nuevoAvatar, setNuevoAvatar] = useState(AVATAR_DEFAULT);
+  const [mediosSeleccionados, setMediosSeleccionados] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [mensajeError, setMensajeError] = useState('');
 
@@ -88,7 +103,6 @@ export default function PerfilPage() {
         .eq('id', activeUser.id)
         .maybeSingle();
 
-      // Apodo prioritario: de la tabla perfiles -> luego metadata -> luego parte previa del email -> fallback 'vecino'
       const apodoDefinido =
         perfilDB?.apodo ||
         perfilDB?.username ||
@@ -102,12 +116,17 @@ export default function PerfilPage() {
         activeUser.user_metadata?.avatar_url ||
         AVATAR_DEFAULT;
 
+      const mediosDefinidos = Array.isArray(perfilDB?.medios_pago)
+        ? perfilDB.medios_pago
+        : [];
+
       const perfilCompleto = {
         ...perfilDB,
         id: activeUser.id,
         apodo: apodoDefinido,
         username: apodoDefinido,
         avatar_url: avatarDefinido,
+        medios_pago: mediosDefinidos,
         puntos: perfilDB?.puntos || 0,
         precios_aportados: perfilDB?.precios_aportados || 0
       };
@@ -115,8 +134,8 @@ export default function PerfilPage() {
       setPerfil(perfilCompleto);
       setNuevoApodo(apodoDefinido);
       setNuevoAvatar(avatarDefinido);
+      setMediosSeleccionados(mediosDefinidos);
 
-      // Sincronizar en localStorage
       try {
         localStorage.setItem('bariahorra_perfil', JSON.stringify(perfilCompleto));
       } catch (e) { }
@@ -182,6 +201,14 @@ export default function PerfilPage() {
     router.push('/');
   };
 
+  const toggleMedioPago = (medioId) => {
+    setMediosSeleccionados((prev) =>
+      prev.includes(medioId)
+        ? prev.filter((id) => id !== medioId)
+        : [...prev, medioId]
+    );
+  };
+
   const handleGuardarCambios = async (e) => {
     e.preventDefault();
     setMensajeError('');
@@ -201,7 +228,8 @@ export default function PerfilPage() {
           username: apodoLimpio,
           apodo: apodoLimpio,
           avatar_url: nuevoAvatar,
-          avatar_id: 'bottts'
+          avatar_id: 'bottts',
+          medios_pago: mediosSeleccionados
         })
         .eq('id', usuario.id)
         .select();
@@ -219,7 +247,8 @@ export default function PerfilPage() {
             username: apodoLimpio,
             apodo: apodoLimpio,
             avatar_url: nuevoAvatar,
-            avatar_id: 'bottts'
+            avatar_id: 'bottts',
+            medios_pago: mediosSeleccionados
           }
         ]);
       }
@@ -230,7 +259,8 @@ export default function PerfilPage() {
           username: apodoLimpio,
           apodo: apodoLimpio,
           full_name: apodoLimpio,
-          avatar_url: nuevoAvatar
+          avatar_url: nuevoAvatar,
+          medios_pago: mediosSeleccionados
         }
       });
 
@@ -239,7 +269,8 @@ export default function PerfilPage() {
         ...perfil,
         username: apodoLimpio,
         apodo: apodoLimpio,
-        avatar_url: nuevoAvatar
+        avatar_url: nuevoAvatar,
+        medios_pago: mediosSeleccionados
       };
 
       setPerfil(nuevoEstadoPerfil);
@@ -285,7 +316,6 @@ export default function PerfilPage() {
   const rangoInfo = calcularRango(perfil?.puntos || 0);
   const IconoRango = rangoInfo.icono;
 
-  // Calculamos el total de confirmaciones sumando todos los votos positivos de sus ofertas
   const totalConfirmaciones = misOfertas.reduce((acc, curr) => acc + (curr._votosPositivos || 0), 0);
 
   return (
@@ -343,7 +373,12 @@ export default function PerfilPage() {
 
           <button
             type="button"
-            onClick={() => setEditando(true)}
+            onClick={() => {
+              setNuevoApodo(perfil?.apodo || '');
+              setNuevoAvatar(perfil?.avatar_url || AVATAR_DEFAULT);
+              setMediosSeleccionados(perfil?.medios_pago || []);
+              setEditando(true);
+            }}
             className="inline-flex items-center gap-1.5 theme-btn-sec border px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-sm"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -371,6 +406,50 @@ export default function PerfilPage() {
             </p>
             <p className="text-[10px] theme-muted leading-tight mt-0.5">Puntos comunitarios</p>
           </div>
+        </div>
+
+        {/* MEDIOS DE PAGO ACTIVOS */}
+        <div className="mt-5 pt-4 border-t border-[var(--border-card)]">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <CreditCard className="w-4 h-4 text-sky-400" />
+              <h2 className="text-xs font-bold theme-subtitle">Tus medios de pago y billeteras</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setNuevoApodo(perfil?.apodo || '');
+                setNuevoAvatar(perfil?.avatar_url || AVATAR_DEFAULT);
+                setMediosSeleccionados(perfil?.medios_pago || []);
+                setEditando(true);
+              }}
+              className="text-[11px] text-sky-400 hover:underline font-bold"
+            >
+              Gestionar
+            </button>
+          </div>
+
+          {(perfil?.medios_pago || []).length === 0 ? (
+            <p className="text-[11px] theme-muted">
+              Todavía no seleccionaste tus bancos ni billeteras. Elegilos en &quot;Editar personaje&quot; para comparar precios con tus reintegros.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {perfil.medios_pago.map((medioId) => {
+                const infoMedio = MEDIOS_PAGO_DISPONIBLES.find((m) => m.id === medioId);
+                if (!infoMedio) return null;
+                return (
+                  <span
+                    key={medioId}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-sky-500/10 border border-sky-500/20 text-sky-400"
+                  >
+                    <span>{infoMedio.icono}</span>
+                    <span>{infoMedio.nombre}</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -449,7 +528,7 @@ export default function PerfilPage() {
       {/* MODAL DE EDICIÓN */}
       {editando && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="theme-card border rounded-3xl p-5 max-w-sm w-full shadow-2xl relative space-y-4">
+          <div className="theme-card border rounded-3xl p-5 max-w-md w-full shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black theme-title">Editar personaje</h3>
               <button
@@ -497,6 +576,38 @@ export default function PerfilPage() {
                         }`}
                       >
                         <img src={avatar} alt="Avatar" className="w-full h-full object-cover rounded-lg" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold theme-subtitle mb-1">
+                  Tus billeteras y tarjetas con descuento
+                </label>
+                <p className="text-[11px] theme-muted mb-2">
+                  Tildá las que usás habitualmente para calcular precios con tus reintegros.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {MEDIOS_PAGO_DISPONIBLES.map((medio) => {
+                    const seleccionado = mediosSeleccionados.includes(medio.id);
+                    return (
+                      <button
+                        key={medio.id}
+                        type="button"
+                        onClick={() => toggleMedioPago(medio.id)}
+                        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition text-left cursor-pointer ${
+                          seleccionado
+                            ? 'bg-sky-500/15 border-sky-400 text-sky-400 shadow-sm'
+                            : 'theme-card-sub border-[var(--border-card)] theme-muted hover:border-slate-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span>{medio.icono}</span>
+                          <span className="truncate">{medio.nombre}</span>
+                        </div>
+                        {seleccionado && <Check className="w-4 h-4 shrink-0 text-sky-400" />}
                       </button>
                     );
                   })}

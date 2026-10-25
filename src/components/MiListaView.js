@@ -9,7 +9,8 @@ import {
   Trash2,
   X,
   Calculator,
-  Store
+  Store,
+  Info
 } from 'lucide-react';
 
 function WhatsAppIcon({ className = 'w-3.5 h-3.5' }) {
@@ -241,6 +242,21 @@ export default function MiListaView({
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* ADVERTENCIA COMUNITARIA (DESCARGO) */}
+      <div className="theme-card-sub border border-[var(--border-card)] rounded-2xl p-4 flex items-start gap-3 text-xs shadow-xs mt-4">
+        <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 shrink-0 mt-0.5">
+          <Info className="w-4 h-4" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="font-bold theme-title text-xs flex items-center gap-1.5">
+            <span>Precios de referencia comunitaria</span>
+          </h4>
+          <p className="theme-muted text-[11px] leading-relaxed">
+            Los valores y cálculos mostrados son estimativos y surgen de los aportes solidarios de la comunidad de Bariloche. Los supermercados pueden modificar sus precios o promociones sin previo aviso. Si encontrás una diferencia en góndola o en caja, ¡avisá con el botón <strong className="theme-subtitle font-bold">&quot;Cambió&quot;</strong> o subí el precio nuevo para mantenernos actualizados entre todos!
+          </p>
         </div>
       </div>
     </div>

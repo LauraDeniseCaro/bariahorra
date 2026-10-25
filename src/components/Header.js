@@ -13,8 +13,29 @@ export default function Header() {
   const [usuario, setUsuario] = useState(null);
   const [perfil, setPerfil] = useState(null);
   const [mostrarModalAuth, setMostrarModalAuth] = useState(false);
+  const [modoClaro, setModoClaro] = useState(false);
 
   useEffect(() => {
+    // 1. Detectar si el modo claro está activo al cargar
+    const checkTema = () => {
+      const esClaro = document.documentElement.classList.contains('light-mode') || 
+                      localStorage.getItem('bariahorra_tema') === 'light';
+      setModoClaro(esClaro);
+    };
+
+    checkTema();
+
+    // 2. Observador para detectar en tiempo real cuando ThemeToggle agrega/saca 'light-mode'
+    const observer = new MutationObserver(() => {
+      setModoClaro(document.documentElement.classList.contains('light-mode'));
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    // 3. Sesión y perfil de Supabase
     obtenerSesion();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -40,6 +61,7 @@ export default function Header() {
     window.addEventListener('storage', actualizarLocalmente);
 
     return () => {
+      observer.disconnect();
       subscription?.unsubscribe();
       window.removeEventListener('perfil_actualizado', actualizarLocalmente);
       window.removeEventListener('storage', actualizarLocalmente);
@@ -119,14 +141,14 @@ export default function Header() {
     <>
       <header className="px-3 sm:px-4 py-2 border-b theme-card backdrop-blur sticky top-0 z-40 flex items-center justify-between gap-1.5 sm:gap-2 shadow-sm transition-colors">
         
-        {/* LOGO: Se adapta a pantallas ultra chicas */}
+        {/* LOGO DINÁMICO */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden shadow-sm flex items-center justify-center shrink-0">
             <img
-              src="/icon-192.png"
+              src={modoClaro ? '/icon-light-192.png' : '/icon-192.png'}
               alt="Bariahorra"
-              className="w-full h-full object-cover"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              key={modoClaro ? 'logo-claro' : 'logo-oscuro'}
+              className="w-full h-full object-cover transition-opacity duration-150"
             />
           </div>
           <div className="min-w-0">
@@ -139,7 +161,7 @@ export default function Header() {
           </div>
         </Link>
 
-        {/* ACCIONES DERECHA: Todos con altura uniforme h-9 */}
+        {/* ACCIONES DERECHA */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
           {/* 1. Modo Claro / Oscuro */}
@@ -147,7 +169,7 @@ export default function Header() {
             <ThemeToggle />
           </div>
 
-          {/* 2. Botón Ranking: Icono en móviles angostos, texto en pantallas normales */}
+          {/* 2. Botón Ranking */}
           <Link
             href="/ranking"
             className="h-9 flex items-center justify-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition active:scale-95 shrink-0"
@@ -157,7 +179,7 @@ export default function Header() {
             <span className="hidden sm:inline font-bold">Ranking</span>
           </Link>
 
-          {/* 3. Botón Perfil / Ingresar: Solo Avatar cuando está logueado */}
+          {/* 3. Botón Perfil / Ingresar */}
           {usuario ? (
             <Link
               href="/perfil"

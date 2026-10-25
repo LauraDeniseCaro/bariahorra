@@ -194,19 +194,34 @@ export default function PerfilPage() {
     try {
       const apodoLimpio = nuevoApodo.trim().replace(/^@/, '');
 
-      // 1. Guardar en Supabase sincronizando AMBAS columnas (username y apodo)
-      const { error: errUpdate } = await supabase
+      // 1. Actualizar directamente en la fila existente de la tabla perfiles
+      const { data: updateData, error: errUpdate } = await supabase
         .from('perfiles')
-        .upsert({
-          id: usuario.id,
+        .update({
           username: apodoLimpio,
           apodo: apodoLimpio,
           avatar_url: nuevoAvatar,
-          email: usuario.email
-        }, { onConflict: 'id' });
+          avatar_id: 'bottts'
+        })
+        .eq('id', usuario.id)
+        .select();
 
       if (errUpdate) {
-        console.warn('Nota en update de perfil:', errUpdate.message);
+        console.error('Error detallado de Supabase:', errUpdate);
+        throw new Error(errUpdate.message);
+      }
+
+      // Si no existía la fila por id, la insertamos
+      if (!updateData || updateData.length === 0) {
+        await supabase.from('perfiles').insert([
+          {
+            id: usuario.id,
+            username: apodoLimpio,
+            apodo: apodoLimpio,
+            avatar_url: nuevoAvatar,
+            avatar_id: 'bottts'
+          }
+        ]);
       }
 
       // 2. Guardar en user_metadata de Auth para que no vuelva al nombre de Google
@@ -219,7 +234,7 @@ export default function PerfilPage() {
         }
       });
 
-      // 3. Guardar en estado local y sincronizar el Header
+      // 3. Actualizar estado local
       const nuevoEstadoPerfil = {
         ...perfil,
         username: apodoLimpio,
@@ -475,10 +490,11 @@ export default function PerfilPage() {
                         key={avatar}
                         type="button"
                         onClick={() => setNuevoAvatar(avatar)}
-                        className={`rounded-xl overflow-hidden border-2 p-1 theme-card-sub transition cursor-pointer ${seleccionado
+                        className={`rounded-xl overflow-hidden border-2 p-1 theme-card-sub transition cursor-pointer ${
+                          seleccionado
                             ? 'border-sky-400 ring-2 ring-sky-500/20'
                             : 'border-transparent hover:border-slate-500'
-                          }`}
+                        }`}
                       >
                         <img src={avatar} alt="Avatar" className="w-full h-full object-cover rounded-lg" />
                       </button>

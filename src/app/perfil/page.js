@@ -20,6 +20,9 @@ import {
   Store,
   AlertCircle,
   CreditCard,
+  Building2,
+  Smartphone,
+  Wallet,
   Check
 } from 'lucide-react';
 
@@ -38,16 +41,17 @@ const AVATARES_DISPONIBLES = [
 
 const AVATAR_DEFAULT = AVATARES_DISPONIBLES[0];
 
+// Catálogo sobrio sin emojis, con iconos vectoriales de Lucide
 const MEDIOS_PAGO_DISPONIBLES = [
-  { id: 'bna_modo', nombre: 'Banco Nación (MODO)', icono: '🏛️' },
-  { id: 'cuenta_dni', nombre: 'Cuenta DNI', icono: '📱' },
-  { id: 'patagonia', nombre: 'Banco Patagonia', icono: '💳' },
-  { id: 'bpn', nombre: 'BPN (Banco Neuquén)', icono: '🏔️' },
-  { id: 'galicia', nombre: 'Banco Galicia', icono: '🟠' },
-  { id: 'santander', nombre: 'Santander', icono: '🔴' },
-  { id: 'personal_pay', nombre: 'Personal Pay', icono: '⚡' },
-  { id: 'mercado_pago', nombre: 'Mercado Pago', icono: '🤝' },
-  { id: 'naranja_x', nombre: 'Naranja X', icono: '🍊' }
+  { id: 'bna_modo', nombre: 'Banco Nación (MODO)', tipo: 'banco', Icono: Building2 },
+  { id: 'cuenta_dni', nombre: 'Cuenta DNI', tipo: 'billetera', Icono: Smartphone },
+  { id: 'patagonia', nombre: 'Banco Patagonia', tipo: 'banco', Icono: Building2 },
+  { id: 'bpn', nombre: 'Banco Neuquén (BPN)', tipo: 'banco', Icono: Building2 },
+  { id: 'galicia', nombre: 'Banco Galicia', tipo: 'banco', Icono: Building2 },
+  { id: 'santander', nombre: 'Santander', tipo: 'banco', Icono: Building2 },
+  { id: 'personal_pay', nombre: 'Personal Pay', tipo: 'billetera', Icono: Smartphone },
+  { id: 'mercado_pago', nombre: 'Mercado Pago', tipo: 'billetera', Icono: Smartphone },
+  { id: 'naranja_x', nombre: 'Naranja X', tipo: 'tarjeta', Icono: CreditCard }
 ];
 
 function calcularRango(puntos = 0) {
@@ -65,13 +69,17 @@ export default function PerfilPage() {
   const [misOfertas, setMisOfertas] = useState([]);
   const [cargando, setCargando] = useState(true);
 
-  // Modal de edición
-  const [editando, setEditando] = useState(false);
+  // Modal 1: Personaje (Apodo + Avatar)
+  const [modalPersonaje, setModalPersonaje] = useState(false);
   const [nuevoApodo, setNuevoApodo] = useState('');
   const [nuevoAvatar, setNuevoAvatar] = useState(AVATAR_DEFAULT);
+  const [guardandoPersonaje, setGuardandoPersonaje] = useState(false);
+  const [errorPersonaje, setErrorPersonaje] = useState('');
+
+  // Modal 2: Billetera independiente
+  const [modalBilletera, setModalBilletera] = useState(false);
   const [mediosSeleccionados, setMediosSeleccionados] = useState([]);
-  const [guardando, setGuardando] = useState(false);
-  const [mensajeError, setMensajeError] = useState('');
+  const [guardandoBilletera, setGuardandoBilletera] = useState(false);
 
   useEffect(() => {
     cargarDatosPerfil();
@@ -80,7 +88,6 @@ export default function PerfilPage() {
   const cargarDatosPerfil = async () => {
     setCargando(true);
     try {
-      // 1. Obtener usuario de la sesión activa
       const { data: { user }, error: authErr } = await supabase.auth.getUser();
       let activeUser = user;
 
@@ -96,7 +103,6 @@ export default function PerfilPage() {
 
       setUsuario(activeUser);
 
-      // 2. Consultar perfil fresco directo de la base de datos
       const { data: perfilDB } = await supabase
         .from('perfiles')
         .select('*')
@@ -140,7 +146,7 @@ export default function PerfilPage() {
         localStorage.setItem('bariahorra_perfil', JSON.stringify(perfilCompleto));
       } catch (e) { }
 
-      // 3. Cargar ofertas del usuario
+      // Cargar aportes del usuario
       const { data: rawOfertas } = await supabase
         .from('ofertas')
         .select('*');
@@ -154,7 +160,6 @@ export default function PerfilPage() {
         return oUser === userIdStr || (oEmail && oEmail === userEmail);
       });
 
-      // 4. Traer productos y comercios para resolver nombres
       const [resProd, resCom] = await Promise.allSettled([
         supabase.from('productos').select('*'),
         supabase.from('comercios').select('*')
@@ -201,45 +206,32 @@ export default function PerfilPage() {
     router.push('/');
   };
 
-  const toggleMedioPago = (medioId) => {
-    setMediosSeleccionados((prev) =>
-      prev.includes(medioId)
-        ? prev.filter((id) => id !== medioId)
-        : [...prev, medioId]
-    );
-  };
-
-  const handleGuardarCambios = async (e) => {
+  // Guardar solo Personaje (Apodo y Avatar)
+  const handleGuardarPersonaje = async (e) => {
     e.preventDefault();
-    setMensajeError('');
+    setErrorPersonaje('');
     if (!nuevoApodo.trim()) {
-      setMensajeError('El apodo no puede estar vacío.');
+      setErrorPersonaje('El apodo no puede estar vacío.');
       return;
     }
 
-    setGuardando(true);
+    setGuardandoPersonaje(true);
     try {
       const apodoLimpio = nuevoApodo.trim().replace(/^@/, '');
 
-      // 1. Actualizar directamente en la fila existente de la tabla perfiles
       const { data: updateData, error: errUpdate } = await supabase
         .from('perfiles')
         .update({
           username: apodoLimpio,
           apodo: apodoLimpio,
           avatar_url: nuevoAvatar,
-          avatar_id: 'bottts',
-          medios_pago: mediosSeleccionados
+          avatar_id: 'bottts'
         })
         .eq('id', usuario.id)
         .select();
 
-      if (errUpdate) {
-        console.error('Error detallado de Supabase:', errUpdate);
-        throw new Error(errUpdate.message);
-      }
+      if (errUpdate) throw errUpdate;
 
-      // Si no existía la fila por id, la insertamos
       if (!updateData || updateData.length === 0) {
         await supabase.from('perfiles').insert([
           {
@@ -247,29 +239,63 @@ export default function PerfilPage() {
             username: apodoLimpio,
             apodo: apodoLimpio,
             avatar_url: nuevoAvatar,
-            avatar_id: 'bottts',
-            medios_pago: mediosSeleccionados
+            avatar_id: 'bottts'
           }
         ]);
       }
 
-      // 2. Guardar en user_metadata de Auth para que no vuelva al nombre de Google
       await supabase.auth.updateUser({
         data: {
           username: apodoLimpio,
           apodo: apodoLimpio,
           full_name: apodoLimpio,
-          avatar_url: nuevoAvatar,
-          medios_pago: mediosSeleccionados
+          avatar_url: nuevoAvatar
         }
       });
 
-      // 3. Actualizar estado local
       const nuevoEstadoPerfil = {
         ...perfil,
         username: apodoLimpio,
         apodo: apodoLimpio,
-        avatar_url: nuevoAvatar,
+        avatar_url: nuevoAvatar
+      };
+
+      setPerfil(nuevoEstadoPerfil);
+      try {
+        localStorage.setItem('bariahorra_perfil', JSON.stringify(nuevoEstadoPerfil));
+        window.dispatchEvent(new Event('perfil_actualizado'));
+      } catch (e) { }
+
+      setModalPersonaje(false);
+    } catch (err) {
+      console.error('Error al guardar personaje:', err);
+      setErrorPersonaje(err.message || 'Error al guardar los cambios.');
+    } finally {
+      setGuardandoPersonaje(false);
+    }
+  };
+
+  // Guardar solo Billetera (Medios de Pago)
+  const handleGuardarBilletera = async () => {
+    setGuardandoBilletera(true);
+    try {
+      const { error: errUpdate } = await supabase
+        .from('perfiles')
+        .update({
+          medios_pago: mediosSeleccionados
+        })
+        .eq('id', usuario.id);
+
+      if (errUpdate) throw errUpdate;
+
+      await supabase.auth.updateUser({
+        data: {
+          medios_pago: mediosSeleccionados
+        }
+      });
+
+      const nuevoEstadoPerfil = {
+        ...perfil,
         medios_pago: mediosSeleccionados
       };
 
@@ -279,13 +305,21 @@ export default function PerfilPage() {
         window.dispatchEvent(new Event('perfil_actualizado'));
       } catch (e) { }
 
-      setEditando(false);
+      setModalBilletera(false);
     } catch (err) {
-      console.error('Error al actualizar perfil:', err);
-      setMensajeError(err.message || 'Error al guardar los cambios.');
+      console.error('Error al guardar billetera:', err);
+      alert('Hubo un problema al guardar tus medios de pago.');
     } finally {
-      setGuardando(false);
+      setGuardandoBilletera(false);
     }
+  };
+
+  const toggleMedioPago = (medioId) => {
+    setMediosSeleccionados((prev) =>
+      prev.includes(medioId)
+        ? prev.filter((id) => id !== medioId)
+        : [...prev, medioId]
+    );
   };
 
   const handleEliminarOferta = async (ofertaId) => {
@@ -298,7 +332,6 @@ export default function PerfilPage() {
         .eq('id', ofertaId);
 
       if (error) throw error;
-
       setMisOfertas((prev) => prev.filter((o) => o.id !== ofertaId));
     } catch (err) {
       console.error('Error eliminando oferta:', err);
@@ -315,7 +348,6 @@ export default function PerfilPage() {
 
   const rangoInfo = calcularRango(perfil?.puntos || 0);
   const IconoRango = rangoInfo.icono;
-
   const totalConfirmaciones = misOfertas.reduce((acc, curr) => acc + (curr._votosPositivos || 0), 0);
 
   return (
@@ -341,20 +373,20 @@ export default function PerfilPage() {
         </button>
       </div>
 
-      {/* TARJETA DE PERFIL */}
-      <div className="theme-card border rounded-3xl p-5 sm:p-6 shadow-2xl relative">
+      {/* BLOQUE 1: TARJETA DE IDENTIDAD / PERSONAJE */}
+      <div className="theme-card border rounded-3xl p-5 sm:p-6 shadow-xl relative">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <img
               src={perfil?.avatar_url || AVATAR_DEFAULT}
               alt={perfil?.apodo}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl theme-card-sub border-2 object-cover shadow-inner"
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl theme-card-sub border-2 object-cover shadow-inner shrink-0"
             />
-            <div>
-              <h1 className="text-base sm:text-lg font-black theme-title">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-black theme-title truncate">
                 @{perfil?.apodo || perfil?.username || usuario?.email?.split('@')[0] || 'vecino'}
               </h1>
-              <p className="text-xs theme-muted font-mono">
+              <p className="text-xs theme-muted font-mono truncate">
                 {usuario?.email}
               </p>
 
@@ -376,84 +408,106 @@ export default function PerfilPage() {
             onClick={() => {
               setNuevoApodo(perfil?.apodo || '');
               setNuevoAvatar(perfil?.avatar_url || AVATAR_DEFAULT);
-              setMediosSeleccionados(perfil?.medios_pago || []);
-              setEditando(true);
+              setErrorPersonaje('');
+              setModalPersonaje(true);
             }}
-            className="inline-flex items-center gap-1.5 theme-btn-sec border px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-sm"
+            className="inline-flex items-center gap-1.5 theme-btn-sec border px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer shadow-sm active:scale-95"
           >
             <Pencil className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Editar personaje</span>
           </button>
         </div>
 
-        {/* MÉTRICAS */}
+        {/* MÉTRICAS COMUNITARIAS */}
         <div className="grid grid-cols-3 gap-2.5 mt-6">
-          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-sm">
+          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-xs">
             <p className="text-base sm:text-lg font-black theme-title font-mono">
               {perfil?.precios_aportados || misOfertas.length}
             </p>
             <p className="text-[10px] theme-muted leading-tight mt-0.5">Precios aportados</p>
           </div>
-          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-sm">
+          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-xs">
             <p className="text-base sm:text-lg font-black theme-title font-mono">
               {totalConfirmaciones}
             </p>
             <p className="text-[10px] theme-muted leading-tight mt-0.5">Confirmaciones</p>
           </div>
-          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-sm">
+          <div className="theme-card-sub p-3 rounded-2xl border text-center shadow-xs">
             <p className="text-base sm:text-lg font-black text-amber-500 dark:text-amber-400 font-mono">
               {perfil?.puntos || 0}
             </p>
             <p className="text-[10px] theme-muted leading-tight mt-0.5">Puntos comunitarios</p>
           </div>
         </div>
+      </div>
 
-        {/* MEDIOS DE PAGO ACTIVOS */}
-        <div className="mt-5 pt-4 border-t border-[var(--border-card)]">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <CreditCard className="w-4 h-4 text-sky-400" />
-              <h2 className="text-xs font-bold theme-subtitle">Tus medios de pago y billeteras</h2>
+      {/* BLOQUE 2: BILLETERA DE AHORRO INDEPENDIENTE */}
+      <div className="theme-card border rounded-3xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
+              <Wallet className="w-4 h-4" />
             </div>
+            <div>
+              <h2 className="text-xs sm:text-sm font-black theme-title">
+                Mis Medios de Pago y Descuentos
+              </h2>
+              <p className="text-[11px] theme-muted">
+                Bancos y billeteras virtuales configuradas para comparar precios
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMediosSeleccionados(perfil?.medios_pago || []);
+              setModalBilletera(true);
+            }}
+            className="inline-flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer active:scale-95"
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Gestionar</span>
+          </button>
+        </div>
+
+        {(perfil?.medios_pago || []).length === 0 ? (
+          <div className="theme-card-sub border border-dashed rounded-2xl p-4 text-center space-y-2">
+            <p className="text-xs theme-muted">
+              No tenés ninguna billetera configurada.
+            </p>
             <button
               type="button"
               onClick={() => {
-                setNuevoApodo(perfil?.apodo || '');
-                setNuevoAvatar(perfil?.avatar_url || AVATAR_DEFAULT);
                 setMediosSeleccionados(perfil?.medios_pago || []);
-                setEditando(true);
+                setModalBilletera(true);
               }}
-              className="text-[11px] text-sky-400 hover:underline font-bold"
+              className="text-xs font-bold text-sky-400 hover:underline cursor-pointer"
             >
-              Gestionar
+              + Elegir mis bancos y billeteras
             </button>
           </div>
-
-          {(perfil?.medios_pago || []).length === 0 ? (
-            <p className="text-[11px] theme-muted">
-              Todavía no seleccionaste tus bancos ni billeteras. Elegilos en &quot;Editar personaje&quot; para comparar precios con tus reintegros.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {perfil.medios_pago.map((medioId) => {
-                const infoMedio = MEDIOS_PAGO_DISPONIBLES.find((m) => m.id === medioId);
-                if (!infoMedio) return null;
-                return (
-                  <span
-                    key={medioId}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-sky-500/10 border border-sky-500/20 text-sky-400"
-                  >
-                    <span>{infoMedio.icono}</span>
-                    <span>{infoMedio.nombre}</span>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {perfil.medios_pago.map((medioId) => {
+              const infoMedio = MEDIOS_PAGO_DISPONIBLES.find((m) => m.id === medioId);
+              if (!infoMedio) return null;
+              const IconoM = infoMedio.Icono;
+              return (
+                <span
+                  key={medioId}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500/10 border border-sky-500/25 text-sky-400"
+                >
+                  <IconoM className="w-3.5 h-3.5" />
+                  <span>{infoMedio.nombre}</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* SECCIÓN: MIS APORTES */}
+      {/* BLOQUE 3: MIS APORTES */}
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between px-1">
           <div>
@@ -475,7 +529,7 @@ export default function PerfilPage() {
         </div>
 
         {misOfertas.length === 0 ? (
-          <div className="p-8 rounded-2xl theme-card border text-center text-xs theme-muted space-y-3 shadow-sm">
+          <div className="p-8 rounded-2xl theme-card border text-center text-xs theme-muted space-y-3 shadow-xs">
             <p>Todavía no cargaste ningún precio.</p>
             <Link
               href="/cargar"
@@ -490,7 +544,7 @@ export default function PerfilPage() {
             {misOfertas.map((item) => (
               <div
                 key={item.id}
-                className="p-3.5 rounded-2xl theme-card border flex items-center justify-between gap-3 transition shadow-sm hover:border-slate-500"
+                className="p-3.5 rounded-2xl theme-card border flex items-center justify-between gap-3 transition shadow-xs hover:border-slate-500"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -525,22 +579,25 @@ export default function PerfilPage() {
         )}
       </div>
 
-      {/* MODAL DE EDICIÓN */}
-      {editando && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="theme-card border rounded-3xl p-5 max-w-md w-full shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto">
+      {/* MODAL 1 EXCLUSIVO: EDITAR PERSONAJE (APODO + AVATAR) */}
+      {modalPersonaje && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="theme-card border rounded-3xl p-5 max-w-sm w-full shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black theme-title">Editar personaje</h3>
+              <div>
+                <h3 className="text-sm font-black theme-title">Editar personaje</h3>
+                <p className="text-[11px] theme-muted">Tu alias y avatar en la comunidad</p>
+              </div>
               <button
                 type="button"
-                onClick={() => setEditando(false)}
+                onClick={() => setModalPersonaje(false)}
                 className="p-1 rounded-lg theme-muted hover:theme-title cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleGuardarCambios} className="space-y-4">
+            <form onSubmit={handleGuardarPersonaje} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold theme-subtitle mb-1">
                   Tu apodo único
@@ -552,14 +609,14 @@ export default function PerfilPage() {
                     value={nuevoApodo}
                     onChange={(e) => setNuevoApodo(e.target.value)}
                     placeholder="Escribí tu apodo..."
-                    className="w-full theme-input border rounded-xl pl-7 pr-3 py-2 text-xs focus:outline-none focus:border-sky-500 transition font-bold shadow-sm"
+                    className="w-full theme-input border rounded-xl pl-7 pr-3 py-2 text-xs focus:outline-none focus:border-sky-500 transition font-bold shadow-xs"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold theme-subtitle mb-2">
-                  Elegí tu avatar de Bariloche
+                  Elegí tu robotito de Bariloche
                 </label>
                 <div className="grid grid-cols-5 gap-2">
                   {AVATARES_DISPONIBLES.map((avatar) => {
@@ -582,62 +639,107 @@ export default function PerfilPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold theme-subtitle mb-1">
-                  Tus billeteras y tarjetas con descuento
-                </label>
-                <p className="text-[11px] theme-muted mb-2">
-                  Tildá las que usás habitualmente para calcular precios con tus reintegros.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {MEDIOS_PAGO_DISPONIBLES.map((medio) => {
-                    const seleccionado = mediosSeleccionados.includes(medio.id);
-                    return (
-                      <button
-                        key={medio.id}
-                        type="button"
-                        onClick={() => toggleMedioPago(medio.id)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition text-left cursor-pointer ${
-                          seleccionado
-                            ? 'bg-sky-500/15 border-sky-400 text-sky-400 shadow-sm'
-                            : 'theme-card-sub border-[var(--border-card)] theme-muted hover:border-slate-500'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span>{medio.icono}</span>
-                          <span className="truncate">{medio.nombre}</span>
-                        </div>
-                        {seleccionado && <Check className="w-4 h-4 shrink-0 text-sky-400" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {mensajeError && (
+              {errorPersonaje && (
                 <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{mensajeError}</span>
+                  <span>{errorPersonaje}</span>
                 </div>
               )}
 
               <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setEditando(false)}
+                  onClick={() => setModalPersonaje(false)}
                   className="w-1/2 py-2 rounded-xl border theme-btn-sec text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={guardando}
+                  disabled={guardandoPersonaje}
                   className="w-1/2 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 text-xs font-black transition shadow-lg shadow-sky-500/20 cursor-pointer active:scale-95"
                 >
-                  {guardando ? 'Guardando...' : 'Guardar'}
+                  {guardandoPersonaje ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2 EXCLUSIVO: GESTIONAR BILLETERAS Y TARJETAS */}
+      {modalBilletera && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="theme-card border rounded-3xl p-5 max-w-md w-full shadow-2xl relative space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black theme-title">Gestionar billeteras</h3>
+                <p className="text-[11px] theme-muted">Tildá tus tarjetas y cuentas con reintegro</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalBilletera(false)}
+                className="p-1 rounded-lg theme-muted hover:theme-title cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 pt-1">
+              {MEDIOS_PAGO_DISPONIBLES.map((medio) => {
+                const seleccionado = mediosSeleccionados.includes(medio.id);
+                const IconoM = medio.Icono;
+                return (
+                  <button
+                    key={medio.id}
+                    type="button"
+                    onClick={() => toggleMedioPago(medio.id)}
+                    className={`flex items-center justify-between p-3 rounded-2xl border text-xs font-bold transition cursor-pointer ${
+                      seleccionado
+                        ? 'bg-sky-500/15 border-sky-400 text-sky-400 shadow-xs'
+                        : 'theme-card-sub border-[var(--border-card)] theme-muted hover:border-slate-500'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 truncate">
+                      <div className={`p-1.5 rounded-lg border ${
+                        seleccionado
+                          ? 'bg-sky-500/20 border-sky-400/30 text-sky-400'
+                          : 'theme-card border-[var(--border-card)] theme-muted'
+                      }`}>
+                        <IconoM className="w-4 h-4" />
+                      </div>
+                      <span className="truncate">{medio.nombre}</span>
+                    </div>
+
+                    <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition ${
+                      seleccionado
+                        ? 'bg-sky-500 border-sky-400 text-slate-950'
+                        : 'border-slate-600 bg-transparent'
+                    }`}>
+                      {seleccionado && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-card)]">
+              <button
+                type="button"
+                onClick={() => setModalBilletera(false)}
+                className="w-1/2 py-2.5 rounded-xl border theme-btn-sec text-xs font-bold transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={guardandoBilletera}
+                onClick={handleGuardarBilletera}
+                className="w-1/2 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 text-xs font-black transition shadow-lg shadow-sky-500/20 cursor-pointer active:scale-95"
+              >
+                {guardandoBilletera ? 'Guardando...' : 'Aplicar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

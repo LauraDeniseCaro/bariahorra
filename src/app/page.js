@@ -746,7 +746,7 @@ export default function HomePage() {
         const comercioLat = comRel?.latitud ? parseFloat(comRel.latitud) : null;
         const comercioLng = comRel?.longitud ? parseFloat(comRel.longitud) : null;
 
-        // 1. Buscamos el apodo elegido por el usuario en la tabla perfiles (priorizando apodo y username)
+        // 1. Buscamos el apodo elegido por el usuario en la tabla perfiles
         let apodoAutor =
           perfRel?.apodo ||
           perfRel?.username ||
@@ -761,8 +761,13 @@ export default function HomePage() {
             '';
         }
 
-        // 3. Si sigue vacío, queda como anónimo
         if (!apodoAutor) apodoAutor = 'Vecino anónimo';
+
+        // 3. Avatar exacto del autor (robotito de DiceBear guardado en perfiles)
+        const avatarAutor =
+          perfRel?.avatar_url ||
+          (userActual && String(userActual.id).toLowerCase() === userId ? userActual.user_metadata?.avatar_url : null) ||
+          'https://api.dicebear.com/7.x/bottts/svg?seed=bariloche';
 
         const precioFinal = Number(item.precio || 0);
         const votosPos = Number(item.votos_positivos || 0);
@@ -789,6 +794,7 @@ export default function HomePage() {
           _comercioLat: comercioLat,
           _comercioLng: comercioLng,
           _usuario: apodoAutor,
+          _usuarioAvatar: avatarAutor,
           _foto: item.foto_url || prodRel?.foto_url || null,
           _precio: precioFinal,
           _refUnitario: refUnitario,

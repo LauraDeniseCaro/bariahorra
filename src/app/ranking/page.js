@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { obtenerAvatar } from '@/lib/avatars';
 import {
   Trophy,
   Award,
@@ -17,6 +16,8 @@ import {
   Plus,
   ThumbsUp
 } from 'lucide-react';
+
+const AVATAR_DEFAULT = 'https://api.dicebear.com/7.x/bottts/svg?seed=bariloche';
 
 function obtenerRangoComunitario(puntos = 0) {
   if (puntos >= 1000) {
@@ -81,7 +82,6 @@ export default function RankingPage() {
       // 2. Mapear aportes reales y confirmaciones recibidas por cada usuario
       const mapaStats = new Map();
       ofertasData.forEach((o) => {
-        // Excluimos ofertas institucionales de catálogo si no son de usuarios normales
         if (o.es_catalogo && Number(o.votos_positivos) >= 100) return;
 
         const uId = String(o.usuario_id || '').trim().toLowerCase();
@@ -92,10 +92,10 @@ export default function RankingPage() {
         }
         const actual = mapaStats.get(uId);
         actual.aportes += 1;
-        actual.confirmaciones += Math.max(0, Number(o.votos_positivos || 0) - 1); // Descontamos el voto inicial automático
+        actual.confirmaciones += Math.max(0, Number(o.votos_positivos || 0) - 1);
       });
 
-      // 3. Calcular puntos reales: 10 pts por aporte + 2 pts por cada confirmación comunitaria
+      // 3. Calcular puntos reales en vivo y asignar avatar/apodo de la base de datos
       const perfilesCalculados = perfilesData.map((p) => {
         const uId = String(p.id || '').trim().toLowerCase();
         const stats = mapaStats.get(uId) || { aportes: 0, confirmaciones: 0 };
@@ -103,8 +103,9 @@ export default function RankingPage() {
         const aportesReales = Math.max(Number(p.precios_aportados || 0), stats.aportes);
         const confirmacionesReales = stats.confirmaciones;
         const puntosTotales = (aportesReales * 10) + (confirmacionesReales * 2);
-        // Leemos la URL exacta del avatar guardado en el perfil (el robot de Bariloche)
-        const urlAvatarFinal = p.avatar_url || (obtenerAvatar ? obtenerAvatar(p.avatar_id)?.src : null) || 'https://api.dicebear.com/7.x/bottts/svg?seed=bariloche';
+
+        // Usamos la URL del robotito guardado en su perfil; si no tiene, el robot por defecto
+        const urlAvatarFinal = p.avatar_url || AVATAR_DEFAULT;
 
         // Leemos el apodo elegido por el usuario (apodo o username)
         const apodoFinal = p.apodo || p.username || 'vecino';
@@ -115,7 +116,7 @@ export default function RankingPage() {
           aportes: aportesReales,
           confirmaciones: confirmacionesReales,
           puntos: puntosTotales,
-          apodo: apodoFinal,
+          apodo: String(apodoFinal).replace(/^@/, ''),
           avatar_url: urlAvatarFinal
         };
       });
@@ -347,10 +348,11 @@ export default function RankingPage() {
                   return (
                     <article
                       key={vecino.id || idx}
-                      className={`p-3 rounded-2xl border flex items-center justify-between transition ${esYo
+                      className={`p-3 rounded-2xl border flex items-center justify-between transition ${
+                        esYo
                           ? 'bg-sky-500/10 border-sky-500/40 shadow-xs'
                           : 'theme-card-sub hover:opacity-95'
-                        }`}
+                      }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-xs font-mono font-black theme-muted w-5 text-center shrink-0">

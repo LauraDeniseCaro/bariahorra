@@ -218,8 +218,16 @@ export default function GondolaCard({
                 <span>Catálogo Oficial</span>
               </span>
             ) : (
-              <span className="flex items-center gap-1 truncate">
-                <User className="w-3 h-3 theme-muted shrink-0" />
+              <span className="flex items-center gap-1.5 truncate">
+                {esAnonimo ? (
+                  <User className="w-3.5 h-3.5 theme-muted shrink-0" />
+                ) : (
+                  <img
+                    src={item._usuarioAvatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=bariloche'}
+                    alt="Avatar"
+                    className="w-3.5 h-3.5 rounded-full border border-slate-700/60 object-cover bg-slate-900 shrink-0"
+                  />
+                )}
                 <span className={!esAnonimo ? 'text-sky-400 font-bold truncate' : 'truncate'}>
                   {formatoUsuario}
                 </span>

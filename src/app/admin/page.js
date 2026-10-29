@@ -32,7 +32,10 @@ import {
   PackagePlus,
   RefreshCw,
   CheckCircle2,
-  Package
+  Package,
+  CalendarClock,
+  Clock,
+  AlertOctagon
 } from 'lucide-react';
 
 const ADMIN_EMAILS = [
@@ -135,7 +138,7 @@ export default function AdminPage() {
     try {
       const [resOfertas, resComercios, resProductos] = await Promise.all([
         supabase.from('ofertas').select(`
-          id, precio, precio_propuesto, votos_propuesto, votos_positivos, votos_negativos, motivo_revision, es_catalogo, estado, foto_url, creado_en, usuario_id,
+          id, precio, precio_propuesto, votos_propuesto, votos_positivos, votos_negativos, motivo_revision, es_catalogo, estado, foto_url, creado_en, usuario_id, vencimiento,
           productos ( id, nombre, marca, categoria, foto_url, creado_en ),
           comercios ( id, nombre, direccion, latitud, longitud, creado_en )
         `).order('creado_en', { ascending: false }),
@@ -187,7 +190,6 @@ export default function AdminPage() {
       const res = await fetch('/api/buscar-fotos', { method: 'POST' });
       const data = await res.json();
       setResultadoFotos(data);
-      // Recarga inmediata de Supabase para refrescar métricas
       await cargarTodo();
     } catch (err) {
       setResultadoFotos({ exito: false, error: 'Ocurrió un error al conectar con la API.' });
@@ -196,7 +198,6 @@ export default function AdminPage() {
     }
   };
 
-  // Ofertas: Aprobar y limpiar avisos
   const handleAprobarOferta = async (item) => {
     try {
       const updatePayload = {
@@ -212,7 +213,6 @@ export default function AdminPage() {
     }
   };
 
-  // Ofertas: Aceptar precio propuesto
   const handleAceptarPrecioPropuesto = async (item) => {
     if (!item.precio_propuesto) return;
     try {
@@ -235,7 +235,6 @@ export default function AdminPage() {
     }
   };
 
-  // Ofertas: Descartar propuesta errónea
   const handleDescartarPropuesta = async (item) => {
     try {
       const updatePayload = {
@@ -252,7 +251,6 @@ export default function AdminPage() {
     }
   };
 
-  // Ofertas: Aprobar lote
   const handleAprobarTodasPendientes = async () => {
     if (!confirm(`¿Aprobar todas las ${ofertasPendientes.length} ofertas pendientes?`)) return;
     try {
@@ -316,7 +314,6 @@ export default function AdminPage() {
     }
   };
 
-  // Productos Nuevos: Validar
   const handleValidarProducto = (prodId) => {
     const nuevosValidados = [...prodsValidados, prodId];
     setProdsValidados(nuevosValidados);
@@ -325,7 +322,6 @@ export default function AdminPage() {
     } catch (e) { }
   };
 
-  // Validar todos los productos pendientes de una sola vez
   const handleValidarTodosLosProductos = () => {
     const todosIds = productosNuevosComunidad.map((p) => p.id);
     const combinados = Array.from(new Set([...prodsValidados, ...todosIds]));
@@ -335,7 +331,6 @@ export default function AdminPage() {
     } catch (e) { }
   };
 
-  // Productos Nuevos: Guardar corrección inline
   const handleGuardarEdicionProducto = async (prodId) => {
     if (!editProdNombre.trim()) return;
     try {
@@ -355,7 +350,6 @@ export default function AdminPage() {
     }
   };
 
-  // Comercios: Guardar
   const handleCrearComercio = async (e) => {
     e.preventDefault();
     if (!nuevoNombreComercio.trim()) return;
@@ -376,7 +370,6 @@ export default function AdminPage() {
     }
   };
 
-  // Comercios: Guardar ubicación y coordenadas
   const handleGuardarUbicacionComercio = async (comercioId) => {
     try {
       const payload = {
@@ -492,10 +485,103 @@ export default function AdminPage() {
     };
   };
 
-  // Productos nuevos creados por vecinos que requieren revisión (excluye catálogo oficial ya aprobado)
+  {/* Grilla dinámica de sucursales */ }
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+    {monitorCatalogos.cadenas.map((cat) => {
+      const esUrgente = cat.estado === 'urgente';
+      const esVencido = cat.estado === 'vencido';
+      const esVigente = cat.estado === 'vigente';
+
+      const badgeColor = esVigente
+        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
+        : esUrgente
+          ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+          : esVencido
+            ? 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+            : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+
+      const puntoColor = esVigente
+        ? 'bg-emerald-500'
+        : esUrgente
+          ? 'bg-amber-400 animate-ping'
+          : esVencido
+            ? 'bg-rose-500'
+            : 'bg-slate-500';
+
+      const fechaTxt = cat.fechaVencimiento
+        ? cat.fechaVencimiento.toLocaleDateString('es-AR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
+        : 'Sin fecha registrada';
+
+      return (
+        <div
+          key={cat.id || cat.cadena}
+          className={`theme-card border-2 rounded-3xl p-4 flex flex-col justify-between space-y-3.5 shadow-md transition ${esUrgente
+              ? 'border-amber-500/50 shadow-amber-500/10'
+              : esVencido
+                ? 'border-rose-500/30'
+                : 'border-[var(--border-card)]'
+            }`}
+        >
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-black theme-title truncate">{cat.cadena}</h4>
+                {cat.direccion ? (
+                  <p className="text-[11px] theme-muted flex items-center gap-1 mt-0.5 truncate">
+                    <MapPin className="w-2.5 h-2.5 text-sky-400 shrink-0" />
+                    <span className="truncate">{cat.direccion}</span>
+                  </p>
+                ) : (
+                  <p className="text-[10px] theme-muted font-mono mt-0.5">Sucursal Bariloche</p>
+                )}
+                <p className="text-[11px] theme-subtitle font-mono mt-1 font-bold">
+                  {cat.ofertasCount} {cat.ofertasCount === 1 ? 'oferta oficial' : 'ofertas oficiales'}
+                </p>
+              </div>
+
+              <div className={`px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1.5 shrink-0 ${badgeColor}`}>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${puntoColor}`} />
+                <span>{cat.textoEstado}</span>
+              </div>
+            </div>
+
+            <div className="theme-card-sub rounded-xl p-2.5 border text-xs space-y-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="theme-muted">Vigencia hasta:</span>
+                <strong className="theme-title font-mono">{fechaTxt}</strong>
+              </div>
+
+              {cat.diasRestantes != null && (
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="theme-muted">Balance:</span>
+                  <span className={`font-black font-mono ${esVigente ? 'text-emerald-500' : esUrgente ? 'text-amber-400' : 'text-rose-400'
+                    }`}>
+                    {cat.diasRestantes > 0 ? `Faltan ${cat.diasRestantes} días` : `Expiró hace ${Math.abs(cat.diasRestantes)} días`}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-[var(--border-card)] flex items-center justify-between gap-2">
+            <Link
+              href={`/cargar?catalogo=1`}
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition text-center shadow cursor-pointer active:scale-95"
+            >
+              {esVencido || esUrgente ? 'Actualizar Folleto' : 'Cargar más precios'}
+            </Link>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+  
   const productosNuevosComunidad = useMemo(() => {
     return productos.filter((p) => {
-      // Si el producto fue subido por el admin o ya validado, no pide revisión
       return !prodsValidados.includes(p.id) && !p.nombre.toLowerCase().includes('catalogo') && p.estado === 'por_revisar';
     });
   }, [productos, prodsValidados]);
@@ -510,7 +596,6 @@ export default function AdminPage() {
     return comercios.filter((c) => !c.direccion || !c.latitud);
   }, [comercios]);
 
-  // Cálculo preciso de fotos en el catálogo de productos
   const metricasFotos = useMemo(() => {
     const total = productos.length;
     const con = productos.filter((p) => Boolean(p.foto_url && p.foto_url.trim().length > 5)).length;
@@ -674,7 +759,7 @@ export default function AdminPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black theme-title">Piloto Automático de Moderación</h2>
+                <h2 className="text-base sm:text-lg font-black theme-title">Centro de Moderación y Catálogos</h2>
                 <span className="bg-emerald-500/15 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/30">
                   <Sparkles className="w-3 h-3" /> Activo
                 </span>
@@ -707,45 +792,66 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* PESTAÑAS */}
+        {/* PESTAÑAS DE NAVEGACIÓN */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => { setVistaActual('pendientes'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
-                vistaActual === 'pendientes'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${vistaActual === 'pendientes'
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
                   : 'theme-btn-sec border'
-              }`}
+                }`}
             >
               <BellRing className="w-4 h-4" />
               <span>Por Revisar</span>
               {totalPendientesRevision > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                  vistaActual === 'pendientes' ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
-                }`}>
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${vistaActual === 'pendientes' ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
+                  }`}>
                   {totalPendientesRevision}
                 </span>
               )}
             </button>
+
+            {/* PESTAÑA: MONITOR DE VIGENCIA DE CATÁLOGOS */}
+            <button
+              onClick={() => { setVistaActual('catalogos'); setBusqueda(''); }}
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${vistaActual === 'catalogos'
+                  ? 'bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/20'
+                  : 'theme-btn-sec border'
+                }`}
+            >
+              <CalendarClock className="w-4 h-4" />
+              <span>Vigencia Catálogos</span>
+              {monitorCatalogos.alertasTotales > 0 && (
+                <span
+                  className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${monitorCatalogos.urgentesCount > 0
+                      ? 'bg-amber-400 text-slate-950 animate-pulse'
+                      : 'bg-rose-500 text-white'
+                    }`}
+                  title={`${monitorCatalogos.alertasTotales} catálogos vencidos o por vencer`}
+                >
+                  {monitorCatalogos.alertasTotales}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={() => { setVistaActual('ofertas'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
-                vistaActual === 'ofertas'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${vistaActual === 'ofertas'
                   ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
                   : 'theme-btn-sec border'
-              }`}
+                }`}
             >
               <Tag className="w-4 h-4" />
               <span>Todas ({ofertas.length})</span>
             </button>
+
             <button
               onClick={() => { setVistaActual('comercios'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
-                vistaActual === 'comercios'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${vistaActual === 'comercios'
                   ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-md shadow-sky-500/20'
                   : 'theme-btn-sec border'
-              }`}
+                }`}
             >
               <Store className="w-4 h-4" />
               <span>Comercios ({comercios.length})</span>
@@ -755,26 +861,24 @@ export default function AdminPage() {
                 </span>
               )}
             </button>
+
             <button
               onClick={() => { setVistaActual('productos'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
-                vistaActual === 'productos'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${vistaActual === 'productos'
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
                   : 'theme-btn-sec border'
-              }`}
+                }`}
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Productos ({productos.length})</span>
             </button>
 
-            {/* NUEVA PESTAÑA: FOTOS OPEN FOOD FACTS */}
             <button
               onClick={() => { setVistaActual('fotos'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
-                vistaActual === 'fotos'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${vistaActual === 'fotos'
                   ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
                   : 'theme-btn-sec border text-cyan-400'
-              }`}
+                }`}
             >
               <Sparkles className="w-4 h-4" />
               <span>Fotos Open Food Facts</span>
@@ -798,7 +902,7 @@ export default function AdminPage() {
         </div>
 
         {/* BUSCADOR */}
-        {vistaActual !== 'fotos' && (
+        {vistaActual !== 'fotos' && vistaActual !== 'catalogos' && (
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 theme-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -839,8 +943,140 @@ export default function AdminPage() {
         <div className="min-h-[50vh]">
           {cargandoDatos ? (
             <div className="text-center py-16 theme-muted text-xs">Cargando registros...</div>
+          ) : vistaActual === 'catalogos' ? (
+            /* --- PESTAÑA: MONITOR DE VENCIMIENTO DE CATÁLOGOS --- */
+            <div className="space-y-4">
+              {/* Tarjetas resumen de semáforo */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="theme-card border rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs theme-muted font-bold flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-emerald-500" /> Al Día / Vigentes
+                    </span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  </div>
+                  <p className="text-2xl font-black font-mono text-emerald-500 mt-2">
+                    {monitorCatalogos.vigentesCount}
+                  </p>
+                  <p className="text-[11px] theme-muted mt-0.5">Precios oficiales en góndola</p>
+                </div>
+
+                <div className="theme-card border rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs theme-muted font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" /> Por Vencer (48 hs)
+                    </span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                  </div>
+                  <p className="text-2xl font-black font-mono text-amber-500 mt-2">
+                    {monitorCatalogos.urgentesCount}
+                  </p>
+                  <p className="text-[11px] theme-muted mt-0.5">Buscar nuevo catálogo pronto</p>
+                </div>
+
+                <div className="theme-card border rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs theme-muted font-bold flex items-center gap-1.5">
+                      <AlertOctagon className="w-4 h-4 text-rose-500" /> Expirados / Referencia
+                    </span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                  </div>
+                  <p className="text-2xl font-black font-mono text-rose-500 mt-2">
+                    {monitorCatalogos.vencidosCount}
+                  </p>
+                  <p className="text-[11px] theme-muted mt-0.5">Mostrando como ref. histórica</p>
+                </div>
+              </div>
+
+              {/* Grilla de cadenas de supermercados */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                {monitorCatalogos.cadenas.map((cat) => {
+                  const esUrgente = cat.estado === 'urgente';
+                  const esVencido = cat.estado === 'vencido';
+                  const esVigente = cat.estado === 'vigente';
+
+                  const badgeColor = esVigente
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
+                    : esUrgente
+                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                      : esVencido
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+                        : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+
+                  const puntoColor = esVigente
+                    ? 'bg-emerald-500'
+                    : esUrgente
+                      ? 'bg-amber-400 animate-ping'
+                      : esVencido
+                        ? 'bg-rose-500'
+                        : 'bg-slate-500';
+
+                  const fechaTxt = cat.fechaVencimiento
+                    ? cat.fechaVencimiento.toLocaleDateString('es-AR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })
+                    : 'Sin fecha registrada';
+
+                  return (
+                    <div
+                      key={cat.cadena}
+                      className={`theme-card border-2 rounded-3xl p-4 flex flex-col justify-between space-y-3.5 shadow-md transition ${esUrgente
+                          ? 'border-amber-500/50 shadow-amber-500/10'
+                          : esVencido
+                            ? 'border-rose-500/30'
+                            : 'border-[var(--border-card)]'
+                        }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="text-sm font-black theme-title">{cat.cadena}</h4>
+                            <p className="text-[11px] theme-muted mt-0.5 font-mono">
+                              {cat.ofertasCount} {cat.ofertasCount === 1 ? 'oferta oficial' : 'ofertas oficiales'}
+                            </p>
+                          </div>
+
+                          <div className={`px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1.5 shrink-0 ${badgeColor}`}>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${puntoColor}`} />
+                            <span>{cat.textoEstado}</span>
+                          </div>
+                        </div>
+
+                        <div className="theme-card-sub rounded-xl p-2.5 border text-xs space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="theme-muted">Vigencia hasta:</span>
+                            <strong className="theme-title font-mono">{fechaTxt}</strong>
+                          </div>
+
+                          {cat.diasRestantes != null && (
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="theme-muted">Balance:</span>
+                              <span className={`font-black font-mono ${esVigente ? 'text-emerald-500' : esUrgente ? 'text-amber-400' : 'text-rose-400'
+                                }`}>
+                                {cat.diasRestantes > 0 ? `Faltan ${cat.diasRestantes} días` : `Expiró hace ${Math.abs(cat.diasRestantes)} días`}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-[var(--border-card)] flex items-center justify-between gap-2">
+                        <Link
+                          href={`/cargar?catalogo=1`}
+                          className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition text-center shadow cursor-pointer active:scale-95"
+                        >
+                          {esVencido || esUrgente ? 'Actualizar Folleto' : 'Cargar más precios'}
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           ) : vistaActual === 'fotos' ? (
-            /* --- NUEVA PESTAÑA: FOTOS OPEN FOOD FACTS --- */
+            /* --- PESTAÑA: FOTOS OPEN FOOD FACTS --- */
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="theme-card border rounded-2xl p-4 shadow-sm">
@@ -888,8 +1124,8 @@ export default function AdminPage() {
                       {sincronizandoFotos
                         ? 'Buscando 30 imágenes en Open Food Facts...'
                         : metricasFotos.sin === 0
-                        ? '¡Catálogo 100% completo con fotos!'
-                        : `Autocompletar siguientes 30 fotos (Quedan ${metricasFotos.sin})`}
+                          ? '¡Catálogo 100% completo con fotos!'
+                          : `Autocompletar siguientes 30 fotos (Quedan ${metricasFotos.sin})`}
                     </span>
                   </button>
 
@@ -904,11 +1140,10 @@ export default function AdminPage() {
                 </div>
 
                 {resultadoFotos && (
-                  <div className={`p-4 rounded-2xl border text-xs space-y-2 mt-4 animate-in fade-in duration-200 ${
-                    resultadoFotos.exito
+                  <div className={`p-4 rounded-2xl border text-xs space-y-2 mt-4 animate-in fade-in duration-200 ${resultadoFotos.exito
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
                       : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
-                  }`}>
+                    }`}>
                     <p className="font-bold flex items-center gap-2 text-sm">
                       {resultadoFotos.exito ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
                       <span>{resultadoFotos.mensaje || resultadoFotos.error}</span>
@@ -929,6 +1164,32 @@ export default function AdminPage() {
             </div>
           ) : vistaActual === 'pendientes' ? (
             <div className="space-y-4">
+
+              {/* AVISO TEMPRANO SI HAY CATÁLOGOS VENCIDOS O EN ALERTA */}
+              {monitorCatalogos.alertasTotales > 0 && (
+                <div
+                  onClick={() => setVistaActual('catalogos')}
+                  className="p-3.5 rounded-2xl border border-amber-500/40 bg-amber-500/10 flex items-center justify-between gap-3 cursor-pointer hover:bg-amber-500/15 transition shadow-sm"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CalendarClock className="w-5 h-5 text-amber-500 shrink-0" />
+                    <div className="text-xs">
+                      <p className="font-black text-amber-500">
+                        Tenés {monitorCatalogos.alertasTotales} {monitorCatalogos.alertasTotales === 1 ? 'catálogo oficial para revisar' : 'catálogos oficiales para revisar'}
+                      </p>
+                      <p className="text-[11px] theme-muted mt-0.5">
+                        {monitorCatalogos.urgentesCount > 0 ? `${monitorCatalogos.urgentesCount} por vencer en menos de 48 hs. ` : ''}
+                        {monitorCatalogos.vencidosCount > 0 ? `${monitorCatalogos.vencidosCount} con vigencia expirada.` : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-xs font-black text-amber-500 underline shrink-0 flex items-center gap-1">
+                    <span>Ver vigencias</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              )}
 
               {/* SECCIÓN PRODUCTOS NUEVOS DE LA COMUNIDAD */}
               {productosNuevosComunidad.length > 0 && (
@@ -1406,7 +1667,7 @@ export default function AdminPage() {
               </div>
             </div>
           ) : vistaActual === 'comercios' ? (
-            /* --- PESTAÑA COMERCIOS (UBICACIÓN Y GPS) --- */
+            /* --- PESTAÑA COMERCIOS --- */
             <div className="space-y-3">
               <form onSubmit={handleCrearComercio} className="flex flex-col sm:flex-row gap-2 theme-card p-3 rounded-2xl border shadow-sm">
                 <input

@@ -50,8 +50,6 @@ const TERMINOS_POPULARES = [
   { label: 'Verdulería', query: 'papa', Icono: Apple }
 ];
 
-const CADENAS_FILTRO = ['Todos', 'La Anónima', 'Todo', 'ChangoMás', 'Carrefour', 'Diarco'];
-
 const CONFIG_CATEGORIAS = {
   Todos: {
     icono: LayoutGrid,
@@ -150,9 +148,9 @@ const DICCIONARIO_RUBROS = {
   'Higiene Personal': ['dental', 'colgate', 'shampoo', 'desodorante', 'rexona', 'palmolive', 'toalla femenina', 'lina', 'jabón de tocador', 'jabon de tocador'],
   Limpieza: ['jabon liquido', 'detergente', 'lavandina', 'papel higienico', 'rollo', 'suavizante', 'desinfectante', 'cif', 'skip', 'ayudín', 'ayudin', 'odex', 'vileda', 'poett'],
   Lácteos: ['leche', 'yogur', 'queso', 'manteca', 'crema', 'dulce de leche', 'sachet', 'untable', 'ricota', 'danbo', 'fiambre', 'jamon'],
-  Verdulería: ['papa', 'tomate', 'cebolla', 'zanahoria', 'manzana', 'banana', 'lechuga', 'palta', 'naranja', 'limon', 'zapallo', 'morron', 'acelga', 'sandia', 'kale', 'alcaucil'],
+  Verdulería: ['zanahoria', 'manzana', 'banana', 'lechuga', 'palta', 'naranja', 'limon', 'zapallo', 'morron', 'acelga', 'sandia', 'kale', 'alcaucil', 'mandarina', 'verdeo', 'cebolla de verdeo'],
   Bebidas: ['agua', 'gaseosa', 'coca', 'pepsi', 'cerveza', 'vino', 'jugo', 'soda', 'fernet', 'aperitivo', 'levité', 'levite', 'schneider', 'andes', 'dr. lemon', 'clight'],
-  Almacén: ['arroz', 'fideos', 'harina', 'yerba', 'aceite', 'galletitas', 'azucar', 'pure de tomate', 'arvejas', 'lentejas', 'pan', 'tapas']
+  Almacén: ['arroz', 'fideos', 'harina', 'yerba', 'aceite', 'galletitas', 'azucar', 'pure de tomate', 'tomate triturado', 'pure de papa', 'pure de papas', 'arvejas', 'lentejas', 'pan', 'tapas']
 };
 
 function limpiarTexto(str = '') {
@@ -163,25 +161,48 @@ function limpiarTexto(str = '') {
     .trim();
 }
 
-function normalizarCadena(nombre = '') {
-  const n = limpiarTexto(nombre);
-  if (n.includes('anonima')) return 'La Anónima';
-  if (n.includes('todo')) return 'Todo';
-  if (n.includes('chango')) return 'ChangoMás';
-  if (n.includes('carrefour')) return 'Carrefour';
-  if (n.includes('diarco')) return 'Diarco';
-  return nombre;
+function generarClaveProducto(nombre = '') {
+  let limpio = limpiarTexto(nombre);
+  limpio = limpio
+    .replace(/\b(tetra|botella|botellon|pet|doypack|doy pack|flow pack|paquete|pack|caja|bolsa|sachet|tubo|pote|lata|frasco|frasco vidrio|fraccionado|cilindro)\b/g, '')
+    .replace(/\b(x\s*\d+.*|\d+\s*(g|gr|gramos?|kg|kilos?|ml|cc|cm3|l|lt|litros?|u|un|unidades?))\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return limpio || limpiarTexto(nombre);
 }
 
-function obtenerEstiloComercio(nombre = '') {
-  const n = limpiarTexto(nombre);
-  if (n.includes('anonima')) return 'badge-com-anonima';
-  if (n.includes('todo')) return 'badge-com-todo';
-  if (n.includes('chango')) return 'badge-com-chango';
-  if (n.includes('diarco')) return 'badge-com-diarco';
-  if (n.includes('cooperativa')) return 'badge-com-coop';
-  if (n.includes('carrefour')) return 'badge-com-carrefour';
-  return 'badge-com-default';
+// PALETA DE COLORES DINÁMICA: Asigna tonos balanceados a cualquier comercio sin importar cuántos sumes
+const PALETA_COMERCIOS = [
+  'bg-sky-500/10 text-sky-400 border-sky-500/25',
+  'bg-emerald-500/10 text-emerald-400 border-emerald-500/25',
+  'bg-rose-500/10 text-rose-400 border-rose-500/25',
+  'bg-amber-500/10 text-amber-400 border-amber-500/25',
+  'bg-violet-500/10 text-violet-400 border-violet-500/25',
+  'bg-teal-500/10 text-teal-400 border-teal-500/25',
+  'bg-orange-500/10 text-orange-400 border-orange-500/25',
+  'bg-indigo-500/10 text-indigo-400 border-indigo-500/25',
+  'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/25',
+  'bg-lime-500/10 text-lime-400 border-lime-500/25',
+  'bg-cyan-500/10 text-cyan-400 border-cyan-500/25'
+];
+
+function obtenerEstiloComercio(cadenaOComercio = '') {
+  const txt = String(cadenaOComercio || '').trim();
+  if (!txt) return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+
+  const tLower = txt.toLowerCase();
+  if (tLower.includes('anonima')) return 'badge-com-anonima';
+  if (tLower.includes('todo')) return 'badge-com-todo';
+  if (tLower.includes('chango')) return 'badge-com-chango';
+  if (tLower.includes('carrefour')) return 'badge-com-carrefour';
+
+  // Hashing determinista para que cada comercio nuevo conserve siempre el mismo color consistente
+  let hash = 0;
+  for (let i = 0; i < txt.length; i++) {
+    hash = txt.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % PALETA_COMERCIOS.length;
+  return PALETA_COMERCIOS[index];
 }
 
 function tiempoRelativo(fechaStr) {
@@ -241,9 +262,23 @@ function formatearDistancia(km) {
   return `${km.toFixed(1)} km`;
 }
 
-function formatearPresentacion(tamanoRaw, unidadRaw) {
+function formatearPresentacion(tamanoRaw, unidadRaw, nombreProd = '') {
   let cantStr = String(tamanoRaw || '').trim();
   let uniStr = String(unidadRaw || '').trim();
+
+  if (!cantStr && !uniStr && nombreProd) {
+    const matchNom = nombreProd.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilos?|gr?|gramos?|l|lt|litros?|ml|cc|cm3|u|unidades?)\b/i);
+    if (matchNom) {
+      cantStr = matchNom[1];
+      uniStr = matchNom[2];
+    } else if (/(\bx\s*kg\b|\bpor\s*kg\b)/i.test(nombreProd)) {
+      cantStr = '1';
+      uniStr = 'kg';
+    } else if (/(\bx\s*l\b|\bpor\s*litro\b)/i.test(nombreProd)) {
+      cantStr = '1';
+      uniStr = 'l';
+    }
+  }
 
   if (cantStr && !uniStr) {
     const match = cantStr.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)$/);
@@ -506,7 +541,7 @@ export default function HomePage() {
 
   const abrirUbicacionComercio = (comercioNombre, direccion = null, lat = null, lng = null, distancia = null) => {
     setComercioModal({
-      nombre: normalizarCadena(comercioNombre),
+      nombre: comercioNombre,
       direccion: direccion,
       lat: lat,
       lng: lng,
@@ -592,7 +627,7 @@ export default function HomePage() {
   };
 
   const toggleProductoChanguito = (nombreProducto) => {
-    const clave = limpiarTexto(nombreProducto);
+    const clave = generarClaveProducto(nombreProducto);
     setChanguito((prev) => {
       const existe = prev.includes(clave);
       const nuevo = existe ? prev.filter((item) => item !== clave) : [...prev, clave];
@@ -730,7 +765,17 @@ export default function HomePage() {
 
         let rubro = prodRel?.categoria || prodRel?.rubro || '';
 
-        if (!rubro || limpiarTexto(rubro) === 'super' || limpiarTexto(rubro) === 'almacen') {
+        // Purés y procesados siempre en Almacén
+        const nombreLower = productoNombre.toLowerCase();
+        if (
+          nombreLower.includes('pure de tomate') ||
+          nombreLower.includes('tomate triturado') ||
+          nombreLower.includes('extracto de tomate') ||
+          nombreLower.includes('pure de papa') ||
+          nombreLower.includes('pure de papas')
+        ) {
+          rubro = 'Almacén';
+        } else if (!rubro || limpiarTexto(rubro) === 'super') {
           const textoBusqueda = `${productoNombre} ${marca}`.toLowerCase();
           for (const [catNombre, keywords] of Object.entries(DICCIONARIO_RUBROS)) {
             if (keywords.some((kw) => textoBusqueda.includes(kw))) {
@@ -742,17 +787,13 @@ export default function HomePage() {
         }
 
         const comercioNombre = comRel?.nombre || 'Comercio Bariloche';
+        // CADENA 100% DINÁMICA: Toma la columna de Supabase o el nombre del comercio directo
+        const comercioCadena = comRel?.cadena?.trim() || comRel?.nombre?.trim() || comercioNombre;
         const comercioDireccion = comRel?.direccion || null;
         const comercioLat = comRel?.latitud ? parseFloat(comRel.latitud) : null;
         const comercioLng = comRel?.longitud ? parseFloat(comRel.longitud) : null;
 
-        // 1. Buscamos el apodo elegido por el usuario en la tabla perfiles
-        let apodoAutor =
-          perfRel?.apodo ||
-          perfRel?.username ||
-          '';
-
-        // 2. Si es el usuario actual conectado y en perfiles aún no figura, usamos su metadata
+        let apodoAutor = perfRel?.apodo || perfRel?.username || '';
         if (!apodoAutor && userActual && String(userActual.id).toLowerCase() === userId) {
           apodoAutor =
             userActual.user_metadata?.apodo ||
@@ -760,10 +801,8 @@ export default function HomePage() {
             userActual.email?.split('@')[0] ||
             '';
         }
-
         if (!apodoAutor) apodoAutor = 'Vecino anónimo';
 
-        // 3. Avatar exacto del autor (robotito de DiceBear guardado en perfiles)
         const avatarAutor =
           perfRel?.avatar_url ||
           (userActual && String(userActual.id).toLowerCase() === userId ? userActual.user_metadata?.avatar_url : null) ||
@@ -777,19 +816,19 @@ export default function HomePage() {
         const estadoVenc = calcularEstadoVencimiento(item.vencimiento);
 
         const refUnitario = calcularPrecioPorUnidad(precioFinal, tamano, unidad, productoNombre);
-        const presentacionFormateada = formatearPresentacion(tamano, unidad);
+        const presentacionFormateada = formatearPresentacion(tamano, unidad, productoNombre);
 
         return {
           ...item,
           _producto: productoNombre,
-          _claveProducto: limpiarTexto(productoNombre),
+          _claveProducto: generarClaveProducto(productoNombre),
           _marca: marca,
           _tamanoRaw: tamano,
           _unidadRaw: unidad,
           _presentacion: presentacionFormateada,
           _rubro: rubro,
           _comercio: comercioNombre,
-          _cadena: normalizarCadena(comercioNombre),
+          _cadena: comercioCadena,
           _comercioDireccion: comercioDireccion,
           _comercioLat: comercioLat,
           _comercioLng: comercioLng,
@@ -959,6 +998,18 @@ export default function HomePage() {
     }
   };
 
+  // Cadenas dinámicas descubiertas en tiempo real
+  const cadenasDisponibles = useMemo(() => {
+    const setCadenas = new Set();
+    ofertas.forEach((o) => {
+      const nombre = o._cadena || o._comercio;
+      if (nombre && nombre !== 'Comercio Bariloche') {
+        setCadenas.add(nombre);
+      }
+    });
+    return ['Todos', ...Array.from(setCadenas).sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))];
+  }, [ofertas]);
+
   const ofertasFiltradas = useMemo(() => {
     const catNorm = limpiarTexto(categoriaActiva);
     const cadenaNorm = limpiarTexto(cadenaActiva);
@@ -1009,7 +1060,7 @@ export default function HomePage() {
   const ofertasGondolaDesduplicadas = useMemo(() => {
     const mapa = new Map();
     ofertasFiltradas.forEach((o) => {
-      const claveAgrupada = `${o._claveProducto}_${limpiarTexto(o._marca)}_${limpiarTexto(o._cadena)}`;
+      const claveAgrupada = `${o._claveProducto}_${limpiarTexto(o._marca)}_${limpiarTexto(o._presentacion)}_${limpiarTexto(o._cadena)}`;
       const existente = mapa.get(claveAgrupada);
       if (!existente) {
         mapa.set(claveAgrupada, o);
@@ -1035,10 +1086,11 @@ export default function HomePage() {
       .slice(0, 6);
   }, [ofertasGondolaDesduplicadas]);
 
+  // Ganadores de mejor precio calculados comparando el mismo gramaje/tamaño
   const mejoresPreciosIds = useMemo(() => {
     const grupos = {};
     ofertas.forEach((o) => {
-      const clave = o._claveProducto;
+      const clave = `${o._claveProducto}_${limpiarTexto(o._presentacion)}`;
       if (!grupos[clave]) grupos[clave] = [];
       grupos[clave].push(o);
     });
@@ -1055,11 +1107,12 @@ export default function HomePage() {
     return ganadores;
   }, [ofertas]);
 
+  // Comparador cruzado con inyección de datos de presentación técnica
   const productosComparados = useMemo(() => {
     const mapa = new Map();
 
     ofertasFiltradas.forEach((o) => {
-      const clave = `${o._claveProducto}_${limpiarTexto(o._marca)}`;
+      const clave = `${o._claveProducto}_${limpiarTexto(o._marca)}_${limpiarTexto(o._presentacion)}`;
       if (!mapa.has(clave)) {
         mapa.set(clave, {
           clave,
@@ -1067,12 +1120,16 @@ export default function HomePage() {
           producto: o._producto,
           marca: o._marca,
           rubro: o._rubro,
+          presentacion: o._presentacion,
+          tamanoRaw: o._tamanoRaw,
+          unidadRaw: o._unidadRaw,
           foto: o._foto,
           itemsPorCadena: new Map()
         });
       }
       const grupo = mapa.get(clave);
       if (!grupo.foto && o._foto) grupo.foto = o._foto;
+      if (!grupo.presentacion && o._presentacion) grupo.presentacion = o._presentacion;
 
       const cadenaKey = limpiarTexto(o._cadena);
       const existente = grupo.itemsPorCadena.get(cadenaKey);
@@ -1129,7 +1186,7 @@ export default function HomePage() {
         clave,
         nombre: mejor?._producto || clave,
         minPrecio: mejor?._precio || 0,
-        mejorComercio: normalizarCadena(mejor?._comercio || ''),
+        mejorComercio: mejor?._cadena || mejor?._comercio || '',
         mejorCadena: mejor?._cadena || mejor?._comercio || '',
         ofertasPorComercio: coincidencias
       };
@@ -1278,7 +1335,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* NUBE DE TÉRMINOS POPULARES */}
+        {/* POPULARES */}
         {(buscadorFoco || busqueda.length > 0) && (
           <div
             ref={popularesRef}
@@ -1311,7 +1368,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* FILTRO DE SUPERMERCADOS */}
+      {/* FILTRO DE SUPERMERCADOS DINÁMICO */}
       <div
         ref={cadenasRef}
         onMouseDown={(e) => iniciarArrastre(e, cadenasRef)}
@@ -1321,7 +1378,7 @@ export default function HomePage() {
         <span className="text-[10px] theme-muted font-bold pl-1 shrink-0">
           Supermercado:
         </span>
-        {CADENAS_FILTRO.map((cad) => {
+        {cadenasDisponibles.map((cad) => {
           const activa = cadenaActiva === cad;
           return (
             <button
@@ -1390,7 +1447,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* COMPONENTE: PRECIOS BOMBA */}
+      {/* PRECIOS BOMBA */}
       {busqueda === '' &&
         categoriaActiva === 'Todos' &&
         cadenaActiva === 'Todos' &&
@@ -1524,7 +1581,6 @@ export default function HomePage() {
           </button>
         </div>
       ) : modoVista === 'milista' ? (
-        /* COMPONENTE: MI LISTA */
         <MiListaView
           changuito={changuito}
           simulacionChanguito={simulacionChanguito}
@@ -1539,7 +1595,6 @@ export default function HomePage() {
           obtenerEstiloComercio={obtenerEstiloComercio}
         />
       ) : modoVista === 'comparar' ? (
-        /* COMPONENTE: COMPARADOR */
         <ComparadorView
           productosComparados={productosComparados}
           limiteVisibles={limiteVisibles}
@@ -1554,7 +1609,6 @@ export default function HomePage() {
           obtenerEstiloComercio={obtenerEstiloComercio}
         />
       ) : (
-        /* VISTA GÓNDOLA: TARJETAS MODULARIZADAS */
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {ofertasVisibles.map((item) => {
@@ -1609,7 +1663,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* COMPONENTES MODALES MODULARIZADOS */}
+      {/* MODALES */}
       <FotoModal
         modalData={fotoModal}
         alCerrar={() => setFotoModal(null)}
@@ -1622,7 +1676,7 @@ export default function HomePage() {
         obtenerEstiloComercio={obtenerEstiloComercio}
       />
 
-      {/* BARRA FLOTANTE INFERIOR: CHANGUITO */}
+      {/* CHANGUITO FLOTANTE */}
       {changuito.length > 0 && modoVista !== 'milista' && (
         <div className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-40">
           <div className="theme-card backdrop-blur-md border border-sky-500/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3">

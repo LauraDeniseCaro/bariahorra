@@ -59,6 +59,25 @@ export default function GondolaCard({
   const IconoRubro = confRubro.icono;
   const estiloComercio = obtenerEstiloComercio(item._comercio);
   const verificadoComunidad = !item._esCatalogo && item._votosPositivos >= 3 && item._votosNegativos === 0;
+  const estaVencido = item._estadoVenc?.tipo === 'vencido';
+
+  // Abrir modal de detalle completo (con o sin foto)
+  const abrirDetalleModal = () => {
+    setFotoModal({
+      foto: item._foto || null,
+      producto: item._producto,
+      marca: item._marca,
+      comercio: item._comercio,
+      precio: item._tienePromo ? item._precioPromo : item._precio,
+      precioLista: item._tienePromo ? item._precio : null,
+      esCatalogo: item._esCatalogo,
+      usuario: item._usuario,
+      esAnonimo: esAnonimo,
+      presentacion: item._presentacion,
+      rubro: item._rubro,
+      refUnitario: item._refUnitario
+    });
+  };
 
   return (
     <article
@@ -70,9 +89,9 @@ export default function GondolaCard({
             : 'hover:border-slate-400'
       }`}
     >
-      {/* PISO 1: CABECERA */}
+      {/* PISO 1: CABECERA LIMPIA (SIN PRECIO DE REFERENCIA ARRIBA) */}
       <div className="flex items-center justify-between gap-1.5 border-b border-[var(--border-card)] pb-2.5">
-        <div className="flex items-center gap-1 min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <button
             type="button"
             onClick={() =>
@@ -99,28 +118,18 @@ export default function GondolaCard({
             </span>
           )}
 
-          {item._estadoVenc && (
-            <span
-              className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 border flex items-center gap-1 ${
-                item._estadoVenc.tipo === 'vencido'
-                  ? 'bg-rose-500/10 text-rose-500 border-rose-500/25'
-                  : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
-              }`}
-            >
-              <Clock className="w-2.5 h-2.5" />
-              <span>{item._estadoVenc.texto}</span>
-            </span>
-          )}
-
           {verificadoComunidad ? (
             <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 whitespace-nowrap">
               <Sparkles className="w-2.5 h-2.5 text-emerald-500" />
               <span>Destacado</span>
             </span>
           ) : esMejorPrecio ? (
-            <span className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 whitespace-nowrap">
-              <Award className="w-2.5 h-2.5 text-emerald-500" />
-              <span>Mejor</span>
+            <span
+              className="text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0 whitespace-nowrap shadow-xs"
+              title="El precio más bajo relevado en Bariloche"
+            >
+              <Award className="w-3 h-3 text-emerald-500" />
+              <span>Mejor precio</span>
             </span>
           ) : null}
         </div>
@@ -151,29 +160,16 @@ export default function GondolaCard({
         </div>
       </div>
 
-      {/* PISO 2: CUERPO CON RESPALDO VECTORIAL */}
-      <div className="flex gap-3 items-start flex-1 py-0.5">
+      {/* PISO 2: CUERPO (CLICK EN FOTO O TÍTULO ABRE EL MODAL AMPLIADO) */}
+      <div
+        onClick={abrirDetalleModal}
+        className="flex gap-3 items-start flex-1 py-1 cursor-pointer group select-none rounded-xl p-1 -m-1 hover:bg-slate-500/5 transition"
+        title="Tocar para ampliar información del producto"
+      >
         <div
-          onClick={() => {
-            if (tieneFoto) {
-              setFotoModal({
-                foto: item._foto,
-                producto: item._producto,
-                marca: item._marca,
-                comercio: item._comercio,
-                precio: item._precio,
-                esCatalogo: item._esCatalogo,
-                usuario: item._usuario,
-                esAnonimo: esAnonimo
-              });
-            }
-          }}
-          className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative group ${confRubro.cajaIcono} ${
-            tieneFoto ? 'cursor-zoom-in' : ''
-          }`}
-          title={tieneFoto ? 'Tocar para ampliar foto' : undefined}
+          className={`w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center relative ${confRubro.cajaIcono} shadow-xs`}
         >
-          {/* Ícono de respaldo siempre presente en el fondo */}
+          {/* Ícono de respaldo vectorial */}
           <IconoRubro className={`w-7 h-7 stroke-[1.75] absolute ${confRubro.acento}`} />
 
           {tieneFoto && (
@@ -195,7 +191,7 @@ export default function GondolaCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <h3 className="text-xs sm:text-sm font-black theme-title leading-snug line-clamp-2">
+          <h3 className="text-xs sm:text-sm font-black theme-title leading-snug line-clamp-2 group-hover:text-sky-400 transition-colors">
             {item._producto}
           </h3>
 
@@ -204,7 +200,9 @@ export default function GondolaCard({
               {item._marca}
             </span>
             {item._presentacion && (
-              <span className="text-[11px] theme-muted">• {item._presentacion}</span>
+              <span className="text-[11px] theme-muted font-bold font-mono">
+                • {item._presentacion}
+              </span>
             )}
             <span className={`text-[10px] font-bold ${confRubro.acento}`}>
               • {item._rubro}
@@ -212,12 +210,7 @@ export default function GondolaCard({
           </div>
 
           <div className="flex items-center gap-2 mt-1.5 text-[10px] theme-muted flex-wrap">
-            {item._esCatalogo ? (
-              <span className="flex items-center gap-1 text-amber-500 font-bold bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-md">
-                <ShieldCheck className="w-3 h-3 text-amber-500 shrink-0" />
-                <span>Catálogo Oficial</span>
-              </span>
-            ) : (
+            {!item._esCatalogo && (
               <span className="flex items-center gap-1.5 truncate">
                 {esAnonimo ? (
                   <User className="w-3.5 h-3.5 theme-muted shrink-0" />
@@ -249,7 +242,7 @@ export default function GondolaCard({
         </div>
       </div>
 
-      {/* PISO 3: PRECIOS Y VOTOS */}
+      {/* PISO 3: PRECIOS Y REFERENCIA UNIFICADA */}
       <div className="pt-2.5 border-t border-[var(--border-card)] space-y-2.5">
         <div className="flex items-end justify-between gap-2">
           <div className="space-y-1">
@@ -282,11 +275,18 @@ export default function GondolaCard({
               </p>
             )}
 
+            {/* SECTOR DE REFERENCIA UNIFICADA: NO DUPLICA Y CAMBIA SEGÚN VIGENCIA */}
             <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
               {item._esCatalogo ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
-                  <ShieldCheck className="w-3 h-3 text-amber-500" />
-                  <span>Referencia oficial</span>
+                <span
+                  className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                    estaVencido
+                      ? 'text-slate-400 bg-slate-500/10 border-slate-500/20'
+                      : 'text-amber-500 bg-amber-500/10 border-amber-500/25'
+                  }`}
+                >
+                  <ShieldCheck className={`w-3 h-3 ${estaVencido ? 'text-slate-400' : 'text-amber-500'}`} />
+                  <span>{estaVencido ? 'Precio de referencia' : 'Catálogo Oficial'}</span>
                 </span>
               ) : (
                 <>
@@ -314,6 +314,7 @@ export default function GondolaCard({
             </div>
           </div>
 
+          {/* ACCIONES DE VOTO / AVISO */}
           <div className="flex items-center gap-1.5 shrink-0">
             {!item._esCatalogo && (
               <button
@@ -359,6 +360,7 @@ export default function GondolaCard({
           </div>
         </div>
 
+        {/* FORMULARIO DESPLEGABLE CUANDO SE TOCA "¿CAMBIÓ?" */}
         {editandoPrecioId === item.id && (
           <div className="theme-card-sub border border-amber-500/40 rounded-xl p-2.5 space-y-2">
             <p className="text-[10px] theme-muted leading-tight">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { calcularPrecioConPromo } from '@/lib/promos';
 import {
   Search,
   Plus,
@@ -432,6 +433,7 @@ export default function HomePage() {
   const [orden, setOrden] = useState('recientes');
   const [modoVista, setModoVista] = useState('gondola');
   const [limiteVisibles, setLimiteVisibles] = useState(CANTIDAD_POR_PAGINA);
+  const [mediosUsuario, setMediosUsuario] = useState([]);
 
   // Modales
   const [fotoModal, setFotoModal] = useState(null);
@@ -717,13 +719,25 @@ export default function HomePage() {
       } = await supabase.auth.getSession();
       const user = session?.user || null;
       setUsuario(user);
-      await cargarOfertas(user);
+
+      let medios = [];
+      if (user) {
+        const { data: perf } = await supabase
+          .from('perfiles')
+          .select('medios_pago')
+          .eq('id', user.id)
+          .maybeSingle();
+        medios = Array.isArray(perf?.medios_pago) ? perf.medios_pago : [];
+        setMediosUsuario(medios);
+      }
+
+      await cargarOfertas(user, medios);
     } catch (err) {
       console.error('Error inicializando:', err);
     }
   };
 
-  const cargarOfertas = async (userActual = usuario) => {
+  const cargarOfertas = async (userActual = usuario, mediosActuales = mediosUsuario) => {
     setCargando(true);
     try {
       const { data: rawOfertas, error: errOfertas } = await supabase
@@ -834,6 +848,8 @@ export default function HomePage() {
         const refUnitario = calcularPrecioPorUnidad(precioFinal, tamano, unidad, productoNombre);
         const presentacionFormateada = formatearPresentacion(tamano, unidad, productoNombre);
 
+        const promoInfo = calcularPrecioConPromo(precioFinal, comercioCadena, mediosActuales);
+
         return {
           ...item,
           _producto: productoNombre,
@@ -852,6 +868,9 @@ export default function HomePage() {
           _usuarioAvatar: avatarAutor,
           _foto: item.foto_url || prodRel?.foto_url || null,
           _precio: precioFinal,
+          _precioPromo: promoInfo.tienePromo ? promoInfo.precioFinal : null,
+          _promoEtiqueta: promoInfo.etiqueta,
+          _tienePromo: promoInfo.tienePromo,
           _refUnitario: refUnitario,
           _esCatalogo: esCatalogoOficial,
           _estadoVenc: estadoVenc,
@@ -1014,7 +1033,6 @@ export default function HomePage() {
     }
   };
 
-  // CADENAS LIMPIAS: Unifica sucursales para los botones de filtrado
   const cadenasDisponibles = useMemo(() => {
     const setCadenas = new Set();
     ofertas.forEach((o) => {
@@ -1026,7 +1044,6 @@ export default function HomePage() {
     return ['Todos', ...Array.from(setCadenas).sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))];
   }, [ofertas]);
 
-  // MAPEO DE SUCURSALES POR CADENA PARA DETECTAR LA MÁS CERCANA AL USUARIO
   const sucursalesPorCadena = useMemo(() => {
     const mapa = new Map();
     comerciosRaw.forEach((c) => {
@@ -1049,7 +1066,6 @@ export default function HomePage() {
     return mapa;
   }, [comerciosRaw]);
 
-  // OFERTAS FILTRADAS CON CÁLCULO DE SUCURSAL ÓPTIMA (FASE 5)
   const ofertasFiltradas = useMemo(() => {
     const catNorm = limpiarTexto(categoriaActiva);
     const cadenaNorm = limpiarTexto(cadenaActiva);
@@ -1077,7 +1093,6 @@ export default function HomePage() {
           lng: o._comercioLng
         };
 
-        // Si el usuario activó GPS, busca entre TODAS las sucursales de esta cadena cuál le queda más cerca
         if (userCoords) {
           const sucursalesCadena = sucursalesPorCadena.get(o._cadena) || [];
           let menorDist = Infinity;
@@ -1097,7 +1112,6 @@ export default function HomePage() {
             }
           });
 
-          // Fallback a la coordenada original de la oferta si la lista de la cadena no tenía GPS
           if (menorDist !== Infinity) {
             distanciaKm = menorDist;
           } else if (o._comercioLat && o._comercioLng) {
@@ -1133,7 +1147,6 @@ export default function HomePage() {
       });
   }, [ofertas, categoriaActiva, cadenaActiva, busqueda, orden, userCoords, sucursalesPorCadena]);
 
-  // DESDUPLICACIÓN EN GÓNDOLA: Una sola tarjeta por Cadena (mostrando la sucursal más cercana)
   const ofertasGondolaDesduplicadas = useMemo(() => {
     const mapa = new Map();
     ofertasFiltradas.forEach((o) => {
@@ -1163,7 +1176,6 @@ export default function HomePage() {
       .slice(0, 6);
   }, [ofertasGondolaDesduplicadas]);
 
-  // Ganadores de mejor precio comparando el mismo gramaje y producto
   const mejoresPreciosIds = useMemo(() => {
     const grupos = {};
     ofertas.forEach((o) => {
@@ -1184,7 +1196,6 @@ export default function HomePage() {
     return ganadores;
   }, [ofertas]);
 
-  // COMPARADOR CRUZADO: Agrupa por Cadena Madre (compite La Anónima vs Todo vs Carrefour)
   const productosComparados = useMemo(() => {
     const mapa = new Map();
 

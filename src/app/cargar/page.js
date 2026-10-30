@@ -27,7 +27,12 @@ import {
   Tag,
   PenTool,
   Barcode,
-  ScanLine
+  ScanLine,
+  Fish,
+  Snowflake,
+  Leaf,
+  Wheat,
+  Smile
 } from 'lucide-react';
 
 const ADMIN_EMAILS = [
@@ -35,20 +40,31 @@ const ADMIN_EMAILS = [
 ];
 
 const CONFIG_RUBROS = {
-  Súper: { icono: ShoppingCart, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40', acento: 'text-emerald-400' },
+  Almacén: { icono: ShoppingCart, color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40', acento: 'text-emerald-400' },
   Carnicería: { icono: Beef, color: 'bg-rose-500/15 text-rose-400 border-rose-500/40', acento: 'text-rose-400' },
+  'Pescados y Mariscos': { icono: Fish, color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/40', acento: 'text-cyan-400' },
+  Congelados: { icono: Snowflake, color: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40', acento: 'text-indigo-400' },
   Verdulería: { icono: Apple, color: 'bg-lime-500/15 text-lime-400 border-lime-500/40', acento: 'text-lime-400' },
   Lácteos: { icono: Milk, color: 'bg-sky-500/15 text-sky-400 border-sky-500/40', acento: 'text-sky-400' },
+  Veggie: { icono: Leaf, color: 'bg-teal-500/15 text-teal-400 border-teal-500/40', acento: 'text-teal-400' },
+  'Sin TACC': { icono: Wheat, color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/40', acento: 'text-yellow-400' },
+  'Higiene Personal': { icono: Smile, color: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/40', acento: 'text-fuchsia-400' },
   Limpieza: { icono: Sparkles, color: 'bg-violet-500/15 text-violet-400 border-violet-500/40', acento: 'text-violet-400' },
   Bebidas: { icono: Wine, color: 'bg-orange-500/15 text-orange-400 border-orange-500/40', acento: 'text-orange-400' }
 };
 
 const DICCIONARIO_RUBROS = {
-  Carnicería: ['lomo', 'bola de lomo', 'asado', 'vacio', 'picada', 'carne', 'pollo', 'milanesa', 'nalga', 'peceto', 'bife', 'matambre', 'costilla', 'pechuga'],
-  Lácteos: ['leche', 'yogur', 'queso', 'manteca', 'crema', 'dulce de leche', 'sachet', 'untable', 'ricota', 'postrecito'],
-  Verdulería: ['papa', 'tomate', 'cebolla', 'zanahoria', 'manzana', 'banana', 'lechuga', 'palta', 'naranja', 'limon', 'zapallo', 'morron', 'acelga'],
-  Bebidas: ['agua', 'gaseosa', 'coca', 'pepsi', 'cerveza', 'vino', 'jugo', 'soda', 'fernet', 'aperitivo'],
-  Limpieza: ['jabon', 'detergente', 'lavandina', 'papel higienico', 'rollo', 'suavizante', 'desinfectante', 'shampoo', 'dentifrico', 'cif']
+  Carnicería: ['lomo', 'bola de lomo', 'asado', 'vacio', 'picada', 'carne', 'pollo', 'milanesa', 'nalga', 'peceto', 'bife', 'matambre', 'costilla', 'pechuga', 'cerdo', 'bondiola'],
+  'Pescados y Mariscos': ['salmón', 'salmon', 'atún', 'atun', 'pescado', 'merluza', 'marisco', 'calamar'],
+  Congelados: ['congelado', 'supercongelado', 'espinaca', 'brócoli', 'brocoli', 'nuggets', 'bocaditos'],
+  Veggie: ['notco', 'notchicken', 'notmila', 'burganas', 'tofu', 'vegano', 'vegetariano', 'plant-based'],
+  'Sin TACC': ['sin gluten', 'gluten', 'celiaco', 'schär', 'schar', 'tacc', 'blancaflor sin', 'premezcla pizza'],
+  'Higiene Personal': ['dental', 'colgate', 'shampoo', 'desodorante', 'rexona', 'palmolive', 'toalla femenina', 'lina', 'jabón de tocador', 'jabon de tocador', 'dentifrico'],
+  Limpieza: ['jabon liquido', 'detergente', 'lavandina', 'papel higienico', 'rollo', 'suavizante', 'desinfectante', 'cif', 'skip', 'ayudín', 'ayudin', 'odex', 'vileda', 'poett'],
+  Lácteos: ['leche', 'yogur', 'queso', 'manteca', 'crema', 'dulce de leche', 'sachet', 'untable', 'ricota', 'postrecito', 'danbo', 'fiambre', 'jamon'],
+  Verdulería: ['papa', 'tomate', 'cebolla', 'zanahoria', 'manzana', 'banana', 'lechuga', 'palta', 'naranja', 'limon', 'zapallo', 'morron', 'acelga', 'sandia', 'kale', 'alcaucil', 'mandarina', 'verdeo'],
+  Bebidas: ['agua', 'gaseosa', 'coca', 'pepsi', 'cerveza', 'vino', 'jugo', 'soda', 'fernet', 'aperitivo', 'levité', 'levite', 'schneider', 'andes', 'dr. lemon', 'clight'],
+  Almacén: ['arroz', 'fideos', 'harina', 'yerba', 'aceite', 'galletitas', 'azucar', 'pure de tomate', 'tomate triturado', 'pure de papa', 'pure de papas', 'arvejas', 'lentejas', 'pan', 'tapas']
 };
 
 const REGLAS_UNIDAD_CANTIDAD = [
@@ -71,6 +87,11 @@ const REGLAS_UNIDAD_CANTIDAD = [
 
 const UNIDADES = ['ml', 'l', 'gr', 'kg', 'u'];
 
+function normalizarRubro(cat = '') {
+  if (!cat || cat === 'Súper' || cat.toLowerCase() === 'super') return 'Almacén';
+  return CONFIG_RUBROS[cat] ? cat : 'Almacén';
+}
+
 export default function CargarPage() {
   const router = useRouter();
 
@@ -87,7 +108,7 @@ export default function CargarPage() {
 
   const [producto, setProducto] = useState('');
   const [marca, setMarca] = useState('');
-  const [rubro, setRubro] = useState('Súper');
+  const [rubro, setRubro] = useState('Almacén');
   const [cantidad, setCantidad] = useState('');
   const [unidad, setUnidad] = useState('kg');
   const [comercio, setComercio] = useState('');
@@ -173,11 +194,23 @@ export default function CargarPage() {
 
   const aplicarInferenciaProducto = (textoProd) => {
     const texto = textoProd.toLowerCase();
-    let detectado = 'Súper';
-    for (const [cat, palabras] of Object.entries(DICCIONARIO_RUBROS)) {
-      if (palabras.some((p) => texto.includes(p))) {
-        detectado = cat;
-        break;
+    let detectado = 'Almacén';
+
+    if (
+      texto.includes('pure de tomate') ||
+      texto.includes('puré de tomate') ||
+      texto.includes('tomate triturado') ||
+      texto.includes('extracto de tomate') ||
+      texto.includes('pure de papa') ||
+      texto.includes('puré de papa')
+    ) {
+      detectado = 'Almacén';
+    } else {
+      for (const [cat, palabras] of Object.entries(DICCIONARIO_RUBROS)) {
+        if (palabras.some((p) => texto.includes(p))) {
+          detectado = cat;
+          break;
+        }
       }
     }
     setRubro(detectado);
@@ -211,7 +244,7 @@ export default function CargarPage() {
     const existente = productosData.find((p) => p.nombre?.toLowerCase() === nombre.toLowerCase());
     if (existente) {
       if (existente.marca) setMarca(existente.marca);
-      if (existente.categoria) setRubro(existente.categoria);
+      if (existente.categoria) setRubro(normalizarRubro(existente.categoria));
       if (existente.cantidad) setCantidad(String(existente.cantidad));
       if (existente.unidad_medida) setUnidad(existente.unidad_medida);
       if (existente.foto_url && !fotoPreview) {
@@ -227,7 +260,10 @@ export default function CargarPage() {
     setMarca(valor);
 
     const marcasDelRubro = productosData
-      .filter((p) => (rubro === 'Súper' || p.categoria === rubro) && p.marca)
+      .filter((p) => {
+        const catNorm = normalizarRubro(p.categoria);
+        return (rubro === 'Almacén' || catNorm === rubro) && p.marca;
+      })
       .map((p) => p.marca);
 
     const marcasUnicas = [...new Set(marcasDelRubro)];
@@ -331,6 +367,7 @@ export default function CargarPage() {
     const cod = String(codigoBuscado || codigoBarrasInput).trim();
     if (!cod) return;
 
+    setCodigoBarrasInput(cod);
     setBuscandoBarras(true);
     setAvisoBarras('');
     detenerCamaraBarras();
@@ -346,7 +383,7 @@ export default function CargarPage() {
       if (prodLocal) {
         setProducto(prodLocal.nombre);
         if (prodLocal.marca) setMarca(prodLocal.marca);
-        if (prodLocal.categoria) setRubro(prodLocal.categoria);
+        if (prodLocal.categoria) setRubro(normalizarRubro(prodLocal.categoria));
         if (prodLocal.cantidad) setCantidad(String(prodLocal.cantidad));
         if (prodLocal.unidad_medida) setUnidad(prodLocal.unidad_medida);
         if (prodLocal.foto_url) {
@@ -428,8 +465,8 @@ export default function CargarPage() {
         if (d.unidad_medida && UNIDADES.includes(d.unidad_medida.toLowerCase())) {
           setUnidad(d.unidad_medida.toLowerCase());
         }
-        if (d.rubro && CONFIG_RUBROS[d.rubro]) {
-          setRubro(d.rubro);
+        if (d.rubro) {
+          setRubro(normalizarRubro(d.rubro));
         } else if (d.producto) {
           aplicarInferenciaProducto(d.producto);
         }
@@ -590,7 +627,7 @@ export default function CargarPage() {
       if (!prodId) {
         const payloadProd = {
           nombre: nombreProd,
-          categoria: rubro,
+          categoria: normalizarRubro(rubro),
           marca: marca.trim() || null,
           cantidad: !isNaN(cantNum) && cantNum > 0 ? cantNum : null,
           unidad_medida: unidad || null,
@@ -715,7 +752,7 @@ export default function CargarPage() {
     }
   };
 
-  const confRubroActivo = CONFIG_RUBROS[rubro] || CONFIG_RUBROS.Súper;
+  const confRubroActivo = CONFIG_RUBROS[rubro] || CONFIG_RUBROS.Almacén;
   const IconoRubroActivo = confRubroActivo.icono;
 
   return (
@@ -1127,7 +1164,7 @@ export default function CargarPage() {
               )}
             </div>
 
-            {/* PÍLDORAS DE RUBRO */}
+            {/* PÍLDORAS DE LOS 11 RUBROS */}
             <div>
               <label className="block text-[11px] font-bold theme-muted mb-1.5">
                 Rubro
@@ -1141,8 +1178,9 @@ export default function CargarPage() {
                       type="button"
                       key={nombreRubro}
                       onClick={() => setRubro(nombreRubro)}
-                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${activo ? conf.color : 'theme-btn-sec border theme-muted hover:theme-title'
-                        }`}
+                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer shrink-0 ${
+                        activo ? conf.color : 'theme-btn-sec border theme-muted hover:theme-title'
+                      }`}
                     >
                       <Icono className={`w-3.5 h-3.5 ${activo ? '' : conf.acento}`} />
                       <span>{nombreRubro}</span>
@@ -1206,8 +1244,9 @@ export default function CargarPage() {
                       type="button"
                       key={u}
                       onClick={() => setUnidad(u)}
-                      className={`py-1.5 px-2.5 rounded-lg text-xs font-black uppercase transition cursor-pointer ${unidad === u ? 'bg-sky-500 text-slate-950 shadow' : 'theme-muted hover:theme-title'
-                        }`}
+                      className={`py-1.5 px-2.5 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
+                        unidad === u ? 'bg-sky-500 text-slate-950 shadow' : 'theme-muted hover:theme-title'
+                      }`}
                     >
                       {u}
                     </button>

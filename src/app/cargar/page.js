@@ -25,7 +25,9 @@ import {
   Check,
   Receipt,
   Tag,
-  PenTool
+  PenTool,
+  Barcode,
+  ScanLine
 } from 'lucide-react';
 
 const ADMIN_EMAILS = [
@@ -75,9 +77,8 @@ export default function CargarPage() {
   const [usuario, setUsuario] = useState(null);
   const [esCatalogo, setEsCatalogo] = useState(false);
 
-  // Modo de ingreso: 'manual' o 'ia'
+  // Modo: 'manual', 'barras' o 'ia'
   const [modoIngreso, setModoIngreso] = useState('manual');
-  // Submodo de IA: 'gondola' o 'ticket'
   const [tipoEscaneoIA, setTipoEscaneoIA] = useState('gondola');
 
   const [productosData, setProductosData] = useState([]);
@@ -91,6 +92,13 @@ export default function CargarPage() {
   const [unidad, setUnidad] = useState('kg');
   const [comercio, setComercio] = useState('');
   const [precio, setPrecio] = useState('');
+
+  // Escáner de Barras
+  const [codigoBarrasInput, setCodigoBarrasInput] = useState('');
+  const [buscandoBarras, setBuscandoBarras] = useState(false);
+  const [avisoBarras, setAvisoBarras] = useState('');
+  const [camaraBarrasActiva, setCamaraBarrasActiva] = useState(false);
+  const [fotoUrlExterna, setFotoUrlExterna] = useState(null);
 
   const [sugerenciasProducto, setSugerenciasProducto] = useState([]);
   const [mostrarDropdownProducto, setMostrarDropdownProducto] = useState(false);
@@ -112,8 +120,10 @@ export default function CargarPage() {
   const abortControllerRef = useRef(null);
   const inputCamaraRef = useRef(null);
   const inputGaleriaRef = useRef(null);
+  const videoBarrasRef = useRef(null);
+  const videoStreamRef = useRef(null);
+  const animFrameBarrasRef = useRef(null);
 
-  // Verificación estricta de Administrador
   const esAdmin = Boolean(
     usuario?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase().trim() === usuario.email.toLowerCase().trim())
   );
@@ -123,6 +133,9 @@ export default function CargarPage() {
     if (typeof window !== 'undefined' && window.location.search.includes('catalogo=1')) {
       setEsCatalogo(true);
     }
+    return () => {
+      detenerCamaraBarras();
+    };
   }, []);
 
   const comprobarUsuarioYDatos = async () => {
@@ -134,11 +147,10 @@ export default function CargarPage() {
 
       const [resComercios, resProductos] = await Promise.all([
         supabase.from('comercios').select('nombre'),
-        supabase.from('productos').select('nombre, marca, categoria, cantidad, unidad_medida')
+        supabase.from('productos').select('nombre, marca, categoria, cantidad, unidad_medida, foto_url, codigo_barras')
       ]);
 
       if (resComercios.data) {
-        // Limpia cualquier texto entre paréntesis y unifica duplicados
         const nombresLimpios = [
           ...new Set(
             resComercios.data
@@ -202,6 +214,10 @@ export default function CargarPage() {
       if (existente.categoria) setRubro(existente.categoria);
       if (existente.cantidad) setCantidad(String(existente.cantidad));
       if (existente.unidad_medida) setUnidad(existente.unidad_medida);
+      if (existente.foto_url && !fotoPreview) {
+        setFotoPreview(existente.foto_url);
+        setFotoUrlExterna(existente.foto_url);
+      }
     }
     setMostrarDropdownProducto(false);
   };
@@ -251,6 +267,138 @@ export default function CargarPage() {
   const seleccionarComercio = (nombre) => {
     setComercio(nombre);
     setMostrarDropdownComercio(false);
+  };
+
+  // Escáner de Código de Barras
+  const detenerCamaraBarras = () => {
+    if (animFrameBarrasRef.current) {
+      cancelAnimationFrame(animFrameBarrasRef.current);
+      animFrameBarrasRef.current = null;
+    }
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach((track) => track.stop());
+      videoStreamRef.current = null;
+    }
+    setCamaraBarrasActiva(false);
+  };
+
+  const iniciarCamaraBarras = async () => {
+    setAvisoBarras('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      videoStreamRef.current = stream;
+      setCamaraBarrasActiva(true);
+
+      if (videoBarrasRef.current) {
+        videoBarrasRef.current.srcObject = stream;
+        videoBarrasRef.current.play();
+      }
+
+      if ('BarcodeDetector' in window) {
+        const detector = new window.BarcodeDetector({
+          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128']
+        });
+
+        const escanearCuadro = async () => {
+          if (videoBarrasRef.current && videoBarrasRef.current.readyState >= 2) {
+            try {
+              const codigos = await detector.detect(videoBarrasRef.current);
+              if (codigos && codigos.length > 0) {
+                const valorDetectado = codigos[0].rawValue;
+                if (navigator.vibrate) navigator.vibrate(100);
+                detenerCamaraBarras();
+                buscarPorCodigoBarras(valorDetectado);
+                return;
+              }
+            } catch (err) {}
+          }
+          animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
+        };
+
+        animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
+      } else {
+        setAvisoBarras('Tu cámara no soporta escáner automático. Podés ingresar los números abajo.');
+      }
+    } catch (err) {
+      setAvisoBarras('Permiso de cámara no concedido. Podés escribir el código numérico.');
+      setCamaraBarrasActiva(false);
+    }
+  };
+
+  const buscarPorCodigoBarras = async (codigoBuscado) => {
+    const cod = String(codigoBuscado || codigoBarrasInput).trim();
+    if (!cod) return;
+
+    setBuscandoBarras(true);
+    setAvisoBarras('');
+    detenerCamaraBarras();
+
+    try {
+      // 1. Prioridad: Consulta primero en la tabla local de Supabase
+      const { data: prodLocal } = await supabase
+        .from('productos')
+        .select('*')
+        .eq('codigo_barras', cod)
+        .maybeSingle();
+
+      if (prodLocal) {
+        setProducto(prodLocal.nombre);
+        if (prodLocal.marca) setMarca(prodLocal.marca);
+        if (prodLocal.categoria) setRubro(prodLocal.categoria);
+        if (prodLocal.cantidad) setCantidad(String(prodLocal.cantidad));
+        if (prodLocal.unidad_medida) setUnidad(prodLocal.unidad_medida);
+        if (prodLocal.foto_url) {
+          setFotoPreview(prodLocal.foto_url);
+          setFotoUrlExterna(prodLocal.foto_url);
+        }
+        setAvisoBarras(`¡Encontrado en BariAhorra! "${prodLocal.nombre}" (${prodLocal.marca || 'Genérica'}).`);
+        setBuscandoBarras(false);
+        return;
+      }
+
+      // 2. Consulta externa como respaldo
+      const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cod}.json`);
+      const data = await res.json();
+
+      if (data.status === 1 && data.product) {
+        const p = data.product;
+        const nombreDetectado = p.product_name_es || p.product_name || '';
+        const marcaDetectada = p.brands || '';
+
+        if (nombreDetectado) setProducto(nombreDetectado);
+        if (marcaDetectada) setMarca(marcaDetectada);
+
+        if (p.image_url) {
+          setFotoPreview(p.image_url);
+          setFotoUrlExterna(p.image_url);
+        }
+
+        if (p.quantity) {
+          const match = String(p.quantity).match(/(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)/);
+          if (match) {
+            setCantidad(match[1]);
+            const u = match[2].toLowerCase();
+            if (UNIDADES.includes(u)) setUnidad(u);
+            else if (['g', 'gr', 'gramos'].includes(u)) setUnidad('gr');
+            else if (['kg', 'kilos'].includes(u)) setUnidad('kg');
+            else if (['l', 'lt', 'litros'].includes(u)) setUnidad('l');
+            else if (['ml', 'cc'].includes(u)) setUnidad('ml');
+          }
+        }
+
+        if (nombreDetectado) aplicarInferenciaProducto(nombreDetectado);
+
+        setAvisoBarras(`¡Listo! Cargamos "${nombreDetectado}" (${marcaDetectada || 'Genérica'}).`);
+      } else {
+        setAvisoBarras('No encontramos datos para este código. Completá el nombre y precio a mano.');
+      }
+    } catch (err) {
+      setAvisoBarras('No se pudo consultar el código. Completá los campos a mano.');
+    } finally {
+      setBuscandoBarras(false);
+    }
   };
 
   const analizarFotoConIA = async (file, tipo) => {
@@ -322,6 +470,7 @@ export default function CargarPage() {
     if (file) {
       setArchivoFoto(file);
       setFotoPreview(URL.createObjectURL(file));
+      setFotoUrlExterna(null);
 
       if (modoIngreso === 'ia') {
         analizarFotoConIA(file, tipoEscaneoIA);
@@ -332,6 +481,7 @@ export default function CargarPage() {
   const eliminarFoto = () => {
     setArchivoFoto(null);
     setFotoPreview(null);
+    setFotoUrlExterna(null);
     setAvisoIA('');
   };
 
@@ -346,12 +496,10 @@ export default function CargarPage() {
 
     setEnviando(true);
     try {
-      // 1. Obtener sesión de Supabase
       const { data: authData } = await supabase.auth.getUser();
       const currentUser = authData?.user || usuario || null;
       const userId = currentUser?.id || null;
 
-      // 2. Si el usuario está conectado, buscar su apodo real en la tabla perfiles
       if (userId) {
         const { data: perfilExistente } = await supabase
           .from('perfiles')
@@ -359,7 +507,6 @@ export default function CargarPage() {
           .eq('id', userId)
           .maybeSingle();
 
-        // Si aún no tiene perfil, creamos el base
         if (!perfilExistente) {
           const apodoInicial = currentUser.user_metadata?.username ||
             currentUser.user_metadata?.name ||
@@ -371,7 +518,7 @@ export default function CargarPage() {
         }
       }
 
-      let urlFotoSubida = null;
+      let urlFotoSubida = fotoUrlExterna || null;
       if (archivoFoto) {
         setSubiendoFoto(true);
         urlFotoSubida = await subirImagenImageKit(archivoFoto);
@@ -406,23 +553,49 @@ export default function CargarPage() {
         nombreProd = `${nombreProd} ${cantLimpia}${unidad || ''}`;
       }
 
+      const codBarrasVal = String(codigoBarrasInput || '').trim() || null;
       let prodId = null;
-      let queryProd = supabase.from('productos').select('id').ilike('nombre', nombreProd);
-      if (marca.trim()) {
-        queryProd = queryProd.ilike('marca', marca.trim());
+
+      // Si tenemos código de barras, buscamos coincidencia directa
+      if (codBarrasVal) {
+        const { data: prodPorCod } = await supabase
+          .from('productos')
+          .select('id')
+          .eq('codigo_barras', codBarrasVal)
+          .maybeSingle();
+        if (prodPorCod?.id) prodId = prodPorCod.id;
       }
 
-      const { data: prodExistente } = await queryProd.maybeSingle();
+      // Si no encontró por código, busca por nombre y marca
+      if (!prodId) {
+        let queryProd = supabase.from('productos').select('id, codigo_barras').ilike('nombre', nombreProd);
+        if (marca.trim()) {
+          queryProd = queryProd.ilike('marca', marca.trim());
+        }
 
-      if (prodExistente?.id) {
-        prodId = prodExistente.id;
-      } else {
+        const { data: prodExistente } = await queryProd.maybeSingle();
+
+        if (prodExistente?.id) {
+          prodId = prodExistente.id;
+          if (!prodExistente.codigo_barras && codBarrasVal) {
+            await supabase
+              .from('productos')
+              .update({ codigo_barras: codBarrasVal })
+              .eq('id', prodId);
+          }
+        }
+      }
+
+      // Si sigue sin existir, lo crea nuevo asociándole el código de barras
+      if (!prodId) {
         const payloadProd = {
           nombre: nombreProd,
           categoria: rubro,
           marca: marca.trim() || null,
           cantidad: !isNaN(cantNum) && cantNum > 0 ? cantNum : null,
-          unidad_medida: unidad || null
+          unidad_medida: unidad || null,
+          foto_url: urlFotoSubida || null,
+          codigo_barras: codBarrasVal
         };
         const { data: nuevoProd } = await supabase
           .from('productos')
@@ -439,7 +612,6 @@ export default function CargarPage() {
 
       const nuevoPrecioNum = Number(precio);
 
-      // 3. Revisamos si ya existe una oferta activa de este producto en este comercio
       const { data: ofertaActiva } = await supabase
         .from('ofertas')
         .select('id, precio, usuario_id, votos_positivos')
@@ -449,7 +621,6 @@ export default function CargarPage() {
         .maybeSingle();
 
       if (ofertaActiva?.id) {
-        // CASO A: Mismo precio en góndola -> Funciona como confirmación comunitaria
         if (Math.round(Number(ofertaActiva.precio)) === Math.round(nuevoPrecioNum)) {
           await supabase
             .from('ofertas')
@@ -459,7 +630,6 @@ export default function CargarPage() {
             })
             .eq('id', ofertaActiva.id);
 
-          // Si el autor original era otro usuario, le sumamos +2 pts por precio certero
           if (ofertaActiva.usuario_id && ofertaActiva.usuario_id !== userId) {
             const { data: autorOriginal } = await supabase
               .from('perfiles')
@@ -474,13 +644,11 @@ export default function CargarPage() {
             }
           }
         } else {
-          // CASO B: Precio diferente -> La anterior pasa a histórica (el autor conserva sus puntos)
           await supabase
             .from('ofertas')
             .update({ estado: 'historica' })
             .eq('id', ofertaActiva.id);
 
-          // Insertamos la nueva oferta con vos como autor
           const payloadNuevaOferta = {
             producto_id: prodId,
             comercio_id: comId,
@@ -498,7 +666,6 @@ export default function CargarPage() {
           if (errNueva) throw errNueva;
         }
       } else {
-        // CASO C: No existía oferta previa -> Insertamos directo
         const payloadNuevaOferta = {
           producto_id: prodId,
           comercio_id: comId,
@@ -516,7 +683,6 @@ export default function CargarPage() {
         if (errNueva) throw errNueva;
       }
 
-      // 4. Sumamos +10 puntos al usuario actual por su aporte
       if (userId && !esOficialFinal) {
         try {
           const { data: perf } = await supabase
@@ -582,41 +748,137 @@ export default function CargarPage() {
             </Link>
           </div>
 
-          {/* SELECTOR DE MODO: CARGA MANUAL VS ESCANEAR CON IA */}
-          <div className="grid grid-cols-2 gap-1.5 p-1 theme-card-sub rounded-2xl border mb-4">
+          {/* SELECTOR DE MODO: MANUAL vs CÓDIGO BARRAS vs FOTO CON IA */}
+          <div className="grid grid-cols-3 gap-1.5 p-1 theme-card-sub rounded-2xl border mb-4">
             <button
               type="button"
               onClick={() => {
                 setModoIngreso('manual');
+                detenerCamaraBarras();
                 setAvisoIA('');
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${modoIngreso === 'manual'
+              className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                modoIngreso === 'manual'
                   ? 'bg-amber-500 text-slate-950 font-black shadow-md'
                   : 'theme-muted hover:theme-title'
-                }`}
+              }`}
             >
-              <PenTool className="w-3.5 h-3.5" />
-              <span>Carga manual</span>
+              <PenTool className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Manual</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setModoIngreso('barras');
+                setAvisoIA('');
+              }}
+              className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                modoIngreso === 'barras'
+                  ? 'bg-emerald-500 text-slate-950 font-black shadow-md'
+                  : 'theme-muted hover:theme-title'
+              }`}
+            >
+              <Barcode className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Código Barras</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
                 setModoIngreso('ia');
+                detenerCamaraBarras();
                 setAvisoIA('');
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${modoIngreso === 'ia'
+              className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                modoIngreso === 'ia'
                   ? 'bg-gradient-to-r from-sky-400 to-indigo-400 text-slate-950 font-black shadow-md'
                   : 'theme-muted hover:theme-title'
-                }`}
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Escanear con IA</span>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">Foto con IA</span>
             </button>
           </div>
 
+          {/* MODO ESCÁNER DE CÓDIGO DE BARRAS */}
+          {modoIngreso === 'barras' && (
+            <div className="theme-card-sub border border-emerald-500/40 p-3.5 rounded-2xl space-y-3 mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold theme-title flex items-center gap-1.5">
+                  <Barcode className="w-4 h-4 text-emerald-400" />
+                  Escanear producto en góndola
+                </span>
+              </div>
+
+              {camaraBarrasActiva ? (
+                <div className="relative rounded-2xl overflow-hidden border bg-black h-56 flex items-center justify-center">
+                  <video ref={videoBarrasRef} className="w-full h-full object-cover" playsInline muted />
+                  <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-20 border-2 border-emerald-400/80 rounded-xl pointer-events-none flex items-center justify-center">
+                    <span className="text-[10px] text-emerald-300 font-mono bg-black/60 px-2 py-0.5 rounded">
+                      Apuntá al código de barras
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={detenerCamaraBarras}
+                    className="absolute top-2 right-2 px-3 py-1 bg-slate-900/80 text-white rounded-lg text-xs font-bold cursor-pointer"
+                  >
+                    Detener
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={iniciarCamaraBarras}
+                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95"
+                  >
+                    <ScanLine className="w-4 h-4" />
+                    <span>Abrir cámara para escanear</span>
+                  </button>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={codigoBarrasInput}
+                      onChange={(e) => setCodigoBarrasInput(e.target.value)}
+                      placeholder="O escribí el número (ej: 7790895000454)..."
+                      className="flex-1 theme-input border rounded-xl px-3 py-2 text-xs font-mono font-bold"
+                    />
+                    <button
+                      type="button"
+                      disabled={buscandoBarras || !codigoBarrasInput.trim()}
+                      onClick={() => buscarPorCodigoBarras(codigoBarrasInput)}
+                      className="bg-sky-500 hover:bg-sky-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {buscandoBarras ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {avisoBarras && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-bold flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  <span>{avisoBarras}</span>
+                </div>
+              )}
+
+              {fotoPreview && (
+                <div className="p-2 rounded-xl theme-card border flex items-center gap-3">
+                  <img src={fotoPreview} alt="Producto" className="w-12 h-12 rounded-lg object-cover border" />
+                  <div className="min-w-0 text-xs">
+                    <p className="font-bold theme-title truncate">{producto || 'Producto identificado'}</p>
+                    <p className="text-[10px] theme-muted">{marca || 'Ficha cargada'}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* OPCIÓN CATÁLOGO OFICIAL: SOLO VISIBLE PARA TU CORREO */}
+            {/* OPCIÓN CATÁLOGO OFICIAL: EXCLUSIVO ADMIN */}
             {esAdmin && (
               <label
                 className={`flex items-center justify-between gap-3 p-3 rounded-2xl border cursor-pointer transition ${esCatalogo
@@ -640,7 +902,7 @@ export default function CargarPage() {
               </label>
             )}
 
-            {/* SECCIÓN FOTO SEGÚN EL MODO */}
+            {/* FOTO: SOLO VISIBLE EN MODO MANUAL O IA */}
             {modoIngreso === 'ia' ? (
               <div className="theme-card-sub border border-sky-500/30 p-3.5 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
@@ -744,7 +1006,7 @@ export default function CargarPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : modoIngreso === 'manual' ? (
               <div>
                 <label className="block text-xs font-bold theme-subtitle mb-1.5">
                   Foto de comprobante <span className="text-[10px] theme-muted font-normal">(Opcional)</span>
@@ -786,9 +1048,9 @@ export default function CargarPage() {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
-            {/* SUPERMERCADO O COMERCIO (BÚSQUEDA PREDICTIVA LIMPIA) */}
+            {/* SUPERMERCADO O COMERCIO (SOLO NOMBRE) */}
             <div className="relative">
               <label className="block text-xs font-bold theme-subtitle mb-1">Supermercado o comercio</label>
               <div className="relative">
@@ -799,7 +1061,7 @@ export default function CargarPage() {
                   onChange={handleCambioComercio}
                   onFocus={(e) => handleCambioComercio(e)}
                   onBlur={() => setTimeout(() => setMostrarDropdownComercio(false), 200)}
-                  placeholder="La Anónima, Todo, ChangoMás, Verdulería de barrio..."
+                  placeholder="La Anónima, Todo, ChangoMás, Verdulería Don Pepe..."
                   className="w-full theme-input border rounded-xl pl-9 pr-3 py-2.5 text-xs placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-sm font-medium"
                 />
               </div>
@@ -983,7 +1245,7 @@ export default function CargarPage() {
               </Link>
               <button
                 type="submit"
-                disabled={enviando || subiendoFoto || analizandoIA}
+                disabled={enviando || subiendoFoto || analizandoIA || buscandoBarras}
                 className="w-2/3 py-3 rounded-xl bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950 border-t border-white/30 font-black text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 {enviando || subiendoFoto ? (

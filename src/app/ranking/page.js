@@ -95,7 +95,7 @@ export default function RankingPage() {
         actual.confirmaciones += Math.max(0, Number(o.votos_positivos || 0) - 1);
       });
 
-      // 3. Calcular puntos reales en vivo y asignar avatar/apodo de la base de datos
+      // 3. Calcular puntos reales en vivo
       const perfilesCalculados = perfilesData.map((p) => {
         const uId = String(p.id || '').trim().toLowerCase();
         const stats = mapaStats.get(uId) || { aportes: 0, confirmaciones: 0 };
@@ -104,10 +104,7 @@ export default function RankingPage() {
         const confirmacionesReales = stats.confirmaciones;
         const puntosTotales = (aportesReales * 10) + (confirmacionesReales * 2);
 
-        // Usamos la URL del robotito guardado en su perfil; si no tiene, el robot por defecto
         const urlAvatarFinal = p.avatar_url || AVATAR_DEFAULT;
-
-        // Leemos el apodo elegido por el usuario (apodo o username)
         const apodoFinal = p.apodo || p.username || 'vecino';
 
         return {
@@ -142,9 +139,9 @@ export default function RankingPage() {
     }
   };
 
-  const top1 = vecinos[0];
-  const top2 = vecinos[1];
-  const top3 = vecinos[2];
+  const top1 = vecinos[0] || null;
+  const top2 = vecinos[1] || null;
+  const top3 = vecinos[2] || null;
   const restoVecinos = vecinos.slice(3);
 
   return (
@@ -247,7 +244,9 @@ export default function RankingPage() {
               {/* PUESTO 2 (Plata) */}
               <div className="flex flex-col items-center">
                 {top2 ? (
-                  <div className="w-full flex flex-col items-center theme-card-sub border rounded-2xl p-2 sm:p-3 relative shadow-xs">
+                  <div className={`w-full flex flex-col items-center theme-card-sub border rounded-2xl p-2 sm:p-3 relative shadow-xs ${
+                    usuarioActual && usuarioActual.idLimpio === top2.idLimpio ? 'border-sky-500/50 bg-sky-500/5' : ''
+                  }`}>
                     <div className="absolute -top-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-300 text-slate-950 font-black text-[10px] sm:text-xs flex items-center justify-center shadow">
                       2
                     </div>
@@ -259,6 +258,9 @@ export default function RankingPage() {
                     <p className="text-[11px] sm:text-xs font-bold theme-title mt-1.5 truncate max-w-full text-center">
                       @{top2.apodo}
                     </p>
+                    {usuarioActual && usuarioActual.idLimpio === top2.idLimpio && (
+                      <span className="text-[9px] font-black text-sky-400 bg-sky-500/15 px-1 rounded mt-0.5">Sos vos</span>
+                    )}
                     <span className="text-[11px] sm:text-xs font-black theme-subtitle font-mono mt-0.5">
                       {top2.puntos} pts
                     </span>
@@ -275,8 +277,10 @@ export default function RankingPage() {
 
               {/* PUESTO 1 (Oro - Al centro y más alto) */}
               <div className="flex flex-col items-center -mt-5">
-                {top1 && (
-                  <div className="w-full flex flex-col items-center bg-gradient-to-b from-amber-500/20 via-amber-500/5 to-transparent theme-card-sub border-2 border-amber-400 rounded-2xl p-2.5 sm:p-3.5 relative shadow-lg shadow-amber-500/10">
+                {top1 ? (
+                  <div className={`w-full flex flex-col items-center bg-gradient-to-b from-amber-500/20 via-amber-500/5 to-transparent theme-card-sub border-2 border-amber-400 rounded-2xl p-2.5 sm:p-3.5 relative shadow-lg shadow-amber-500/10 ${
+                    usuarioActual && usuarioActual.idLimpio === top1.idLimpio ? 'ring-2 ring-sky-400' : ''
+                  }`}>
                     <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 absolute -top-4 animate-bounce" />
                     <div className="absolute -top-2.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] sm:text-xs flex items-center justify-center shadow">
                       1
@@ -289,6 +293,9 @@ export default function RankingPage() {
                     <p className="text-xs sm:text-sm font-black text-amber-500 mt-1.5 truncate max-w-full text-center">
                       @{top1.apodo}
                     </p>
+                    {usuarioActual && usuarioActual.idLimpio === top1.idLimpio && (
+                      <span className="text-[9px] font-black text-sky-400 bg-sky-500/15 px-1 rounded mt-0.5">¡Sos vos!</span>
+                    )}
                     <span className="text-xs sm:text-sm font-black text-amber-500 font-mono mt-0.5">
                       {top1.puntos} pts
                     </span>
@@ -296,13 +303,19 @@ export default function RankingPage() {
                       {top1.confirmaciones} conf.
                     </span>
                   </div>
+                ) : (
+                  <div className="w-full h-32 rounded-2xl border border-dashed theme-card-sub flex items-center justify-center text-[10px] theme-muted">
+                    Vacío
+                  </div>
                 )}
               </div>
 
               {/* PUESTO 3 (Bronce) */}
               <div className="flex flex-col items-center">
                 {top3 ? (
-                  <div className="w-full flex flex-col items-center theme-card-sub border border-amber-700/30 rounded-2xl p-2 sm:p-3 relative shadow-xs">
+                  <div className={`w-full flex flex-col items-center theme-card-sub border border-amber-700/30 rounded-2xl p-2 sm:p-3 relative shadow-xs ${
+                    usuarioActual && usuarioActual.idLimpio === top3.idLimpio ? 'border-sky-500/50 bg-sky-500/5' : ''
+                  }`}>
                     <div className="absolute -top-3 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-700 text-amber-100 font-black text-[10px] sm:text-xs flex items-center justify-center shadow">
                       3
                     </div>
@@ -314,6 +327,9 @@ export default function RankingPage() {
                     <p className="text-[11px] sm:text-xs font-bold theme-title mt-1.5 truncate max-w-full text-center">
                       @{top3.apodo}
                     </p>
+                    {usuarioActual && usuarioActual.idLimpio === top3.idLimpio && (
+                      <span className="text-[9px] font-black text-sky-400 bg-sky-500/15 px-1 rounded mt-0.5">Sos vos</span>
+                    )}
                     <span className="text-[11px] sm:text-xs font-black text-amber-600 font-mono mt-0.5">
                       {top3.puntos} pts
                     </span>

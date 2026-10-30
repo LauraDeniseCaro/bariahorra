@@ -161,6 +161,22 @@ function limpiarTexto(str = '') {
     .trim();
 }
 
+function resolverCadenaMadre(nombreComercio = '', cadenaColumna = '') {
+  if (cadenaColumna && cadenaColumna.trim().length > 0) {
+    return cadenaColumna.trim();
+  }
+  const n = limpiarTexto(nombreComercio);
+  if (n.includes('anonima')) return 'La Anónima';
+  if (n.includes('todo')) return 'Supermercados Todo';
+  if (n.includes('chango')) return 'ChangoMás';
+  if (n.includes('carrefour')) return 'Carrefour';
+  if (n.includes('maxiconsumo')) return 'Maxiconsumo';
+  if (n.includes('diarco')) return 'Diarco';
+  if (n.includes('coop') || n.includes('obrera')) return 'Cooperativa Obrera';
+
+  return String(nombreComercio).replace(/\s*\([^)]*\)/g, '').trim() || 'Comercio Bariloche';
+}
+
 function generarClaveProducto(nombre = '') {
   let limpio = limpiarTexto(nombre);
   limpio = limpio
@@ -171,7 +187,6 @@ function generarClaveProducto(nombre = '') {
   return limpio || limpiarTexto(nombre);
 }
 
-// PALETA DE COLORES DINÁMICA: Asigna tonos balanceados a cualquier comercio sin importar cuántos sumes
 const PALETA_COMERCIOS = [
   'bg-sky-500/10 text-sky-400 border-sky-500/25',
   'bg-emerald-500/10 text-emerald-400 border-emerald-500/25',
@@ -196,7 +211,6 @@ function obtenerEstiloComercio(cadenaOComercio = '') {
   if (tLower.includes('chango')) return 'badge-com-chango';
   if (tLower.includes('carrefour')) return 'badge-com-carrefour';
 
-  // Hashing determinista para que cada comercio nuevo conserve siempre el mismo color consistente
   let hash = 0;
   for (let i = 0; i < txt.length; i++) {
     hash = txt.charCodeAt(i) + ((hash << 5) - hash);
@@ -376,7 +390,7 @@ function compartirOfertaWhatsApp(item) {
     `🛒 *¡Mirá este precio en Bariloche!*
 
 *${item._producto}* (${item._marca})
-🏪 *${item._cadena || item._comercio}*
+🏪 *${item._cadena}*
 💵 *$${precioFormateado}*${unitario}
 
 Encontrá más precios y compará en 👇
@@ -389,7 +403,7 @@ function compartirListaWhatsApp(simulacion, totalItems) {
   if (!simulacion || !simulacion.productosElegidos) return;
 
   const lineasProds = simulacion.productosElegidos
-    .map((p) => `• *${p.nombre}*: $${p.minPrecio.toLocaleString('es-AR')} (${p.mejorComercio})`)
+    .map((p) => `• *${p.nombre}*: $${p.minPrecio.toLocaleString('es-AR')} (${p.mejorCadena || p.mejorComercio})`)
     .join('\n');
 
   const ganadorTxt = simulacion.ganador
@@ -410,6 +424,7 @@ https://bariahorra.vercel.app`;
 
 export default function HomePage() {
   const [ofertas, setOfertas] = useState([]);
+  const [comerciosRaw, setComerciosRaw] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
@@ -733,6 +748,8 @@ export default function HomePage() {
       const comerciosList = resCom.status === 'fulfilled' && resCom.value.data ? resCom.value.data : [];
       const perfilesList = resPerf.status === 'fulfilled' && resPerf.value.data ? resPerf.value.data : [];
 
+      setComerciosRaw(comerciosList);
+
       const mapProd = new Map();
       productosList.forEach((p) => {
         if (p.id) mapProd.set(String(p.id).toLowerCase(), p);
@@ -787,8 +804,7 @@ export default function HomePage() {
         }
 
         const comercioNombre = comRel?.nombre || 'Comercio Bariloche';
-        // CADENA 100% DINÁMICA: Toma la columna de Supabase o el nombre del comercio directo
-        const comercioCadena = comRel?.cadena?.trim() || comRel?.nombre?.trim() || comercioNombre;
+        const comercioCadena = resolverCadenaMadre(comRel?.nombre, comRel?.cadena);
         const comercioDireccion = comRel?.direccion || null;
         const comercioLat = comRel?.latitud ? parseFloat(comRel.latitud) : null;
         const comercioLng = comRel?.longitud ? parseFloat(comRel.longitud) : null;
@@ -998,11 +1014,11 @@ export default function HomePage() {
     }
   };
 
-  // Cadenas dinámicas descubiertas en tiempo real
+  // CADENAS LIMPIAS: Unifica sucursales para los botones de filtrado
   const cadenasDisponibles = useMemo(() => {
     const setCadenas = new Set();
     ofertas.forEach((o) => {
-      const nombre = o._cadena || o._comercio;
+      const nombre = o._cadena;
       if (nombre && nombre !== 'Comercio Bariloche') {
         setCadenas.add(nombre);
       }
@@ -1010,6 +1026,30 @@ export default function HomePage() {
     return ['Todos', ...Array.from(setCadenas).sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))];
   }, [ofertas]);
 
+  // MAPEO DE SUCURSALES POR CADENA PARA DETECTAR LA MÁS CERCANA AL USUARIO
+  const sucursalesPorCadena = useMemo(() => {
+    const mapa = new Map();
+    comerciosRaw.forEach((c) => {
+      const cad = resolverCadenaMadre(c.nombre, c.cadena);
+      const lat = c.latitud ? parseFloat(c.latitud) : null;
+      const lng = c.longitud ? parseFloat(c.longitud) : null;
+
+      if (!mapa.has(cad)) {
+        mapa.set(cad, []);
+      }
+
+      mapa.get(cad).push({
+        id: c.id,
+        nombre: c.nombre,
+        direccion: c.direccion || null,
+        lat,
+        lng
+      });
+    });
+    return mapa;
+  }, [comerciosRaw]);
+
+  // OFERTAS FILTRADAS CON CÁLCULO DE SUCURSAL ÓPTIMA (FASE 5)
   const ofertasFiltradas = useMemo(() => {
     const catNorm = limpiarTexto(categoriaActiva);
     const cadenaNorm = limpiarTexto(cadenaActiva);
@@ -1023,18 +1063,54 @@ export default function HomePage() {
         const comCadenaNorm = limpiarTexto(o._cadena);
         const coincideCadena = cadenaNorm === 'todos' || comCadenaNorm.includes(cadenaNorm);
 
-        const textoBusq = limpiarTexto(`${o._producto} ${o._marca} ${o._comercio} ${o._rubro}`);
+        const textoBusq = limpiarTexto(`${o._producto} ${o._marca} ${o._cadena} ${o._comercio} ${o._rubro}`);
         const coincideBusq = busqNorm === '' || textoBusq.includes(busqNorm);
 
         return coincideCat && coincideCadena && coincideBusq;
       })
       .map((o) => {
         let distanciaKm = null;
-        if (userCoords && o._comercioLat && o._comercioLng) {
-          distanciaKm = calcularDistanciaKm(userCoords.lat, userCoords.lng, o._comercioLat, o._comercioLng);
+        let sucursalOptima = {
+          nombre: o._comercio,
+          direccion: o._comercioDireccion,
+          lat: o._comercioLat,
+          lng: o._comercioLng
+        };
+
+        // Si el usuario activó GPS, busca entre TODAS las sucursales de esta cadena cuál le queda más cerca
+        if (userCoords) {
+          const sucursalesCadena = sucursalesPorCadena.get(o._cadena) || [];
+          let menorDist = Infinity;
+
+          sucursalesCadena.forEach((suc) => {
+            if (suc.lat && suc.lng) {
+              const d = calcularDistanciaKm(userCoords.lat, userCoords.lng, suc.lat, suc.lng);
+              if (d != null && d < menorDist) {
+                menorDist = d;
+                sucursalOptima = {
+                  nombre: suc.nombre,
+                  direccion: suc.direccion,
+                  lat: suc.lat,
+                  lng: suc.lng
+                };
+              }
+            }
+          });
+
+          // Fallback a la coordenada original de la oferta si la lista de la cadena no tenía GPS
+          if (menorDist !== Infinity) {
+            distanciaKm = menorDist;
+          } else if (o._comercioLat && o._comercioLng) {
+            distanciaKm = calcularDistanciaKm(userCoords.lat, userCoords.lng, o._comercioLat, o._comercioLng);
+          }
         }
+
         return {
           ...o,
+          _comercio: sucursalOptima.nombre || o._comercio,
+          _comercioDireccion: sucursalOptima.direccion || o._comercioDireccion,
+          _comercioLat: sucursalOptima.lat ?? o._comercioLat,
+          _comercioLng: sucursalOptima.lng ?? o._comercioLng,
           _distanciaKm: distanciaKm,
           _distanciaTxt: formatearDistancia(distanciaKm)
         };
@@ -1055,8 +1131,9 @@ export default function HomePage() {
         }
         return String(b.id || '').localeCompare(String(a.id || ''));
       });
-  }, [ofertas, categoriaActiva, cadenaActiva, busqueda, orden, userCoords]);
+  }, [ofertas, categoriaActiva, cadenaActiva, busqueda, orden, userCoords, sucursalesPorCadena]);
 
+  // DESDUPLICACIÓN EN GÓNDOLA: Una sola tarjeta por Cadena (mostrando la sucursal más cercana)
   const ofertasGondolaDesduplicadas = useMemo(() => {
     const mapa = new Map();
     ofertasFiltradas.forEach((o) => {
@@ -1086,7 +1163,7 @@ export default function HomePage() {
       .slice(0, 6);
   }, [ofertasGondolaDesduplicadas]);
 
-  // Ganadores de mejor precio calculados comparando el mismo gramaje/tamaño
+  // Ganadores de mejor precio comparando el mismo gramaje y producto
   const mejoresPreciosIds = useMemo(() => {
     const grupos = {};
     ofertas.forEach((o) => {
@@ -1107,7 +1184,7 @@ export default function HomePage() {
     return ganadores;
   }, [ofertas]);
 
-  // Comparador cruzado con inyección de datos de presentación técnica
+  // COMPARADOR CRUZADO: Agrupa por Cadena Madre (compite La Anónima vs Todo vs Carrefour)
   const productosComparados = useMemo(() => {
     const mapa = new Map();
 
@@ -1197,7 +1274,7 @@ export default function HomePage() {
     const mapaComercios = {};
     ofertas.forEach((o) => {
       if (!changuito.includes(o._claveProducto)) return;
-      const com = o._cadena || o._comercio;
+      const com = o._cadena;
       if (!mapaComercios[com]) {
         mapaComercios[com] = {
           comercio: com,
@@ -1368,7 +1445,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* FILTRO DE SUPERMERCADOS DINÁMICO */}
+      {/* FILTRO DE SUPERMERCADOS LIMPIO (CADENAS MADRE) */}
       <div
         ref={cadenasRef}
         onMouseDown={(e) => iniciarArrastre(e, cadenasRef)}

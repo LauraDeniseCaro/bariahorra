@@ -601,11 +601,11 @@ export default function AdminPage() {
     return ofertas.filter((o) => o.estado === 'en_revision' || Boolean(o.motivo_revision) || Boolean(o.precio_propuesto));
   }, [ofertas]);
 
-  const totalPendientesRevision = ofertasPendientes.length + productosNuevosComunidad.length;
-
   const comerciosSinUbicacion = useMemo(() => {
     return comercios.filter((c) => !c.direccion || !c.latitud);
   }, [comercios]);
+
+  const totalPendientesRevision = ofertasPendientes.length + productosNuevosComunidad.length + (comerciosSinUbicacion.length > 0 ? 1 : 0);
 
   const metricasFotos = useMemo(() => {
     const total = productos.length;
@@ -803,7 +803,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* PESTAÑAS */}
+        {/* PESTAÑAS DE NAVEGACIÓN */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex gap-2 flex-wrap">
             <button
@@ -1194,7 +1194,7 @@ export default function AdminPage() {
           ) : vistaActual === 'pendientes' ? (
             <div className="space-y-4">
 
-              {/* AVISO TEMPRANO SI HAY CATÁLOGOS VENCIDOS O EN ALERTA */}
+              {/* ALERTA 1: CATÁLOGOS VENCIDOS O EN ALERTA */}
               {monitorCatalogos.alertasTotales > 0 && (
                 <div
                   onClick={() => setVistaActual('catalogos')}
@@ -1217,6 +1217,57 @@ export default function AdminPage() {
                     <span>Ver vigencias</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </span>
+                </div>
+              )}
+
+              {/* ALERTA 2: COMERCIOS NUEVOS SIN DIRECCIÓN NI GPS (FASE 5) */}
+              {comerciosSinUbicacion.length > 0 && (
+                <div className="p-4 rounded-3xl border border-amber-500/40 bg-amber-500/10 space-y-2.5 shadow-sm">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-black text-amber-500">
+                          {comerciosSinUbicacion.length} {comerciosSinUbicacion.length === 1 ? 'comercio sin dirección ni GPS' : 'comercios sin dirección ni GPS'}
+                        </h3>
+                        <p className="text-[10px] theme-muted">
+                          Los vecinos subieron precios pero falta la ubicación para calcular distancias.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setVistaActual('comercios')}
+                      className="text-xs bg-amber-500 text-slate-950 font-black px-3.5 py-1.5 rounded-xl transition cursor-pointer hover:bg-amber-400 active:scale-95 shadow-xs"
+                    >
+                      Asignar ubicaciones
+                    </button>
+                  </div>
+
+                  {/* Acceso rápido para buscar en Google Maps */}
+                  <div className="flex gap-2 flex-wrap pt-1 border-t border-amber-500/20">
+                    {comerciosSinUbicacion.slice(0, 4).map((c) => (
+                      <a
+                        key={c.id}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.nombre + ' Bariloche')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-lg theme-card border border-amber-500/30 text-amber-400 hover:text-white hover:bg-amber-500/20 flex items-center gap-1 transition"
+                        title="Abrir búsqueda en Google Maps"
+                      >
+                        <span>{c.nombre}</span>
+                        <span className="text-[9px] opacity-70">↗</span>
+                      </a>
+                    ))}
+                    {comerciosSinUbicacion.length > 4 && (
+                      <span className="text-[10px] theme-muted self-center">
+                        +{comerciosSinUbicacion.length - 4} más...
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1355,7 +1406,7 @@ export default function AdminPage() {
               )}
 
               {/* LISTA DE OFERTAS PENDIENTES */}
-              {ofertasFiltradas.length === 0 && productosNuevosComunidad.length === 0 ? (
+              {ofertasFiltradas.length === 0 && productosNuevosComunidad.length === 0 && comerciosSinUbicacion.length === 0 ? (
                 <div className="text-center py-16 theme-muted text-xs theme-card rounded-3xl border space-y-2">
                   <p>No hay alertas ni productos pendientes de revisión.</p>
                   <p className="text-emerald-500 font-bold">¡Excelente! El piloto automático tiene todo bajo control.</p>

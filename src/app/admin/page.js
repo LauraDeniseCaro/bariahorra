@@ -485,101 +485,112 @@ export default function AdminPage() {
     };
   };
 
-  {/* Grilla dinámica de sucursales */ }
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-    {monitorCatalogos.cadenas.map((cat) => {
-      const esUrgente = cat.estado === 'urgente';
-      const esVencido = cat.estado === 'vencido';
-      const esVigente = cat.estado === 'vigente';
+  // MONITOR DINÁMICO DE VENCIMIENTOS POR SUCURSAL Y COMERCIO
+  const monitorCatalogos = useMemo(() => {
+    const mapa = new Map();
 
-      const badgeColor = esVigente
-        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
-        : esUrgente
-          ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-          : esVencido
-            ? 'bg-rose-500/10 text-rose-400 border-rose-500/25'
-            : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    comercios.forEach((c) => {
+      mapa.set(c.id, {
+        id: c.id,
+        cadena: c.nombre?.trim() || 'Comercio',
+        direccion: c.direccion || null,
+        ofertasCount: 0,
+        vencimientoMasLejano: null,
+        vencimientoMasCercano: null
+      });
+    });
 
-      const puntoColor = esVigente
-        ? 'bg-emerald-500'
-        : esUrgente
-          ? 'bg-amber-400 animate-ping'
-          : esVencido
-            ? 'bg-rose-500'
-            : 'bg-slate-500';
+    const ofertasCat = ofertas.filter((o) => Boolean(o.es_catalogo) || o.estado === 'catalogo');
 
-      const fechaTxt = cat.fechaVencimiento
-        ? cat.fechaVencimiento.toLocaleDateString('es-AR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        })
-        : 'Sin fecha registrada';
+    ofertasCat.forEach((o) => {
+      const comId = o.comercios?.id || o.comercio_id;
+      let entry = mapa.get(comId);
 
-      return (
-        <div
-          key={cat.id || cat.cadena}
-          className={`theme-card border-2 rounded-3xl p-4 flex flex-col justify-between space-y-3.5 shadow-md transition ${esUrgente
-              ? 'border-amber-500/50 shadow-amber-500/10'
-              : esVencido
-                ? 'border-rose-500/30'
-                : 'border-[var(--border-card)]'
-            }`}
-        >
-          <div className="space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-black theme-title truncate">{cat.cadena}</h4>
-                {cat.direccion ? (
-                  <p className="text-[11px] theme-muted flex items-center gap-1 mt-0.5 truncate">
-                    <MapPin className="w-2.5 h-2.5 text-sky-400 shrink-0" />
-                    <span className="truncate">{cat.direccion}</span>
-                  </p>
-                ) : (
-                  <p className="text-[10px] theme-muted font-mono mt-0.5">Sucursal Bariloche</p>
-                )}
-                <p className="text-[11px] theme-subtitle font-mono mt-1 font-bold">
-                  {cat.ofertasCount} {cat.ofertasCount === 1 ? 'oferta oficial' : 'ofertas oficiales'}
-                </p>
-              </div>
+      if (!entry) {
+        const nombreFallback = o.comercios?.nombre?.trim() || 'Comercio';
+        entry = {
+          id: comId || nombreFallback,
+          cadena: nombreFallback,
+          direccion: o.comercios?.direccion || null,
+          ofertasCount: 0,
+          vencimientoMasLejano: null,
+          vencimientoMasCercano: null
+        };
+        mapa.set(entry.id, entry);
+      }
 
-              <div className={`px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1.5 shrink-0 ${badgeColor}`}>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${puntoColor}`} />
-                <span>{cat.textoEstado}</span>
-              </div>
-            </div>
+      entry.ofertasCount += 1;
 
-            <div className="theme-card-sub rounded-xl p-2.5 border text-xs space-y-1">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="theme-muted">Vigencia hasta:</span>
-                <strong className="theme-title font-mono">{fechaTxt}</strong>
-              </div>
+      if (o.vencimiento) {
+        const fVenc = new Date(o.vencimiento).getTime();
+        if (!isNaN(fVenc)) {
+          if (!entry.vencimientoMasLejano || fVenc > entry.vencimientoMasLejano) {
+            entry.vencimientoMasLejano = fVenc;
+          }
+          if (!entry.vencimientoMasCercano || fVenc < entry.vencimientoMasCercano) {
+            entry.vencimientoMasCercano = fVenc;
+          }
+        }
+      }
+    });
 
-              {cat.diasRestantes != null && (
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="theme-muted">Balance:</span>
-                  <span className={`font-black font-mono ${esVigente ? 'text-emerald-500' : esUrgente ? 'text-amber-400' : 'text-rose-400'
-                    }`}>
-                    {cat.diasRestantes > 0 ? `Faltan ${cat.diasRestantes} días` : `Expiró hace ${Math.abs(cat.diasRestantes)} días`}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+    const ahora = Date.now();
+    const lista = Array.from(mapa.values()).map((c) => {
+      const fVenc = c.vencimientoMasLejano;
+      let estado = 'sin_datos';
+      let diasRestantes = null;
+      let diffHoras = null;
+      let textoEstado = 'Sin folleto cargado';
 
-          <div className="pt-2 border-t border-[var(--border-card)] flex items-center justify-between gap-2">
-            <Link
-              href={`/cargar?catalogo=1`}
-              className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs py-2 px-3 rounded-xl transition text-center shadow cursor-pointer active:scale-95"
-            >
-              {esVencido || esUrgente ? 'Actualizar Folleto' : 'Cargar más precios'}
-            </Link>
-          </div>
-        </div>
-      );
-    })}
-  </div>
-  
+      if (fVenc) {
+        diffHoras = (fVenc - ahora) / (1000 * 60 * 60);
+        diasRestantes = Math.ceil(diffHoras / 24);
+
+        if (diffHoras < 0) {
+          estado = 'vencido';
+          const diasPasados = Math.abs(Math.floor(diffHoras / 24));
+          textoEstado = diasPasados === 0 ? 'Expiró hoy' : `Expiró hace ${diasPasados}d`;
+        } else if (diffHoras <= 48) {
+          estado = 'urgente';
+          textoEstado = diffHoras <= 24 ? 'Vence hoy' : 'Vence en < 48 hs';
+        } else {
+          estado = 'vigente';
+          textoEstado = `Vigente (${diasRestantes}d)`;
+        }
+      }
+
+      return {
+        ...c,
+        fechaVencimiento: fVenc ? new Date(fVenc) : null,
+        estado,
+        diasRestantes,
+        diffHoras,
+        textoEstado
+      };
+    });
+
+    lista.sort((a, b) => {
+      const prioridad = { urgente: 1, vencido: 2, vigente: 3, sin_datos: 4 };
+      if (prioridad[a.estado] !== prioridad[b.estado]) {
+        return (prioridad[a.estado] || 5) - (prioridad[b.estado] || 5);
+      }
+      return b.ofertasCount - a.ofertasCount;
+    });
+
+    const vencidosCount = lista.filter((c) => c.estado === 'vencido' && c.ofertasCount > 0).length;
+    const urgentesCount = lista.filter((c) => c.estado === 'urgente').length;
+    const vigentesCount = lista.filter((c) => c.estado === 'vigente').length;
+
+    return {
+      cadenas: lista,
+      totalCatalogos: lista.length,
+      vencidosCount,
+      urgentesCount,
+      vigentesCount,
+      alertasTotales: vencidosCount + urgentesCount
+    };
+  }, [ofertas, comercios]);
+
   const productosNuevosComunidad = useMemo(() => {
     return productos.filter((p) => {
       return !prodsValidados.includes(p.id) && !p.nombre.toLowerCase().includes('catalogo') && p.estado === 'por_revisar';
@@ -792,21 +803,23 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* PESTAÑAS DE NAVEGACIÓN */}
+        {/* PESTAÑAS */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => { setVistaActual('pendientes'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${vistaActual === 'pendientes'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
+                vistaActual === 'pendientes'
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
                   : 'theme-btn-sec border'
-                }`}
+              }`}
             >
               <BellRing className="w-4 h-4" />
               <span>Por Revisar</span>
               {totalPendientesRevision > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${vistaActual === 'pendientes' ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
-                  }`}>
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                  vistaActual === 'pendientes' ? 'bg-slate-950 text-amber-400' : 'bg-amber-500 text-slate-950'
+                }`}>
                   {totalPendientesRevision}
                 </span>
               )}
@@ -815,19 +828,21 @@ export default function AdminPage() {
             {/* PESTAÑA: MONITOR DE VIGENCIA DE CATÁLOGOS */}
             <button
               onClick={() => { setVistaActual('catalogos'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${vistaActual === 'catalogos'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
+                vistaActual === 'catalogos'
                   ? 'bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/20'
                   : 'theme-btn-sec border'
-                }`}
+              }`}
             >
               <CalendarClock className="w-4 h-4" />
               <span>Vigencia Catálogos</span>
               {monitorCatalogos.alertasTotales > 0 && (
                 <span
-                  className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${monitorCatalogos.urgentesCount > 0
+                  className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                    monitorCatalogos.urgentesCount > 0
                       ? 'bg-amber-400 text-slate-950 animate-pulse'
                       : 'bg-rose-500 text-white'
-                    }`}
+                  }`}
                   title={`${monitorCatalogos.alertasTotales} catálogos vencidos o por vencer`}
                 >
                   {monitorCatalogos.alertasTotales}
@@ -837,10 +852,11 @@ export default function AdminPage() {
 
             <button
               onClick={() => { setVistaActual('ofertas'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${vistaActual === 'ofertas'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+                vistaActual === 'ofertas'
                   ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
                   : 'theme-btn-sec border'
-                }`}
+              }`}
             >
               <Tag className="w-4 h-4" />
               <span>Todas ({ofertas.length})</span>
@@ -848,10 +864,11 @@ export default function AdminPage() {
 
             <button
               onClick={() => { setVistaActual('comercios'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${vistaActual === 'comercios'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
+                vistaActual === 'comercios'
                   ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-md shadow-sky-500/20'
                   : 'theme-btn-sec border'
-                }`}
+              }`}
             >
               <Store className="w-4 h-4" />
               <span>Comercios ({comercios.length})</span>
@@ -864,10 +881,11 @@ export default function AdminPage() {
 
             <button
               onClick={() => { setVistaActual('productos'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${vistaActual === 'productos'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+                vistaActual === 'productos'
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
                   : 'theme-btn-sec border'
-                }`}
+              }`}
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Productos ({productos.length})</span>
@@ -875,10 +893,11 @@ export default function AdminPage() {
 
             <button
               onClick={() => { setVistaActual('fotos'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${vistaActual === 'fotos'
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+                vistaActual === 'fotos'
                   ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
                   : 'theme-btn-sec border text-cyan-400'
-                }`}
+              }`}
             >
               <Sparkles className="w-4 h-4" />
               <span>Fotos Open Food Facts</span>
@@ -944,9 +963,8 @@ export default function AdminPage() {
           {cargandoDatos ? (
             <div className="text-center py-16 theme-muted text-xs">Cargando registros...</div>
           ) : vistaActual === 'catalogos' ? (
-            /* --- PESTAÑA: MONITOR DE VENCIMIENTO DE CATÁLOGOS --- */
+            /* --- PESTAÑA: MONITOR DINÁMICO DE VIGENCIA DE CATÁLOGOS --- */
             <div className="space-y-4">
-              {/* Tarjetas resumen de semáforo */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="theme-card border rounded-2xl p-4 shadow-sm">
                   <div className="flex items-center justify-between">
@@ -988,7 +1006,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Grilla de cadenas de supermercados */}
+              {/* GRILLA DINÁMICA DE SUCURSALES Y COMERCIOS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                 {monitorCatalogos.cadenas.map((cat) => {
                   const esUrgente = cat.estado === 'urgente';
@@ -998,42 +1016,51 @@ export default function AdminPage() {
                   const badgeColor = esVigente
                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'
                     : esUrgente
-                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                      : esVencido
-                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/25'
-                        : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                    : esVencido
+                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+                    : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
 
                   const puntoColor = esVigente
                     ? 'bg-emerald-500'
                     : esUrgente
-                      ? 'bg-amber-400 animate-ping'
-                      : esVencido
-                        ? 'bg-rose-500'
-                        : 'bg-slate-500';
+                    ? 'bg-amber-400 animate-ping'
+                    : esVencido
+                    ? 'bg-rose-500'
+                    : 'bg-slate-500';
 
                   const fechaTxt = cat.fechaVencimiento
                     ? cat.fechaVencimiento.toLocaleDateString('es-AR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    })
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      })
                     : 'Sin fecha registrada';
 
                   return (
                     <div
-                      key={cat.cadena}
-                      className={`theme-card border-2 rounded-3xl p-4 flex flex-col justify-between space-y-3.5 shadow-md transition ${esUrgente
+                      key={cat.id || cat.cadena}
+                      className={`theme-card border-2 rounded-3xl p-4 flex flex-col justify-between space-y-3.5 shadow-md transition ${
+                        esUrgente
                           ? 'border-amber-500/50 shadow-amber-500/10'
                           : esVencido
-                            ? 'border-rose-500/30'
-                            : 'border-[var(--border-card)]'
-                        }`}
+                          ? 'border-rose-500/30'
+                          : 'border-[var(--border-card)]'
+                      }`}
                     >
                       <div className="space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h4 className="text-sm font-black theme-title">{cat.cadena}</h4>
-                            <p className="text-[11px] theme-muted mt-0.5 font-mono">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-black theme-title truncate">{cat.cadena}</h4>
+                            {cat.direccion ? (
+                              <p className="text-[11px] theme-muted flex items-center gap-1 mt-0.5 truncate">
+                                <MapPin className="w-2.5 h-2.5 text-sky-400 shrink-0" />
+                                <span className="truncate">{cat.direccion}</span>
+                              </p>
+                            ) : (
+                              <p className="text-[10px] theme-muted font-mono mt-0.5">Sucursal Bariloche</p>
+                            )}
+                            <p className="text-[11px] theme-subtitle font-mono mt-1 font-bold">
                               {cat.ofertasCount} {cat.ofertasCount === 1 ? 'oferta oficial' : 'ofertas oficiales'}
                             </p>
                           </div>
@@ -1053,8 +1080,9 @@ export default function AdminPage() {
                           {cat.diasRestantes != null && (
                             <div className="flex items-center justify-between text-[11px]">
                               <span className="theme-muted">Balance:</span>
-                              <span className={`font-black font-mono ${esVigente ? 'text-emerald-500' : esUrgente ? 'text-amber-400' : 'text-rose-400'
-                                }`}>
+                              <span className={`font-black font-mono ${
+                                esVigente ? 'text-emerald-500' : esUrgente ? 'text-amber-400' : 'text-rose-400'
+                              }`}>
                                 {cat.diasRestantes > 0 ? `Faltan ${cat.diasRestantes} días` : `Expiró hace ${Math.abs(cat.diasRestantes)} días`}
                               </span>
                             </div>
@@ -1124,8 +1152,8 @@ export default function AdminPage() {
                       {sincronizandoFotos
                         ? 'Buscando 30 imágenes en Open Food Facts...'
                         : metricasFotos.sin === 0
-                          ? '¡Catálogo 100% completo con fotos!'
-                          : `Autocompletar siguientes 30 fotos (Quedan ${metricasFotos.sin})`}
+                        ? '¡Catálogo 100% completo con fotos!'
+                        : `Autocompletar siguientes 30 fotos (Quedan ${metricasFotos.sin})`}
                     </span>
                   </button>
 
@@ -1140,10 +1168,11 @@ export default function AdminPage() {
                 </div>
 
                 {resultadoFotos && (
-                  <div className={`p-4 rounded-2xl border text-xs space-y-2 mt-4 animate-in fade-in duration-200 ${resultadoFotos.exito
+                  <div className={`p-4 rounded-2xl border text-xs space-y-2 mt-4 animate-in fade-in duration-200 ${
+                    resultadoFotos.exito
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
                       : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
-                    }`}>
+                  }`}>
                     <p className="font-bold flex items-center gap-2 text-sm">
                       {resultadoFotos.exito ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
                       <span>{resultadoFotos.mensaje || resultadoFotos.error}</span>

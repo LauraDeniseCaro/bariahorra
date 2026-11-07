@@ -98,7 +98,6 @@ export default function CargarPage() {
   const [usuario, setUsuario] = useState(null);
   const [esCatalogo, setEsCatalogo] = useState(false);
 
-  // Modo: 'manual', 'barras' o 'ia'
   const [modoIngreso, setModoIngreso] = useState('manual');
   const [tipoEscaneoIA, setTipoEscaneoIA] = useState('gondola');
 
@@ -119,6 +118,7 @@ export default function CargarPage() {
   const [buscandoBarras, setBuscandoBarras] = useState(false);
   const [avisoBarras, setAvisoBarras] = useState('');
   const [camaraBarrasActiva, setCamaraBarrasActiva] = useState(false);
+  const [iniciandoCamara, setIniciandoCamara] = useState(false);
   const [fotoUrlExterna, setFotoUrlExterna] = useState(null);
 
   const [sugerenciasProducto, setSugerenciasProducto] = useState([]);
@@ -141,9 +141,7 @@ export default function CargarPage() {
   const abortControllerRef = useRef(null);
   const inputCamaraRef = useRef(null);
   const inputGaleriaRef = useRef(null);
-  const videoBarrasRef = useRef(null);
-  const videoStreamRef = useRef(null);
-  const animFrameBarrasRef = useRef(null);
+  const html5QrCodeRef = useRef(null);
 
   const esAdmin = Boolean(
     usuario?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase().trim() === usuario.email.toLowerCase().trim())
@@ -158,61 +156,6 @@ export default function CargarPage() {
       detenerCamaraBarras();
     };
   }, []);
-
-  // SINCRONIZACIÓN ROBUSTA DEL STREAM CON LA ETIQUETA VIDEO
-  useEffect(() => {
-    if (!camaraBarrasActiva || !videoStreamRef.current || !videoBarrasRef.current) return;
-
-    const videoEl = videoBarrasRef.current;
-    videoEl.srcObject = videoStreamRef.current;
-
-    const iniciarReproduccion = async () => {
-      try {
-        await videoEl.play();
-      } catch (err) {
-        console.warn('Esperando interacción para iniciar video:', err);
-      }
-    };
-
-    iniciarReproduccion();
-
-    let activo = true;
-
-    if ('BarcodeDetector' in window) {
-      const detector = new window.BarcodeDetector({
-        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128']
-      });
-
-      const escanearCuadro = async () => {
-        if (!activo) return;
-        if (videoEl && videoEl.readyState >= 2) {
-          try {
-            const codigos = await detector.detect(videoEl);
-            if (codigos && codigos.length > 0) {
-              const valorDetectado = codigos[0].rawValue;
-              if (navigator.vibrate) navigator.vibrate(100);
-              detenerCamaraBarras();
-              buscarPorCodigoBarras(valorDetectado);
-              return;
-            }
-          } catch (err) { }
-        }
-        animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
-      };
-
-      animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
-    } else {
-      setAvisoBarras('Lector automático no disponible en este navegador. Podés ingresar los números abajo.');
-    }
-
-    return () => {
-      activo = false;
-      if (animFrameBarrasRef.current) {
-        cancelAnimationFrame(animFrameBarrasRef.current);
-        animFrameBarrasRef.current = null;
-      }
-    };
-  }, [camaraBarrasActiva]);
 
   const comprobarUsuarioYDatos = async () => {
     try {
@@ -360,31 +303,77 @@ export default function CargarPage() {
     setMostrarDropdownComercio(false);
   };
 
-  // Escáner de Código de Barras
-  const detenerCamaraBarras = () => {
-    if (animFrameBarrasRef.current) {
-      cancelAnimationFrame(animFrameBarrasRef.current);
-      animFrameBarrasRef.current = null;
-    }
-    if (videoStreamRef.current) {
-      videoStreamRef.current.getTracks().forEach((track) => track.stop());
-      videoStreamRef.current = null;
+  // Cargar biblioteca html5-qrcode dinámicamente si no existe
+  const asegurarLibreriaBarras = () => {
+    return new Promise((resolve, reject) => {
+      if (typeof window !== 'undefined' && window.Html5Qrcode) {
+        return resolve(window.Html5Qrcode);
+      }
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      script.async = true;
+      script.onload = () => resolve(window.Html5Qrcode);
+      script.onerror = () => reject(new Error('No se pudo cargar el motor del escáner'));
+      document.body.appendChild(script);
+    });
+  };
+
+  const detenerCamaraBarras = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current.clear();
+      } catch (err) { }
+      html5QrCodeRef.current = null;
     }
     setCamaraBarrasActiva(false);
+    setIniciandoCamara(false);
   };
 
   const iniciarCamaraBarras = async () => {
     setAvisoBarras('');
+    setIniciandoCamara(true);
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
-      videoStreamRef.current = stream;
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        throw new Error('La cámara requiere conexión HTTPS segura.');
+      }
+
+      await asegurarLibreriaBarras();
       setCamaraBarrasActiva(true);
+
+      // Esperar brevemente a que el contenedor #lector-codigo-barras exista en el DOM
+      setTimeout(async () => {
+        try {
+          const qrCode = new window.Html5Qrcode('lector-codigo-barras');
+          html5QrCodeRef.current = qrCode;
+
+          await qrCode.start(
+            { facingMode: 'environment' },
+            {
+              fps: 15,
+              qrbox: { width: 260, height: 130 },
+              aspectRatio: 1.777778
+            },
+            (codigoTexto) => {
+              if (navigator.vibrate) navigator.vibrate(100);
+              detenerCamaraBarras();
+              buscarPorCodigoBarras(codigoTexto);
+            },
+            () => { } // Búsqueda continua en cada frame
+          );
+          setIniciandoCamara(false);
+        } catch (errScanner) {
+          console.error('Error al arrancar lector:', errScanner);
+          setAvisoBarras('No se pudo abrir la cámara. Verificá permisos o escribí el código abajo.');
+          detenerCamaraBarras();
+        }
+      }, 150);
     } catch (err) {
-      console.error('Error accediendo a cámara:', err);
-      setAvisoBarras('No se pudo acceder a la cámara trasera. Podés escribir el código numérico.');
+      console.error('Error de inicialización:', err);
+      setAvisoBarras(err.message || 'No se pudo acceder a la cámara.');
       setCamaraBarrasActiva(false);
+      setIniciandoCamara(false);
     }
   };
 
@@ -452,7 +441,7 @@ export default function CargarPage() {
 
         setAvisoBarras(`¡Listo! Cargamos "${nombreDetectado}" (${marcaDetectada || 'Genérica'}).`);
       } else {
-        setAvisoBarras('No encontramos datos para este código. Completá el nombre y precio a mano.');
+        setAvisoBarras('No encontramos datos para este código. Podés ingresar nombre y precio a mano.');
       }
     } catch (err) {
       setAvisoBarras('No se pudo consultar el código. Completá los campos a mano.');
@@ -869,23 +858,18 @@ export default function CargarPage() {
               </div>
 
               {camaraBarrasActiva ? (
-                <div className="relative rounded-2xl overflow-hidden border bg-black h-56 flex items-center justify-center">
-                  <video
-                    ref={videoBarrasRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-20 border-2 border-emerald-400/80 rounded-xl pointer-events-none flex items-center justify-center">
-                    <span className="text-[10px] text-emerald-300 font-mono bg-black/60 px-2 py-0.5 rounded">
-                      Apuntá al código de barras
-                    </span>
-                  </div>
+                <div className="relative rounded-2xl overflow-hidden border bg-black min-h-[240px] flex items-center justify-center">
+                  {iniciandoCamara && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 text-white gap-2 text-xs">
+                      <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+                      <span>Iniciando cámara trasera...</span>
+                    </div>
+                  )}
+                  <div id="lector-codigo-barras" className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover" />
                   <button
                     type="button"
                     onClick={detenerCamaraBarras}
-                    className="absolute top-2 right-2 px-3 py-1 bg-slate-900/80 text-white rounded-lg text-xs font-bold cursor-pointer"
+                    className="absolute top-2 right-2 px-3 py-1 bg-slate-900/80 hover:bg-slate-900 text-white rounded-lg text-xs font-bold cursor-pointer z-30 border border-slate-700"
                   >
                     Detener
                   </button>

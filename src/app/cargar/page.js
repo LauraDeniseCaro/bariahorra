@@ -27,7 +27,6 @@ import {
   Tag,
   PenTool,
   Barcode,
-  ScanLine,
   Fish,
   Snowflake,
   Leaf,
@@ -113,12 +112,11 @@ export default function CargarPage() {
   const [comercio, setComercio] = useState('');
   const [precio, setPrecio] = useState('');
 
-  // Escáner de Barras
+  // Escáner de Barras por Foto
   const [codigoBarrasInput, setCodigoBarrasInput] = useState('');
+  const [leyendoFotoBarras, setLeyendoFotoBarras] = useState(false);
   const [buscandoBarras, setBuscandoBarras] = useState(false);
   const [avisoBarras, setAvisoBarras] = useState('');
-  const [camaraBarrasActiva, setCamaraBarrasActiva] = useState(false);
-  const [iniciandoCamara, setIniciandoCamara] = useState(false);
   const [fotoUrlExterna, setFotoUrlExterna] = useState(null);
 
   const [sugerenciasProducto, setSugerenciasProducto] = useState([]);
@@ -141,7 +139,8 @@ export default function CargarPage() {
   const abortControllerRef = useRef(null);
   const inputCamaraRef = useRef(null);
   const inputGaleriaRef = useRef(null);
-  const html5QrCodeRef = useRef(null);
+  const inputCamaraBarrasRef = useRef(null);
+  const inputGaleriaBarrasRef = useRef(null);
 
   const esAdmin = Boolean(
     usuario?.email && ADMIN_EMAILS.some((adm) => adm.toLowerCase().trim() === usuario.email.toLowerCase().trim())
@@ -152,9 +151,6 @@ export default function CargarPage() {
     if (typeof window !== 'undefined' && window.location.search.includes('catalogo=1')) {
       setEsCatalogo(true);
     }
-    return () => {
-      detenerCamaraBarras();
-    };
   }, []);
 
   const comprobarUsuarioYDatos = async () => {
@@ -303,7 +299,6 @@ export default function CargarPage() {
     setMostrarDropdownComercio(false);
   };
 
-  // Cargar biblioteca html5-qrcode dinámicamente si no existe
   const asegurarLibreriaBarras = () => {
     return new Promise((resolve, reject) => {
       if (typeof window !== 'undefined' && window.Html5Qrcode) {
@@ -313,67 +308,63 @@ export default function CargarPage() {
       script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
       script.async = true;
       script.onload = () => resolve(window.Html5Qrcode);
-      script.onerror = () => reject(new Error('No se pudo cargar el motor del escáner'));
+      script.onerror = () => reject(new Error('No se pudo cargar el motor lector'));
       document.body.appendChild(script);
     });
   };
 
-  const detenerCamaraBarras = async () => {
-    if (html5QrCodeRef.current) {
-      try {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current.clear();
-      } catch (err) { }
-      html5QrCodeRef.current = null;
-    }
-    setCamaraBarrasActiva(false);
-    setIniciandoCamara(false);
-  };
+  // PROCESAR FOTO DE CÓDIGO DE BARRAS DIRECTO (SIN VIDEO EN VIVO)
+  const procesarFotoCodigoBarras = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const iniciarCamaraBarras = async () => {
+    setLeyendoFotoBarras(true);
     setAvisoBarras('');
-    setIniciandoCamara(true);
 
     try {
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        throw new Error('La cámara requiere conexión HTTPS segura.');
+      let codigoDetectado = null;
+
+      // 1. Detección nativa con BarcodeDetector si está disponible
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new window.BarcodeDetector({
+            formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code']
+          });
+          const bitmap = await createImageBitmap(file);
+          const codigos = await detector.detect(bitmap);
+          if (codigos && codigos.length > 0) {
+            codigoDetectado = codigos[0].rawValue;
+          }
+        } catch (eDetector) {
+          console.warn('Fallo BarcodeDetector, probando fallback:', eDetector);
+        }
       }
 
-      await asegurarLibreriaBarras();
-      setCamaraBarrasActiva(true);
-
-      // Esperar brevemente a que el contenedor #lector-codigo-barras exista en el DOM
-      setTimeout(async () => {
+      // 2. Si es iPhone/Safari o BarcodeDetector no lo vio, decodificar la imagen con html5-qrcode
+      if (!codigoDetectado) {
+        await asegurarLibreriaBarras();
+        const qrCode = new window.Html5Qrcode('lector-barras-oculto');
         try {
-          const qrCode = new window.Html5Qrcode('lector-codigo-barras');
-          html5QrCodeRef.current = qrCode;
-
-          await qrCode.start(
-            { facingMode: 'environment' },
-            {
-              fps: 15,
-              qrbox: { width: 260, height: 130 },
-              aspectRatio: 1.777778
-            },
-            (codigoTexto) => {
-              if (navigator.vibrate) navigator.vibrate(100);
-              detenerCamaraBarras();
-              buscarPorCodigoBarras(codigoTexto);
-            },
-            () => { } // Búsqueda continua en cada frame
-          );
-          setIniciandoCamara(false);
-        } catch (errScanner) {
-          console.error('Error al arrancar lector:', errScanner);
-          setAvisoBarras('No se pudo abrir la cámara. Verificá permisos o escribí el código abajo.');
-          detenerCamaraBarras();
+          codigoDetectado = await qrCode.scanFile(file, false);
+        } catch (eScan) {
+          console.warn('html5-qrcode scanFile no detectó barras:', eScan);
+        } finally {
+          try { qrCode.clear(); } catch (_) { }
         }
-      }, 150);
+      }
+
+      if (codigoDetectado) {
+        if (navigator.vibrate) navigator.vibrate(100);
+        buscarPorCodigoBarras(codigoDetectado);
+      } else {
+        setAvisoBarras('No se distinguió el código en la foto. Probá enfocar más cerca o escribí el número abajo.');
+      }
     } catch (err) {
-      console.error('Error de inicialización:', err);
-      setAvisoBarras(err.message || 'No se pudo acceder a la cámara.');
-      setCamaraBarrasActiva(false);
-      setIniciandoCamara(false);
+      console.error('Error procesando código de barras:', err);
+      setAvisoBarras('No se pudo leer la foto. Podés ingresar los números a mano abajo.');
+    } finally {
+      setLeyendoFotoBarras(false);
+      e.target.value = '';
     }
   };
 
@@ -384,7 +375,6 @@ export default function CargarPage() {
     setCodigoBarrasInput(cod);
     setBuscandoBarras(true);
     setAvisoBarras('');
-    detenerCamaraBarras();
 
     try {
       const { data: prodLocal } = await supabase
@@ -441,7 +431,7 @@ export default function CargarPage() {
 
         setAvisoBarras(`¡Listo! Cargamos "${nombreDetectado}" (${marcaDetectada || 'Genérica'}).`);
       } else {
-        setAvisoBarras('No encontramos datos para este código. Podés ingresar nombre y precio a mano.');
+        setAvisoBarras('No encontramos datos para este código. Completá el nombre y precio a mano.');
       }
     } catch (err) {
       setAvisoBarras('No se pudo consultar el código. Completá los campos a mano.');
@@ -766,6 +756,9 @@ export default function CargarPage() {
 
   return (
     <div className="min-h-screen flex justify-center p-4 sm:py-8">
+      {/* Contenedor invisible para decodificar sin romper el DOM */}
+      <div id="lector-barras-oculto" className="hidden" />
+
       <div className="w-full max-w-lg flex flex-col space-y-3">
         <div className="flex items-center justify-between px-1">
           <Link href="/" className="inline-flex items-center gap-1.5 text-xs theme-muted hover:text-sky-400 transition font-medium">
@@ -800,8 +793,8 @@ export default function CargarPage() {
               type="button"
               onClick={() => {
                 setModoIngreso('manual');
-                detenerCamaraBarras();
                 setAvisoIA('');
+                setAvisoBarras('');
               }}
               className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                 modoIngreso === 'manual'
@@ -818,6 +811,7 @@ export default function CargarPage() {
               onClick={() => {
                 setModoIngreso('barras');
                 setAvisoIA('');
+                setAvisoBarras('');
               }}
               className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                 modoIngreso === 'barras'
@@ -833,8 +827,8 @@ export default function CargarPage() {
               type="button"
               onClick={() => {
                 setModoIngreso('ia');
-                detenerCamaraBarras();
                 setAvisoIA('');
+                setAvisoBarras('');
               }}
               className={`py-2 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
                 modoIngreso === 'ia'
@@ -847,7 +841,7 @@ export default function CargarPage() {
             </button>
           </div>
 
-          {/* MODO ESCÁNER DE CÓDIGO DE BARRAS */}
+          {/* MODO ESCÁNER DE CÓDIGO DE BARRAS (POR FOTO O INGRESO NUMÉRICO) */}
           {modoIngreso === 'barras' && (
             <div className="theme-card-sub border border-emerald-500/40 p-3.5 rounded-2xl space-y-3 mb-4">
               <div className="flex items-center justify-between">
@@ -855,55 +849,75 @@ export default function CargarPage() {
                   <Barcode className="w-4 h-4 text-emerald-400" />
                   Escanear producto en góndola
                 </span>
+                <span className="text-[10px] text-emerald-400 font-mono font-bold">Cámara Nativa</span>
               </div>
 
-              {camaraBarrasActiva ? (
-                <div className="relative rounded-2xl overflow-hidden border bg-black min-h-[240px] flex items-center justify-center">
-                  {iniciandoCamara && (
-                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 text-white gap-2 text-xs">
-                      <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
-                      <span>Iniciando cámara trasera...</span>
-                    </div>
-                  )}
-                  <div id="lector-codigo-barras" className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover" />
-                  <button
-                    type="button"
-                    onClick={detenerCamaraBarras}
-                    className="absolute top-2 right-2 px-3 py-1 bg-slate-900/80 hover:bg-slate-900 text-white rounded-lg text-xs font-bold cursor-pointer z-30 border border-slate-700"
-                  >
-                    Detener
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={iniciarCamaraBarras}
-                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95"
-                  >
-                    <ScanLine className="w-4 h-4" />
-                    <span>Abrir cámara para escanear</span>
-                  </button>
+              <input
+                type="file"
+                ref={inputCamaraBarrasRef}
+                accept="image/*"
+                capture="environment"
+                onChange={procesarFotoCodigoBarras}
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={inputGaleriaBarrasRef}
+                accept="image/*"
+                onChange={procesarFotoCodigoBarras}
+                className="hidden"
+              />
 
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="text"
-                      value={codigoBarrasInput}
-                      onChange={(e) => setCodigoBarrasInput(e.target.value)}
-                      placeholder="O escribí el número (ej: 7790895000454)..."
-                      className="flex-1 theme-input border rounded-xl px-3 py-2 text-xs font-mono font-bold"
-                    />
-                    <button
-                      type="button"
-                      disabled={buscandoBarras || !codigoBarrasInput.trim()}
-                      onClick={() => buscarPorCodigoBarras(codigoBarrasInput)}
-                      className="bg-sky-500 hover:bg-sky-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black transition disabled:opacity-50 cursor-pointer"
-                    >
-                      {buscandoBarras ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
-                    </button>
-                  </div>
-                </div>
-              )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={leyendoFotoBarras}
+                  onClick={() => inputCamaraBarrasRef.current?.click()}
+                  className="p-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex flex-col items-center justify-center gap-1 shadow-md cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  {leyendoFotoBarras ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Leyendo código...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-5 h-5" />
+                      <span>Sacar foto al código</span>
+                      <span className="text-[10px] opacity-80 font-normal">Abre cámara del celu</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={leyendoFotoBarras}
+                  onClick={() => inputGaleriaBarrasRef.current?.click()}
+                  className="p-3 rounded-xl theme-card border hover:border-emerald-500/50 flex flex-col items-center justify-center gap-1 transition cursor-pointer disabled:opacity-50"
+                >
+                  <ImageIcon className="w-5 h-5 text-emerald-400" />
+                  <span className="text-xs font-bold theme-title">De la galería</span>
+                  <span className="text-[10px] theme-muted">Foto ya guardada</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-card)]">
+                <input
+                  type="text"
+                  value={codigoBarrasInput}
+                  onChange={(e) => setCodigoBarrasInput(e.target.value)}
+                  placeholder="O escribí el número (ej: 7790895000454)..."
+                  className="flex-1 theme-input border rounded-xl px-3 py-2 text-xs font-mono font-bold"
+                />
+                <button
+                  type="button"
+                  disabled={buscandoBarras || !codigoBarrasInput.trim()}
+                  onClick={() => buscarPorCodigoBarras(codigoBarrasInput)}
+                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black transition disabled:opacity-50 cursor-pointer"
+                >
+                  {buscandoBarras ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
+                </button>
+              </div>
 
               {avisoBarras && (
                 <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-bold flex items-center gap-2">
@@ -1294,7 +1308,7 @@ export default function CargarPage() {
               </Link>
               <button
                 type="submit"
-                disabled={enviando || subiendoFoto || analizandoIA || buscandoBarras}
+                disabled={enviando || subiendoFoto || analizandoIA || leyendoFotoBarras || buscandoBarras}
                 className="w-2/3 py-3 rounded-xl bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 text-slate-950 border-t border-white/30 font-black text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 cursor-pointer active:scale-95 disabled:opacity-50"
               >
                 {enviando || subiendoFoto ? (

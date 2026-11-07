@@ -16,6 +16,46 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 
+function limpiarTexto(str = '') {
+  return String(str)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+// Fallback por si hay productos viejos que todavía no tienen tipo_generico asignado en Supabase
+function normalizarTipoGenericoFallback(nombre = '') {
+  const n = limpiarTexto(nombre);
+
+  if (n.includes('dulce de leche') || n.includes('ddl')) return 'Dulce de Leche';
+  if (n.includes('crema de leche') || n.includes('crema')) return 'Crema de Leche';
+  if (n.includes('leche condensada')) return 'Leche Condensada';
+  if (n.includes('leche') && !n.includes('dulce') && !n.includes('crema')) {
+    return n.includes('polvo') ? 'Leche en Polvo' : 'Leche Fluida';
+  }
+
+  if (n.includes('pure de tomate') || n.includes('tomate triturado') || n.includes('extracto de tomate')) {
+    return 'Puré / Tomate Triturado';
+  }
+  if (n.includes('pure de papa') || n.includes('pure de papas')) {
+    return 'Puré de Papas';
+  }
+
+  if (n.includes('yerba')) return 'Yerba Mate';
+  if (n.includes('aceite')) return n.includes('mezcla') ? 'Aceite Mezcla' : 'Aceite de Girasol';
+  if (n.includes('fideo') || n.includes('tallarin') || n.includes('guisero') || n.includes('espagueti') || n.includes('tirabuzon')) {
+    return 'Fideos Secos';
+  }
+  if (n.includes('arroz')) return 'Arroz';
+  if (n.includes('harina')) return 'Harina de Trigo';
+  if (n.includes('azucar')) return 'Azúcar';
+  if (n.includes('manteca')) return 'Manteca';
+  if (n.includes('queso cremoso') || n.includes('cremoso') || n.includes('cuartirolo')) return 'Queso Cremoso';
+
+  return nombre;
+}
+
 function detectarGramajeDeTexto(texto = '') {
   if (!texto) return null;
   const match = texto.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos?|l|lt|litros?|ml|cc|cm3|u|unidades?)\b/i);
@@ -42,75 +82,117 @@ export default function ComparadorView({
 }) {
   const [modoComparacion, setModoComparacion] = useState('exacto'); // 'exacto' | 'generico'
 
-  // Agrupador para la vista genérica (sin importar la marca, compara por tipo/rubro y calcula mejor $/kg o $/L)
+  // Agrupador para la vista genérica (dinámica según la columna tipo_generico de Supabase)
   const productosPorRubro = useMemo(() => {
     if (modoComparacion !== 'generico') return [];
 
     const mapaRubros = new Map();
 
     productosComparados.forEach((grupo) => {
+      const item0 = grupo.items?.[0] || {};
+      const unidadRef = item0._refUnitario?.unidad || item0._unidadRaw || 'u';
+
+      // 1. PRIORIDAD: Toma tipo_generico de la base de datos cargado desde /admin.
+      // 2. Si no existe, usa el fallback automático.
+      const tipoProd = (
+        grupo.tipoGenerico ||
+        item0._tipoGenerico ||
+        normalizarTipoGenericoFallback(grupo.producto)
+      ).trim();
+
       let rubro = grupo.rubro || 'Almacén';
-      const nombreLower = String(grupo.producto || '').toLowerCase();
-      if (
-        nombreLower.includes('pure de tomate') ||
-        nombreLower.includes('tomate triturado') ||
-        nombreLower.includes('pure de papa')
-      ) {
+      const nL = limpiarTexto(tipoProd);
+      if (['dulce de leche', 'crema de leche', 'leche fluida', 'leche en polvo', 'leche condensada', 'manteca', 'queso cremoso'].includes(nL)) {
+        rubro = 'Lácteos';
+      } else if (nL.includes('pure') || nL.includes('tomate')) {
         rubro = 'Almacén';
       }
 
-      // Detectamos el tipo general de producto (ej: Yerba, Aceite, Leche, Fideos, etc.)
-      let tipoProd = grupo.producto;
-      if (nombreLower.includes('yerba')) tipoProd = 'Yerba Mate';
-      else if (nombreLower.includes('aceite')) tipoProd = 'Aceite de Girasol';
-      else if (nombreLower.includes('leche')) tipoProd = 'Leche';
-      else if (nombreLower.includes('fideo')) tipoProd = 'Fideos Secos';
-      else if (nombreLower.includes('arroz')) tipoProd = 'Arroz';
-      else if (nombreLower.includes('harina')) tipoProd = 'Harina de Trigo';
-      else if (nombreLower.includes('pure de tomate') || nombreLower.includes('tomate triturado')) tipoProd = 'Puré / Tomate Triturado';
-      else if (nombreLower.includes('papel higienico')) tipoProd = 'Papel Higiénico';
-
-      const claveRubro = `${rubro}_${tipoProd}`;
+      // Clave única por tipo genérico y unidad para no mezclar litros con kilos
+      const claveRubro = `${rubro}_${tipoProd}_${unidadRef}`;
 
       if (!mapaRubros.has(claveRubro)) {
         mapaRubros.set(claveRubro, {
           clave: claveRubro,
           producto: tipoProd,
           rubro: rubro,
-          items: []
+          unidadRef: unidadRef,
+          foto: grupo.foto || null,
+          itemsPorCadena: new Map()
         });
       }
 
       const contenedor = mapaRubros.get(claveRubro);
+      if (!contenedor.foto && grupo.foto) contenedor.foto = grupo.foto;
+
+      // Por cada comercio/cadena, selecciona su mejor precio para este tipo genérico
       grupo.items.forEach((it) => {
-        contenedor.items.push({
-          ...it,
-          _marcaProd: `${it._producto} (${grupo.marca})`
-        });
+        const cadenaKey = limpiarTexto(it._cadena || it._comercio);
+        const existente = contenedor.itemsPorCadena.get(cadenaKey);
+
+        const precioComp = it._refUnitario?.num || it._precio || 0;
+        const precioExistente = existente ? (existente._refUnitario?.num || existente._precio || Infinity) : Infinity;
+
+        if (!existente || precioComp < precioExistente) {
+          contenedor.itemsPorCadena.set(cadenaKey, {
+            ...it,
+            _marcaProd: `${it._producto} (${it._marca || grupo.marca})`
+          });
+        } else if (precioComp === precioExistente && it._distanciaKm != null) {
+          if (existente._distanciaKm == null || it._distanciaKm < existente._distanciaKm) {
+            contenedor.itemsPorCadena.set(cadenaKey, {
+              ...it,
+              _marcaProd: `${it._producto} (${it._marca || grupo.marca})`
+            });
+          }
+        }
       });
     });
 
     return Array.from(mapaRubros.values())
       .map((g) => {
-        // Ordenamos todos los productos de este tipo del precio unitario más bajo al más alto
-        g.items.sort((a, b) => {
+        const items = Array.from(g.itemsPorCadena.values());
+
+        // Ordena por precio más económico
+        items.sort((a, b) => {
           const uA = a._refUnitario?.num || a._precio || 0;
           const uB = b._refUnitario?.num || b._precio || 0;
           return uA - uB;
         });
 
-        const min = g.items[0]?._precio || 0;
-        const max = g.items[g.items.length - 1]?._precio || 0;
+        const masBaratoId = items[0]?.id;
+
+        // Determina el más cercano por GPS
+        let masCercanoId = null;
+        let menorDist = Infinity;
+        items.forEach((item) => {
+          if (item._distanciaKm != null && item._distanciaKm < menorDist) {
+            menorDist = item._distanciaKm;
+            masCercanoId = item.id;
+          }
+        });
+
+        // Opción Ideal (más barato Y más cercano a la vez)
+        const esOpcionIdeal = Boolean(
+          masBaratoId && masCercanoId && masBaratoId === masCercanoId && items.length > 1
+        );
+
+        const min = items[0]?._precio || 0;
+        const max = items[items.length - 1]?._precio || 0;
 
         return {
           ...g,
+          items,
           minPrecio: min,
+          maxPrecio: max,
           ahorro: max > min ? max - min : 0,
-          masBaratoId: g.items[0]?.id
+          masBaratoId,
+          masCercanoId,
+          esOpcionIdeal
         };
       })
       .filter((g) => g.items.length > 1)
-      .sort((a, b) => b.items.length - a.items.length);
+      .sort((a, b) => b.items.length - a.items.length || a.minPrecio - b.minPrecio);
   }, [productosComparados, modoComparacion]);
 
   const listaAMostrar = modoComparacion === 'exacto' ? productosComparados : productosPorRubro;
@@ -118,31 +200,31 @@ export default function ComparadorView({
   return (
     <div className="space-y-3.5">
       {/* SELECTOR DE MODO DE COMPARACIÓN */}
-      <div className="theme-card border rounded-2xl p-2 flex items-center justify-between gap-2 shadow-xs">
+      <div className="theme-card border rounded-2xl p-1.5 flex items-center justify-between gap-1.5 shadow-xs">
         <button
           type="button"
           onClick={() => setModoComparacion('exacto')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             modoComparacion === 'exacto'
               ? 'bg-sky-500 text-slate-950 font-black shadow-sm'
               : 'theme-muted hover:theme-title'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Misma Marca y Producto</span>
+          <Layers className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Misma Marca y Producto</span>
         </button>
 
         <button
           type="button"
           onClick={() => setModoComparacion('generico')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             modoComparacion === 'generico'
               ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
               : 'theme-muted hover:theme-title'
           }`}
         >
-          <ArrowUpDown className="w-3.5 h-3.5" />
-          <span>El Más Barato por Rubro (Sin Marca)</span>
+          <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">El Más Barato por Rubro (Sin Marca)</span>
         </button>
       </div>
 
@@ -159,15 +241,6 @@ export default function ComparadorView({
           detectarGramajeDeTexto(grupo.producto);
 
         let rubroFinal = grupo.rubro;
-        const nombreLower = String(grupo.producto || '').toLowerCase();
-        if (
-          nombreLower.includes('pure de tomate') ||
-          nombreLower.includes('tomate triturado') ||
-          nombreLower.includes('pure de papa')
-        ) {
-          rubroFinal = 'Almacén';
-        }
-
         const confRubro = CONFIG_CATEGORIAS[rubroFinal] || CONFIG_CATEGORIAS.Almacén;
         const IconoRubro = confRubro.icono;
         const enChanguito = changuito.includes(grupo.claveProd || grupo.producto);
@@ -189,7 +262,7 @@ export default function ComparadorView({
             key={grupo.clave}
             className="theme-card border rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-sm hover:shadow-md transition"
           >
-            {/* CABECERA SUPERIOR */}
+            {/* CABECERA */}
             <div
               onClick={abrirDetalleAmpliado}
               className="group cursor-pointer flex items-start gap-3 rounded-xl p-1 -m-1 hover:bg-slate-500/5 transition select-none"
@@ -239,6 +312,16 @@ export default function ComparadorView({
                       </span>
                     </>
                   )}
+
+                  {modoComparacion === 'generico' && grupo.unidadRef && (
+                    <>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-bold font-mono text-[11px] border border-emerald-500/20">
+                        <Scale className="w-3 h-3 text-emerald-400" />
+                        <span>Comparado x {grupo.unidadRef}</span>
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -275,7 +358,7 @@ export default function ComparadorView({
               </button>
             </div>
 
-            {/* LISTADO DE OPCIONES COMPARADAS */}
+            {/* LISTADO DE OPCIONES */}
             <div className="divide-y theme-card-sub rounded-xl border overflow-hidden">
               {grupo.items.map((item, idx) => {
                 const estiloCom = obtenerEstiloComercio(item._comercio);

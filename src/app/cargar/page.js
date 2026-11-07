@@ -159,6 +159,61 @@ export default function CargarPage() {
     };
   }, []);
 
+  // SINCRONIZACIÓN ROBUSTA DEL STREAM CON LA ETIQUETA VIDEO
+  useEffect(() => {
+    if (!camaraBarrasActiva || !videoStreamRef.current || !videoBarrasRef.current) return;
+
+    const videoEl = videoBarrasRef.current;
+    videoEl.srcObject = videoStreamRef.current;
+
+    const iniciarReproduccion = async () => {
+      try {
+        await videoEl.play();
+      } catch (err) {
+        console.warn('Esperando interacción para iniciar video:', err);
+      }
+    };
+
+    iniciarReproduccion();
+
+    let activo = true;
+
+    if ('BarcodeDetector' in window) {
+      const detector = new window.BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128']
+      });
+
+      const escanearCuadro = async () => {
+        if (!activo) return;
+        if (videoEl && videoEl.readyState >= 2) {
+          try {
+            const codigos = await detector.detect(videoEl);
+            if (codigos && codigos.length > 0) {
+              const valorDetectado = codigos[0].rawValue;
+              if (navigator.vibrate) navigator.vibrate(100);
+              detenerCamaraBarras();
+              buscarPorCodigoBarras(valorDetectado);
+              return;
+            }
+          } catch (err) { }
+        }
+        animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
+      };
+
+      animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
+    } else {
+      setAvisoBarras('Lector automático no disponible en este navegador. Podés ingresar los números abajo.');
+    }
+
+    return () => {
+      activo = false;
+      if (animFrameBarrasRef.current) {
+        cancelAnimationFrame(animFrameBarrasRef.current);
+        animFrameBarrasRef.current = null;
+      }
+    };
+  }, [camaraBarrasActiva]);
+
   const comprobarUsuarioYDatos = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -322,43 +377,13 @@ export default function CargarPage() {
     setAvisoBarras('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       videoStreamRef.current = stream;
       setCamaraBarrasActiva(true);
-
-      if (videoBarrasRef.current) {
-        videoBarrasRef.current.srcObject = stream;
-        videoBarrasRef.current.play();
-      }
-
-      if ('BarcodeDetector' in window) {
-        const detector = new window.BarcodeDetector({
-          formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128']
-        });
-
-        const escanearCuadro = async () => {
-          if (videoBarrasRef.current && videoBarrasRef.current.readyState >= 2) {
-            try {
-              const codigos = await detector.detect(videoBarrasRef.current);
-              if (codigos && codigos.length > 0) {
-                const valorDetectado = codigos[0].rawValue;
-                if (navigator.vibrate) navigator.vibrate(100);
-                detenerCamaraBarras();
-                buscarPorCodigoBarras(valorDetectado);
-                return;
-              }
-            } catch (err) {}
-          }
-          animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
-        };
-
-        animFrameBarrasRef.current = requestAnimationFrame(escanearCuadro);
-      } else {
-        setAvisoBarras('Tu cámara no soporta escáner automático. Podés ingresar los números abajo.');
-      }
     } catch (err) {
-      setAvisoBarras('Permiso de cámara no concedido. Podés escribir el código numérico.');
+      console.error('Error accediendo a cámara:', err);
+      setAvisoBarras('No se pudo acceder a la cámara trasera. Podés escribir el código numérico.');
       setCamaraBarrasActiva(false);
     }
   };
@@ -373,7 +398,6 @@ export default function CargarPage() {
     detenerCamaraBarras();
 
     try {
-      // 1. Prioridad: Consulta primero en la tabla local de Supabase
       const { data: prodLocal } = await supabase
         .from('productos')
         .select('*')
@@ -395,7 +419,6 @@ export default function CargarPage() {
         return;
       }
 
-      // 2. Consulta externa como respaldo
       const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cod}.json`);
       const data = await res.json();
 
@@ -593,7 +616,6 @@ export default function CargarPage() {
       const codBarrasVal = String(codigoBarrasInput || '').trim() || null;
       let prodId = null;
 
-      // Si tenemos código de barras, buscamos coincidencia directa
       if (codBarrasVal) {
         const { data: prodPorCod } = await supabase
           .from('productos')
@@ -603,7 +625,6 @@ export default function CargarPage() {
         if (prodPorCod?.id) prodId = prodPorCod.id;
       }
 
-      // Si no encontró por código, busca por nombre y marca
       if (!prodId) {
         let queryProd = supabase.from('productos').select('id, codigo_barras').ilike('nombre', nombreProd);
         if (marca.trim()) {
@@ -623,7 +644,6 @@ export default function CargarPage() {
         }
       }
 
-      // Si sigue sin existir, lo crea nuevo asociándole el código de barras
       if (!prodId) {
         const payloadProd = {
           nombre: nombreProd,
@@ -850,7 +870,13 @@ export default function CargarPage() {
 
               {camaraBarrasActiva ? (
                 <div className="relative rounded-2xl overflow-hidden border bg-black h-56 flex items-center justify-center">
-                  <video ref={videoBarrasRef} className="w-full h-full object-cover" playsInline muted />
+                  <video
+                    ref={videoBarrasRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
                   <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-20 border-2 border-emerald-400/80 rounded-xl pointer-events-none flex items-center justify-center">
                     <span className="text-[10px] text-emerald-300 font-mono bg-black/60 px-2 py-0.5 rounded">
                       Apuntá al código de barras

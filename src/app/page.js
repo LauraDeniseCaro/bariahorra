@@ -793,6 +793,7 @@ export default function HomePage() {
         const marca = prodRel?.marca || 'Genérica';
         const tamano = prodRel?.cantidad || prodRel?.tamano || '';
         const unidad = prodRel?.unidad_medida || prodRel?.unidad || '';
+        const tipoGenerico = prodRel?.tipo_generico || null;
 
         let rubro = prodRel?.categoria || prodRel?.rubro || '';
 
@@ -853,6 +854,7 @@ export default function HomePage() {
         return {
           ...item,
           _producto: productoNombre,
+          _tipoGenerico: tipoGenerico,
           _claveProducto: generarClaveProducto(productoNombre),
           _marca: marca,
           _tamanoRaw: tamano,
@@ -1208,6 +1210,7 @@ export default function HomePage() {
           producto: o._producto,
           marca: o._marca,
           rubro: o._rubro,
+          tipoGenerico: o._tipoGenerico || null,
           presentacion: o._presentacion,
           tamanoRaw: o._tamanoRaw,
           unidadRaw: o._unidadRaw,
@@ -1216,6 +1219,7 @@ export default function HomePage() {
         });
       }
       const grupo = mapa.get(clave);
+      if (!grupo.tipoGenerico && o._tipoGenerico) grupo.tipoGenerico = o._tipoGenerico;
       if (!grupo.foto && o._foto) grupo.foto = o._foto;
       if (!grupo.presentacion && o._presentacion) grupo.presentacion = o._presentacion;
 

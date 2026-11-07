@@ -35,11 +35,42 @@ import {
   Package,
   CalendarClock,
   Clock,
-  AlertOctagon
+  AlertOctagon,
+  Layers,
+  HelpCircle
 } from 'lucide-react';
 
 const ADMIN_EMAILS = [
   'lauradenisecaro87@gmail.com',
+];
+
+const SUGERENCIAS_TIPO_GENERICO = [
+  'Leche Fluida',
+  'Dulce de Leche',
+  'Crema de Leche',
+  'Leche en Polvo',
+  'Queso Cremoso',
+  'Manteca',
+  'Yogur',
+  'Aceite de Girasol',
+  'Aceite Mezcla',
+  'Yerba Mate',
+  'Fideos Secos',
+  'Arroz',
+  'Harina de Trigo',
+  'Azúcar',
+  'Puré / Tomate Triturado',
+  'Puré de Papas',
+  'Mayonesa',
+  'Atún',
+  'Café',
+  'Galletitas',
+  'Papel Higiénico',
+  'Detergente',
+  'Lavandina',
+  'Cerveza',
+  'Gaseosa Cola',
+  'Agua Mineral'
 ];
 
 export default function AdminPage() {
@@ -73,6 +104,7 @@ export default function AdminPage() {
   const [nuevoProdNombre, setNuevoProdNombre] = useState('');
   const [nuevoProdMarca, setNuevoProdMarca] = useState('');
   const [nuevoProdCat, setNuevoProdCat] = useState('Almacén');
+  const [nuevoProdTipoGen, setNuevoProdTipoGen] = useState('');
   const [guardandoMaestro, setGuardandoMaestro] = useState(false);
 
   // Edición de comercios (Ubicación / GPS)
@@ -86,6 +118,11 @@ export default function AdminPage() {
   const [editProdNombre, setEditProdNombre] = useState('');
   const [editProdMarca, setEditProdMarca] = useState('');
   const [editProdCat, setEditProdCat] = useState('Almacén');
+  const [editProdTipoGen, setEditProdTipoGen] = useState('');
+
+  // Mapa temporal para clasificar productos sin tipo genérico
+  const [clasificacionesInputs, setClasificacionesInputs] = useState({});
+  const [guardandoClasificacionId, setGuardandoClasificacionId] = useState(null);
 
   // Control local de productos ya validados por el admin
   const [prodsValidados, setProdsValidados] = useState([]);
@@ -139,7 +176,7 @@ export default function AdminPage() {
       const [resOfertas, resComercios, resProductos] = await Promise.all([
         supabase.from('ofertas').select(`
           id, precio, precio_propuesto, votos_propuesto, votos_positivos, votos_negativos, motivo_revision, es_catalogo, estado, foto_url, creado_en, usuario_id, vencimiento,
-          productos ( id, nombre, marca, categoria, foto_url, creado_en ),
+          productos ( id, nombre, marca, categoria, tipo_generico, foto_url, creado_en ),
           comercios ( id, nombre, direccion, latitud, longitud, creado_en )
         `).order('creado_en', { ascending: false }),
         supabase.from('comercios').select('*').order('nombre'),
@@ -337,16 +374,46 @@ export default function AdminPage() {
       const payload = {
         nombre: editProdNombre.trim(),
         marca: editProdMarca.trim() || null,
-        categoria: editProdCat
+        categoria: editProdCat,
+        tipo_generico: editProdTipoGen.trim() || null
       };
       const { error } = await supabase.from('productos').update(payload).eq('id', prodId);
       if (error) throw error;
 
       handleValidarProducto(prodId);
       setEditandoProdId(null);
-      cargarTodo();
+      setProductos((prev) => prev.map((p) => (p.id === prodId ? { ...p, ...payload } : p)));
     } catch (err) {
       alert('Error actualizando producto: ' + err.message);
+    }
+  };
+
+  const handleGuardarTipoGenericoRapido = async (prodId) => {
+    const valor = (clasificacionesInputs[prodId] || '').trim();
+    if (!valor) return;
+
+    setGuardandoClasificacionId(prodId);
+    try {
+      const { error } = await supabase
+        .from('productos')
+        .update({ tipo_generico: valor })
+        .eq('id', prodId);
+
+      if (error) throw error;
+
+      setProductos((prev) =>
+        prev.map((p) => (p.id === prodId ? { ...p, tipo_generico: valor } : p))
+      );
+
+      setClasificacionesInputs((prev) => {
+        const copia = { ...prev };
+        delete copia[prodId];
+        return copia;
+      });
+    } catch (err) {
+      alert('Error al guardar tipo genérico: ' + err.message);
+    } finally {
+      setGuardandoClasificacionId(null);
     }
   };
 
@@ -412,11 +479,13 @@ export default function AdminPage() {
       const { error } = await supabase.from('productos').insert([{
         nombre: nuevoProdNombre.trim(),
         marca: nuevoProdMarca.trim() || null,
-        categoria: nuevoProdCat
+        categoria: nuevoProdCat,
+        tipo_generico: nuevoProdTipoGen.trim() || null
       }]);
       if (error) throw error;
       setNuevoProdNombre('');
       setNuevoProdMarca('');
+      setNuevoProdTipoGen('');
       cargarTodo();
     } catch (err) {
       alert(err.message);
@@ -597,6 +666,11 @@ export default function AdminPage() {
     });
   }, [productos, prodsValidados]);
 
+  // PRODUCTOS SIN CLASIFICAR PARA EL COMPARADOR GENÉRICO
+  const productosSinClasificar = useMemo(() => {
+    return productos.filter((p) => !p.tipo_generico || String(p.tipo_generico).trim() === '');
+  }, [productos]);
+
   const ofertasPendientes = useMemo(() => {
     return ofertas.filter((o) => o.estado === 'en_revision' || Boolean(o.motivo_revision) || Boolean(o.precio_propuesto));
   }, [ofertas]);
@@ -605,7 +679,11 @@ export default function AdminPage() {
     return comercios.filter((c) => !c.direccion || !c.latitud);
   }, [comercios]);
 
-  const totalPendientesRevision = ofertasPendientes.length + productosNuevosComunidad.length + (comerciosSinUbicacion.length > 0 ? 1 : 0);
+  const totalPendientesRevision =
+    ofertasPendientes.length +
+    productosNuevosComunidad.length +
+    productosSinClasificar.length +
+    (comerciosSinUbicacion.length > 0 ? 1 : 0);
 
   const metricasFotos = useMemo(() => {
     const total = productos.length;
@@ -659,7 +737,8 @@ export default function AdminPage() {
     return productos.filter((p) =>
       String(p.nombre || '').toLowerCase().includes(q) ||
       String(p.marca || '').toLowerCase().includes(q) ||
-      String(p.categoria || '').toLowerCase().includes(q)
+      String(p.categoria || '').toLowerCase().includes(q) ||
+      String(p.tipo_generico || '').toLowerCase().includes(q)
     );
   }, [productos, busqueda]);
 
@@ -760,6 +839,13 @@ export default function AdminPage() {
 
   return (
     <main className="p-3 sm:p-6 flex-1 max-w-6xl mx-auto w-full selection:bg-emerald-500 selection:text-white pb-24">
+      {/* DATALIST CON SUGERENCIAS PARA EL AUTOCOMPLETADO */}
+      <datalist id="sugerencias-tipo-generico">
+        {SUGERENCIAS_TIPO_GENERICO.map((sug) => (
+          <option key={sug} value={sug} />
+        ))}
+      </datalist>
+
       <div className="space-y-4">
 
         {/* HEADER ADMIN */}
@@ -881,7 +967,7 @@ export default function AdminPage() {
 
             <button
               onClick={() => { setVistaActual('productos'); setBusqueda(''); }}
-              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border ${
+              className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
                 vistaActual === 'productos'
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
                   : 'theme-btn-sec border'
@@ -889,6 +975,11 @@ export default function AdminPage() {
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Productos ({productos.length})</span>
+              {productosSinClasificar.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-slate-950" title={`${productosSinClasificar.length} productos sin tipo genérico`}>
+                  {productosSinClasificar.length}
+                </span>
+              )}
             </button>
 
             <button
@@ -929,7 +1020,7 @@ export default function AdminPage() {
                 type="text"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por producto, súper o motivo de alerta..."
+                placeholder="Buscar por producto, marca, tipo genérico o motivo..."
                 className="w-full theme-input border rounded-2xl pl-10 pr-8 py-2.5 text-xs placeholder-slate-400 outline-none focus:border-emerald-500 transition shadow-sm"
               />
               {busqueda && (
@@ -1220,7 +1311,7 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* ALERTA 2: COMERCIOS NUEVOS SIN DIRECCIÓN NI GPS (FASE 5) */}
+              {/* ALERTA 2: COMERCIOS NUEVOS SIN DIRECCIÓN NI GPS */}
               {comerciosSinUbicacion.length > 0 && (
                 <div className="p-4 rounded-3xl border border-amber-500/40 bg-amber-500/10 space-y-2.5 shadow-sm">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1247,7 +1338,6 @@ export default function AdminPage() {
                     </button>
                   </div>
 
-                  {/* Acceso rápido para buscar en Google Maps */}
                   <div className="flex gap-2 flex-wrap pt-1 border-t border-amber-500/20">
                     {comerciosSinUbicacion.slice(0, 4).map((c) => (
                       <a
@@ -1267,6 +1357,100 @@ export default function AdminPage() {
                         +{comerciosSinUbicacion.length - 4} más...
                       </span>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* ALERTA 3: PRODUCTOS NUEVOS SIN CLASIFICAR PARA EL COMPARADOR */}
+              {productosSinClasificar.length > 0 && (
+                <div className="theme-card border-2 border-emerald-500/40 rounded-3xl p-4 sm:p-5 shadow-xl space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap border-b border-[var(--border-card)] pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-black theme-title flex items-center gap-1.5">
+                          <span>{productosSinClasificar.length} {productosSinClasificar.length === 1 ? 'producto sin clasificar en el comparador' : 'productos sin clasificar en el comparador'}</span>
+                          <span className="text-[10px] bg-emerald-500/15 text-emerald-600 px-2 py-0.2 rounded-full font-bold">Sin tocar código</span>
+                        </h3>
+                        <p className="text-[10px] theme-muted">
+                          Asignale el tipo genérico para que compita de forma limpia con las demás marcas en Bariloche
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                    {productosSinClasificar.map((prod) => {
+                      const valorInput = clasificacionesInputs[prod.id] ?? '';
+                      const guardandoEste = guardandoClasificacionId === prod.id;
+
+                      return (
+                        <div key={prod.id} className="theme-card-sub border rounded-2xl p-3 space-y-2 shadow-xs flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-start justify-between gap-1.5">
+                              <h4 className="text-xs font-black theme-title leading-tight">{prod.nombre}</h4>
+                              <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.2 rounded shrink-0">
+                                {prod.categoria || 'Almacén'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] theme-muted mt-0.5">
+                              Marca: <strong className="theme-subtitle">{prod.marca || 'Genérica'}</strong>
+                            </p>
+                          </div>
+
+                          <div className="space-y-1.5 pt-1 border-t border-[var(--border-card)]">
+                            <label className="text-[10px] theme-muted font-bold block">
+                              Asignar tipo genérico:
+                            </label>
+
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                list="sugerencias-tipo-generico"
+                                value={valorInput}
+                                onChange={(e) =>
+                                  setClasificacionesInputs((prev) => ({
+                                    ...prev,
+                                    [prod.id]: e.target.value
+                                  }))
+                                }
+                                placeholder="Ej: Leche Fluida, Aceite..."
+                                className="flex-1 theme-input text-xs px-2.5 py-1.5 rounded-xl border outline-none font-bold"
+                              />
+                              <button
+                                type="button"
+                                disabled={guardandoEste || !valorInput.trim()}
+                                onClick={() => handleGuardarTipoGenericoRapido(prod.id)}
+                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl transition cursor-pointer shadow-xs disabled:opacity-40"
+                              >
+                                {guardandoEste ? '...' : 'Guardar'}
+                              </button>
+                            </div>
+
+                            {/* Píldoras con sugerencias rápidas comunes */}
+                            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none pt-0.5">
+                              {['Leche Fluida', 'Dulce de Leche', 'Crema de Leche', 'Aceite de Girasol', 'Yerba Mate'].map((sug) => (
+                                <button
+                                  key={sug}
+                                  type="button"
+                                  onClick={() =>
+                                    setClasificacionesInputs((prev) => ({
+                                      ...prev,
+                                      [prod.id]: sug
+                                    }))
+                                  }
+                                  className="text-[9px] px-1.5 py-0.5 rounded-md border theme-btn-sec theme-muted hover:text-emerald-500 hover:border-emerald-500/50 transition shrink-0 cursor-pointer"
+                                >
+                                  {sug}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1340,6 +1524,14 @@ export default function AdminPage() {
                                   <option value="Bebidas">Bebidas</option>
                                 </select>
                               </div>
+                              <input
+                                type="text"
+                                list="sugerencias-tipo-generico"
+                                value={editProdTipoGen}
+                                onChange={(e) => setEditProdTipoGen(e.target.value)}
+                                placeholder="Tipo genérico (ej: Leche Fluida)..."
+                                className="w-full theme-input text-xs px-2 py-1 rounded-lg border outline-none font-bold text-emerald-500"
+                              />
                               <div className="flex items-center justify-end gap-1.5 pt-1">
                                 <button
                                   type="button"
@@ -1364,6 +1556,11 @@ export default function AdminPage() {
                                 <p className="text-[10px] theme-muted mt-0.5 truncate">
                                   <span className="theme-subtitle font-bold">{prod.marca || 'S/M'}</span> • <span className="text-amber-500 font-semibold">{prod.categoria || 'Almacén'}</span>
                                 </p>
+                                {prod.tipo_generico && (
+                                  <p className="text-[10px] text-emerald-500 font-bold truncate mt-0.5">
+                                    Genérico: {prod.tipo_generico}
+                                  </p>
+                                )}
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 <button
@@ -1373,9 +1570,10 @@ export default function AdminPage() {
                                     setEditProdNombre(prod.nombre || '');
                                     setEditProdMarca(prod.marca || '');
                                     setEditProdCat(prod.categoria || 'Almacén');
+                                    setEditProdTipoGen(prod.tipo_generico || '');
                                   }}
                                   className="p-1.5 theme-btn-sec rounded-lg border text-sky-500 hover:border-sky-500 transition cursor-pointer"
-                                  title="Corregir nombre, marca o rubro"
+                                  title="Corregir nombre, marca, rubro o genérico"
                                 >
                                   <Edit2 className="w-3 h-3" />
                                 </button>
@@ -1406,7 +1604,7 @@ export default function AdminPage() {
               )}
 
               {/* LISTA DE OFERTAS PENDIENTES */}
-              {ofertasFiltradas.length === 0 && productosNuevosComunidad.length === 0 && comerciosSinUbicacion.length === 0 ? (
+              {ofertasFiltradas.length === 0 && productosNuevosComunidad.length === 0 && comerciosSinUbicacion.length === 0 && productosSinClasificar.length === 0 ? (
                 <div className="text-center py-16 theme-muted text-xs theme-card rounded-3xl border space-y-2">
                   <p>No hay alertas ni productos pendientes de revisión.</p>
                   <p className="text-emerald-500 font-bold">¡Excelente! El piloto automático tiene todo bajo control.</p>
@@ -1454,6 +1652,9 @@ export default function AdminPage() {
                               <h3 className="text-xs font-black theme-title truncate">{item.productos?.nombre || 'Producto'}</h3>
                               <p className="text-[11px] theme-muted truncate mt-0.5">
                                 <span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-500">{item.productos?.categoria || 'Almacén'}</span>
+                                {item.productos?.tipo_generico && (
+                                  <span className="text-emerald-500 font-bold"> • {item.productos.tipo_generico}</span>
+                                )}
                               </p>
                             </div>
                           </div>
@@ -1582,7 +1783,12 @@ export default function AdminPage() {
                                     <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 text-[9px] font-black">OFICIAL</span>
                                   )}
                                 </div>
-                                <p className="text-[10px] theme-muted"><span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-500">{item.productos?.categoria || 'Almacén'}</span></p>
+                                <p className="text-[10px] theme-muted">
+                                  <span className="theme-subtitle">{item.productos?.marca || 'Genérica'}</span> • <span className="text-amber-500">{item.productos?.categoria || 'Almacén'}</span>
+                                  {item.productos?.tipo_generico && (
+                                    <span className="text-emerald-500 font-bold"> • {item.productos.tipo_generico}</span>
+                                  )}
+                                </p>
                               </td>
                               <td className="p-3">
                                 <div>
@@ -1716,7 +1922,12 @@ export default function AdminPage() {
                         </td>
                         <td className="p-3">
                           <p className="font-black theme-title">{item.productos?.nombre || 'Producto'}</p>
-                          <p className="text-[10px] theme-muted">{item.productos?.marca || 'Genérica'} • {item.productos?.categoria || 'Almacén'}</p>
+                          <p className="text-[10px] theme-muted">
+                            {item.productos?.marca || 'Genérica'} • {item.productos?.categoria || 'Almacén'}
+                            {item.productos?.tipo_generico && (
+                              <span className="text-emerald-500 font-bold"> • {item.productos.tipo_generico}</span>
+                            )}
+                          </p>
                         </td>
                         <td className="p-3">
                           <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-500 border border-sky-500/20 font-bold text-[11px]">
@@ -1904,7 +2115,7 @@ export default function AdminPage() {
           ) : (
             /* --- PESTAÑA PRODUCTOS --- */
             <div className="space-y-3">
-              <form onSubmit={handleCrearProducto} className="grid grid-cols-1 sm:grid-cols-4 gap-2 theme-card p-3 rounded-2xl border shadow-sm">
+              <form onSubmit={handleCrearProducto} className="grid grid-cols-1 sm:grid-cols-5 gap-2 theme-card p-3 rounded-2xl border shadow-sm">
                 <input
                   type="text"
                   placeholder="Producto..."
@@ -1937,6 +2148,14 @@ export default function AdminPage() {
                   <option value="Limpieza" className="theme-card">Limpieza</option>
                   <option value="Bebidas" className="theme-card">Bebidas</option>
                 </select>
+                <input
+                  type="text"
+                  list="sugerencias-tipo-generico"
+                  placeholder="Genérico (ej: Leche)..."
+                  value={nuevoProdTipoGen}
+                  onChange={(e) => setNuevoProdTipoGen(e.target.value)}
+                  className="theme-input text-xs px-3 py-2 rounded-xl border outline-none font-bold text-emerald-500"
+                />
                 <button type="submit" disabled={guardandoMaestro} className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2 rounded-xl text-xs transition cursor-pointer shadow">
                   + Producto
                 </button>
@@ -1955,7 +2174,16 @@ export default function AdminPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-bold theme-title truncate">{prod.nombre}</p>
-                        <p className="text-[10px] text-amber-500 truncate"><span className="theme-muted">{prod.marca || 'S/M'}</span> • {prod.categoria}</p>
+                        <p className="text-[10px] text-amber-500 truncate">
+                          <span className="theme-muted">{prod.marca || 'S/M'}</span> • {prod.categoria}
+                        </p>
+                        <p className="text-[10px] truncate">
+                          {prod.tipo_generico ? (
+                            <span className="text-emerald-500 font-bold">Genérico: {prod.tipo_generico}</span>
+                          ) : (
+                            <span className="text-slate-400 italic">Sin clasificar en comparador</span>
+                          )}
+                        </p>
                       </div>
                     </div>
                     <button onClick={() => handleEliminarMaestro('productos', prod.id)} className="p-1.5 theme-muted hover:text-rose-500 cursor-pointer shrink-0">

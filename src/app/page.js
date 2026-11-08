@@ -1597,44 +1597,41 @@ export default function HomePage() {
           </button>
         </div>
 
-        {modoVista === 'gondola' && (
-          <div className="flex items-center justify-between gap-1.5 sm:gap-2 pt-1 border-t border-[var(--border-card)]">
-            <span className="text-[11px] theme-muted font-medium hidden md:inline pl-1">
-              Filtros activos:
-            </span>
+        {/* BARRA DE HERRAMIENTAS PERSISTENTE (LIMPIA Y SIN TEXTOS REDUNDANTES) */}
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 pt-1 border-t border-[var(--border-card)]">
+          {/* Botón de GPS universal */}
+          <button
+            type="button"
+            onClick={handleActivarUbicacion}
+            className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${userCoords
+              ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+              : 'theme-btn-sec text-sky-400 border-sky-500/30 hover:border-sky-500'
+              }`}
+            title={userCoords ? 'Ubicación activa' : 'Activar GPS para calcular distancias'}
+          >
+            <Navigation className={`w-3 h-3 ${userCoords ? 'text-emerald-500' : 'text-sky-400'}`} />
+            <span>{pidiendoGps ? 'Buscando...' : userCoords ? 'GPS Activo' : 'Cerca mío'}</span>
+          </button>
 
-            <div className="flex items-center gap-1.5 w-full md:w-auto">
-              <button
-                type="button"
-                onClick={handleActivarUbicacion}
-                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold border transition cursor-pointer active:scale-95 shrink-0 ${userCoords
-                  ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
-                  : 'theme-btn-sec text-sky-400 border-sky-500/30 hover:border-sky-500'
-                  }`}
-                title={userCoords ? 'Ubicación activa' : 'Activar GPS para calcular distancias'}
-              >
-                <Navigation className={`w-3 h-3 ${userCoords ? 'text-emerald-500' : 'text-sky-400'}`} />
-                <span>{pidiendoGps ? 'Buscando...' : userCoords ? 'GPS Activo' : 'Cerca mío'}</span>
-              </button>
-
-              <select
-                value={orden}
-                onChange={(e) => {
-                  if (e.target.value === 'distancia_asc' && !userCoords) {
-                    handleActivarUbicacion();
-                  }
-                  setOrden(e.target.value);
-                }}
-                className="flex-1 md:flex-initial theme-btn-sec font-bold px-2 sm:px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer text-[11px] sm:text-xs truncate"
-              >
-                <option value="recientes">Más recientes</option>
-                <option value="precio_asc">Menor precio</option>
-                <option value="precio_desc">Mayor precio</option>
-                <option value="distancia_asc">Más cercanos</option>
-              </select>
-            </div>
-          </div>
-        )}
+          {/* Selector de orden específico para Góndola */}
+          {modoVista === 'gondola' && (
+            <select
+              value={orden}
+              onChange={(e) => {
+                if (e.target.value === 'distancia_asc' && !userCoords) {
+                  handleActivarUbicacion();
+                }
+                setOrden(e.target.value);
+              }}
+              className="theme-btn-sec font-bold px-2 sm:px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer text-[11px] sm:text-xs truncate"
+            >
+              <option value="recientes">Más recientes</option>
+              <option value="precio_asc">Menor precio</option>
+              <option value="precio_desc">Mayor precio</option>
+              <option value="distancia_asc">Más cercanos</option>
+            </select>
+          )}
+        </div>
       </div>
 
       {/* FEED PRINCIPAL */}
@@ -1699,6 +1696,8 @@ export default function HomePage() {
           tiempoRelativo={tiempoRelativo}
           CONFIG_CATEGORIAS={CONFIG_CATEGORIAS}
           obtenerEstiloComercio={obtenerEstiloComercio}
+          userCoords={userCoords}
+          handleActivarUbicacion={handleActivarUbicacion}
         />
       ) : (
         <div className="space-y-4">

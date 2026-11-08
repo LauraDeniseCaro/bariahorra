@@ -24,7 +24,6 @@ function limpiarTexto(str = '') {
     .trim();
 }
 
-// Fallback por si hay productos viejos que todavía no tienen tipo_generico asignado en Supabase
 function normalizarTipoGenericoFallback(nombre = '') {
   const n = limpiarTexto(nombre);
 
@@ -78,11 +77,12 @@ export default function ComparadorView({
   abrirUbicacionComercio,
   tiempoRelativo,
   CONFIG_CATEGORIAS,
-  obtenerEstiloComercio
+  obtenerEstiloComercio,
+  userCoords,
+  handleActivarUbicacion
 }) {
-  const [modoComparacion, setModoComparacion] = useState('exacto'); // 'exacto' | 'generico'
+  const [modoComparacion, setModoComparacion] = useState('exacto');
 
-  // Agrupador para la vista genérica (dinámica según la columna tipo_generico de Supabase)
   const productosPorRubro = useMemo(() => {
     if (modoComparacion !== 'generico') return [];
 
@@ -92,8 +92,6 @@ export default function ComparadorView({
       const item0 = grupo.items?.[0] || {};
       const unidadRef = item0._refUnitario?.unidad || item0._unidadRaw || 'u';
 
-      // 1. PRIORIDAD: Toma tipo_generico de la base de datos cargado desde /admin.
-      // 2. Si no existe, usa el fallback automático.
       const tipoProd = (
         grupo.tipoGenerico ||
         item0._tipoGenerico ||
@@ -108,7 +106,6 @@ export default function ComparadorView({
         rubro = 'Almacén';
       }
 
-      // Clave única por tipo genérico y unidad para no mezclar litros con kilos
       const claveRubro = `${rubro}_${tipoProd}_${unidadRef}`;
 
       if (!mapaRubros.has(claveRubro)) {
@@ -125,7 +122,6 @@ export default function ComparadorView({
       const contenedor = mapaRubros.get(claveRubro);
       if (!contenedor.foto && grupo.foto) contenedor.foto = grupo.foto;
 
-      // Por cada comercio/cadena, selecciona su mejor precio para este tipo genérico
       grupo.items.forEach((it) => {
         const cadenaKey = limpiarTexto(it._cadena || it._comercio);
         const existente = contenedor.itemsPorCadena.get(cadenaKey);
@@ -153,7 +149,6 @@ export default function ComparadorView({
       .map((g) => {
         const items = Array.from(g.itemsPorCadena.values());
 
-        // Ordena por precio más económico
         items.sort((a, b) => {
           const uA = a._refUnitario?.num || a._precio || 0;
           const uB = b._refUnitario?.num || b._precio || 0;
@@ -162,7 +157,6 @@ export default function ComparadorView({
 
         const masBaratoId = items[0]?.id;
 
-        // Determina el más cercano por GPS
         let masCercanoId = null;
         let menorDist = Infinity;
         items.forEach((item) => {
@@ -172,7 +166,6 @@ export default function ComparadorView({
           }
         });
 
-        // Opción Ideal (más barato Y más cercano a la vez)
         const esOpcionIdeal = Boolean(
           masBaratoId && masCercanoId && masBaratoId === masCercanoId && items.length > 1
         );
@@ -199,6 +192,29 @@ export default function ComparadorView({
 
   return (
     <div className="space-y-3.5">
+      {/* BANNER SUGERENCIA GPS (Solo visible cuando NO está activo) */}
+      {!userCoords && (
+        <div className="p-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+              <Navigation className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold theme-title truncate">¿Querés saber qué súper te queda más cerca?</p>
+              <p className="text-[10px] theme-muted truncate">Activá el GPS para desbloquear distancias y la Opción Ideal.</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleActivarUbicacion}
+            className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs rounded-xl transition cursor-pointer active:scale-95 shrink-0 shadow-xs"
+          >
+            Activar GPS
+          </button>
+        </div>
+      )}
+
       {/* SELECTOR DE MODO DE COMPARACIÓN */}
       <div className="theme-card border rounded-2xl p-1.5 flex items-center justify-between gap-1.5 shadow-xs">
         <button

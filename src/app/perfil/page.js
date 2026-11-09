@@ -41,18 +41,16 @@ const AVATARES_DISPONIBLES = [
 
 const AVATAR_DEFAULT = AVATARES_DISPONIBLES[0];
 
-// Catálogo sobrio sin emojis, con iconos vectoriales de Lucide
-const MEDIOS_PAGO_DISPONIBLES = [
-  { id: 'bna_modo', nombre: 'Banco Nación (MODO)', tipo: 'banco', Icono: Building2 },
-  { id: 'cuenta_dni', nombre: 'Cuenta DNI', tipo: 'billetera', Icono: Smartphone },
-  { id: 'patagonia', nombre: 'Banco Patagonia', tipo: 'banco', Icono: Building2 },
-  { id: 'bpn', nombre: 'Banco Neuquén (BPN)', tipo: 'banco', Icono: Building2 },
-  { id: 'galicia', nombre: 'Banco Galicia', tipo: 'banco', Icono: Building2 },
-  { id: 'santander', nombre: 'Santander', tipo: 'banco', Icono: Building2 },
-  { id: 'personal_pay', nombre: 'Personal Pay', tipo: 'billetera', Icono: Smartphone },
-  { id: 'mercado_pago', nombre: 'Mercado Pago', tipo: 'billetera', Icono: Smartphone },
-  { id: 'naranja_x', nombre: 'Naranja X', tipo: 'tarjeta', Icono: CreditCard }
-];
+function resolverIconoMedio(nombre = '') {
+  const n = String(nombre).toLowerCase();
+  if (n.includes('modo') || n.includes('pay') || n.includes('billetera') || n.includes('mercado') || n.includes('cuenta') || n.includes('app')) {
+    return Smartphone;
+  }
+  if (n.includes('tarjeta') || n.includes('naranja') || n.includes('visa') || n.includes('master')) {
+    return CreditCard;
+  }
+  return Building2;
+}
 
 function calcularRango(puntos = 0) {
   if (puntos >= 1000) return { nombre: 'Héroe Comunitario', icono: Crown, color: 'text-amber-500 dark:text-amber-400' };
@@ -67,6 +65,7 @@ export default function PerfilPage() {
   const [usuario, setUsuario] = useState(null);
   const [perfil, setPerfil] = useState(null);
   const [misOfertas, setMisOfertas] = useState([]);
+  const [mediosDisponibles, setMediosDisponibles] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   // Modal 1: Personaje (Apodo + Avatar)
@@ -103,11 +102,31 @@ export default function PerfilPage() {
 
       setUsuario(activeUser);
 
-      const { data: perfilDB } = await supabase
-        .from('perfiles')
-        .select('*')
-        .eq('id', activeUser.id)
-        .maybeSingle();
+      // 1. Cargar perfil y promociones activas en paralelo
+      const [resPerfil, resPromos] = await Promise.all([
+        supabase.from('perfiles').select('*').eq('id', activeUser.id).maybeSingle(),
+        supabase.from('promociones').select('banco_o_billetera').eq('activo', true)
+      ]);
+
+      const perfilDB = resPerfil.data;
+      const promosDB = resPromos.data || [];
+
+      // Extraer medios de pago únicos desde las promociones de Supabase
+      const bancosUnicos = [
+        ...new Set(
+          promosDB
+            .map((p) => p.banco_o_billetera ? p.banco_o_billetera.trim() : '')
+            .filter(Boolean)
+        )
+      ].sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }));
+
+      const listaMediosDinamicos = bancosUnicos.map((banco) => ({
+        id: banco,
+        nombre: banco,
+        Icono: resolverIconoMedio(banco)
+      }));
+
+      setMediosDisponibles(listaMediosDinamicos);
 
       const apodoDefinido =
         perfilDB?.apodo ||
@@ -146,7 +165,7 @@ export default function PerfilPage() {
         localStorage.setItem('bariahorra_perfil', JSON.stringify(perfilCompleto));
       } catch (e) { }
 
-      // Cargar aportes del usuario
+      // 2. Cargar aportes del usuario
       const { data: rawOfertas } = await supabase
         .from('ofertas')
         .select('*');
@@ -206,7 +225,6 @@ export default function PerfilPage() {
     router.push('/');
   };
 
-  // Guardar solo Personaje (Apodo y Avatar)
   const handleGuardarPersonaje = async (e) => {
     e.preventDefault();
     setErrorPersonaje('');
@@ -275,7 +293,6 @@ export default function PerfilPage() {
     }
   };
 
-  // Guardar solo Billetera (Medios de Pago)
   const handleGuardarBilletera = async () => {
     setGuardandoBilletera(true);
     try {
@@ -441,7 +458,7 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* BLOQUE 2: BILLETERA DE AHORRO INDEPENDIENTE */}
+      {/* BLOQUE 2: BILLETERA DE AHORRO DINÁMICA */}
       <div className="theme-card border rounded-3xl p-5 shadow-xl space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -453,7 +470,7 @@ export default function PerfilPage() {
                 Mis Medios de Pago y Descuentos
               </h2>
               <p className="text-[11px] theme-muted">
-                Bancos y billeteras virtuales configuradas para comparar precios
+                Bancos y billeteras con convenios vigentes en supermercados de Bariloche
               </p>
             </div>
           </div>
@@ -474,7 +491,7 @@ export default function PerfilPage() {
         {(perfil?.medios_pago || []).length === 0 ? (
           <div className="theme-card-sub border border-dashed rounded-2xl p-4 text-center space-y-2">
             <p className="text-xs theme-muted">
-              No tenés ninguna billetera configurada.
+              No tenés ninguna billetera o banco seleccionado.
             </p>
             <button
               type="button"
@@ -489,17 +506,15 @@ export default function PerfilPage() {
           </div>
         ) : (
           <div className="flex flex-wrap gap-2 pt-1">
-            {perfil.medios_pago.map((medioId) => {
-              const infoMedio = MEDIOS_PAGO_DISPONIBLES.find((m) => m.id === medioId);
-              if (!infoMedio) return null;
-              const IconoM = infoMedio.Icono;
+            {perfil.medios_pago.map((nombreMedio) => {
+              const IconoM = resolverIconoMedio(nombreMedio);
               return (
                 <span
-                  key={medioId}
+                  key={nombreMedio}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500/10 border border-sky-500/25 text-sky-400"
                 >
                   <IconoM className="w-3.5 h-3.5" />
-                  <span>{infoMedio.nombre}</span>
+                  <span>{nombreMedio}</span>
                 </span>
               );
             })}
@@ -667,14 +682,14 @@ export default function PerfilPage() {
         </div>
       )}
 
-      {/* MODAL 2 EXCLUSIVO: GESTIONAR BILLETERAS Y TARJETAS */}
+      {/* MODAL 2 EXCLUSIVO: GESTIONAR BILLETERAS Y BANCOS (DINÁMICO DESDE SUPABASE) */}
       {modalBilletera && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="theme-card border rounded-3xl p-5 max-w-md w-full shadow-2xl relative space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-black theme-title">Gestionar billeteras</h3>
-                <p className="text-[11px] theme-muted">Tildá tus tarjetas y cuentas con reintegro</p>
+                <h3 className="text-sm font-black theme-title">Gestionar billeteras y bancos</h3>
+                <p className="text-[11px] theme-muted">Tildá los medios de pago que usás para calcular tus descuentos</p>
               </div>
               <button
                 type="button"
@@ -685,43 +700,50 @@ export default function PerfilPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 pt-1">
-              {MEDIOS_PAGO_DISPONIBLES.map((medio) => {
-                const seleccionado = mediosSeleccionados.includes(medio.id);
-                const IconoM = medio.Icono;
-                return (
-                  <button
-                    key={medio.id}
-                    type="button"
-                    onClick={() => toggleMedioPago(medio.id)}
-                    className={`flex items-center justify-between p-3 rounded-2xl border text-xs font-bold transition cursor-pointer ${
-                      seleccionado
-                        ? 'bg-sky-500/15 border-sky-400 text-sky-400 shadow-xs'
-                        : 'theme-card-sub border-[var(--border-card)] theme-muted hover:border-slate-500'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <div className={`p-1.5 rounded-lg border ${
+            {mediosDisponibles.length === 0 ? (
+              <div className="py-8 text-center text-xs theme-muted space-y-1">
+                <p>No hay promociones bancarias cargadas actualmente en Bariloche.</p>
+                <p className="text-[11px] opacity-75">Las opciones aparecerán automáticamente cuando se carguen en el panel de administración.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                {mediosDisponibles.map((medio) => {
+                  const seleccionado = mediosSeleccionados.includes(medio.id);
+                  const IconoM = medio.Icono;
+                  return (
+                    <button
+                      key={medio.id}
+                      type="button"
+                      onClick={() => toggleMedioPago(medio.id)}
+                      className={`flex items-center justify-between p-3 rounded-2xl border text-xs font-bold transition cursor-pointer ${
                         seleccionado
-                          ? 'bg-sky-500/20 border-sky-400/30 text-sky-400'
-                          : 'theme-card border-[var(--border-card)] theme-muted'
-                      }`}>
-                        <IconoM className="w-4 h-4" />
+                          ? 'bg-sky-500/15 border-sky-400 text-sky-400 shadow-xs'
+                          : 'theme-card-sub border-[var(--border-card)] theme-muted hover:border-slate-500'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 truncate">
+                        <div className={`p-1.5 rounded-lg border ${
+                          seleccionado
+                            ? 'bg-sky-500/20 border-sky-400/30 text-sky-400'
+                            : 'theme-card border-[var(--border-card)] theme-muted'
+                        }`}>
+                          <IconoM className="w-4 h-4" />
+                        </div>
+                        <span className="truncate">{medio.nombre}</span>
                       </div>
-                      <span className="truncate">{medio.nombre}</span>
-                    </div>
 
-                    <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition ${
-                      seleccionado
-                        ? 'bg-sky-500 border-sky-400 text-slate-950'
-                        : 'border-slate-600 bg-transparent'
-                    }`}>
-                      {seleccionado && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                      <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition ${
+                        seleccionado
+                          ? 'bg-sky-500 border-sky-400 text-slate-950'
+                          : 'border-slate-600 bg-transparent'
+                      }`}>
+                        {seleccionado && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-card)]">
               <button

@@ -13,7 +13,8 @@ import {
   Info,
   Scale,
   Layers,
-  ArrowUpDown
+  ArrowUpDown,
+  Check
 } from 'lucide-react';
 
 function limpiarTexto(str = '') {
@@ -22,6 +23,16 @@ function limpiarTexto(str = '') {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function generarClaveProducto(nombre = '') {
+  let limpio = limpiarTexto(nombre);
+  limpio = limpio
+    .replace(/\b(tetra|botella|botellon|pet|doypack|doy pack|flow pack|paquete|pack|caja|bolsa|sachet|tubo|pote|lata|frasco|frasco vidrio|fraccionado|cilindro)\b/g, '')
+    .replace(/\b(x\s*\d+.*|\d+\s*(g|gr|gramos?|kg|kilos?|ml|cc|cm3|l|lt|litros?|u|un|unidades?))\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return limpio || limpiarTexto(nombre);
 }
 
 function normalizarTipoGenericoFallback(nombre = '') {
@@ -71,7 +82,7 @@ export default function ComparadorView({
   limiteVisibles,
   setLimiteVisibles,
   cantidadPorPagina,
-  changuito,
+  changuito = [],
   toggleProductoChanguito,
   setFotoModal,
   abrirUbicacionComercio,
@@ -111,6 +122,7 @@ export default function ComparadorView({
       if (!mapaRubros.has(claveRubro)) {
         mapaRubros.set(claveRubro, {
           clave: claveRubro,
+          claveProd: generarClaveProducto(tipoProd),
           producto: tipoProd,
           rubro: rubro,
           unidadRef: unidadRef,
@@ -192,7 +204,7 @@ export default function ComparadorView({
 
   return (
     <div className="space-y-3.5">
-      {/* BANNER SUGERENCIA GPS (Solo visible cuando NO está activo) */}
+      {/* BANNER GPS */}
       {!userCoords && (
         <div className="p-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -215,32 +227,32 @@ export default function ComparadorView({
         </div>
       )}
 
-      {/* SELECTOR DE MODO DE COMPARACIÓN */}
-      <div className="theme-card border rounded-2xl p-1.5 flex items-center justify-between gap-1.5 shadow-xs">
+      {/* SELECTOR DE MODO DE COMPARACIÓN RESUMIDO */}
+      <div className="theme-card border rounded-2xl p-1.5 grid grid-cols-2 gap-1.5 shadow-xs">
         <button
           type="button"
           onClick={() => setModoComparacion('exacto')}
-          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             modoComparacion === 'exacto'
               ? 'bg-sky-500 text-slate-950 font-black shadow-sm'
               : 'theme-muted hover:theme-title'
           }`}
         >
           <Layers className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">Misma Marca y Producto</span>
+          <span className="truncate">Misma marca</span>
         </button>
 
         <button
           type="button"
           onClick={() => setModoComparacion('generico')}
-          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             modoComparacion === 'generico'
               ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
               : 'theme-muted hover:theme-title'
           }`}
         >
           <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">El Más Barato por Rubro (Sin Marca)</span>
+          <span className="truncate">El más barato</span>
         </button>
       </div>
 
@@ -259,7 +271,12 @@ export default function ComparadorView({
         let rubroFinal = grupo.rubro;
         const confRubro = CONFIG_CATEGORIAS[rubroFinal] || CONFIG_CATEGORIAS.Almacén;
         const IconoRubro = confRubro.icono;
-        const enChanguito = changuito.includes(grupo.claveProd || grupo.producto);
+
+        // Comprobación de estado en changuito
+        const claveProdNormalizada = grupo.claveProd || generarClaveProducto(grupo.producto);
+        const enChanguito = changuito.some((c) =>
+          c === claveProdNormalizada || c === grupo.producto || c === grupo.clave
+        );
 
         const abrirDetalleAmpliado = () => {
           setFotoModal({
@@ -365,12 +382,21 @@ export default function ComparadorView({
                 }}
                 className={`px-3 py-1.5 rounded-xl border text-[11px] font-black inline-flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-xs shrink-0 ${
                   enChanguito
-                    ? 'bg-sky-500 text-slate-950 border-sky-400'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 shadow-emerald-500/10'
                     : 'btn-changuito-add hover:border-sky-500'
                 }`}
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>{enChanguito ? 'En mi lista' : '+ Mi lista'}</span>
+                {enChanguito ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 stroke-[3] text-emerald-400" />
+                    <span>En mi lista</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>+ Mi lista</span>
+                  </>
+                )}
               </button>
             </div>
 

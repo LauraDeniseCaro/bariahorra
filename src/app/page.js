@@ -383,6 +383,9 @@ function obtenerClaveVoto(ofertaId, precioActual) {
   return `${ofertaId}_${Math.round(Number(precioActual || 0))}`;
 }
 
+const getChanguitoKey = (userId) => (userId ? `bariahorra_changuito_${userId}` : 'bariahorra_changuito_invitado');
+const getTachadosKey = (userId) => (userId ? `bariahorra_tachados_${userId}` : 'bariahorra_tachados_invitado');
+
 function compartirOfertaWhatsApp(item) {
   const precioFormateado = Number(item._precio || 0).toLocaleString('es-AR');
   const unitario = item._refUnitario ? ` ($${item._refUnitario.valor} x ${item._refUnitario.unidad})` : '';
@@ -476,6 +479,7 @@ export default function HomePage() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [mostrarBannerInstalar, setMostrarBannerInstalar] = useState(false);
 
+  // Carga inicial y listeners
   useEffect(() => {
     obtenerSesionYOfertas();
     cargarVotosDesdeStorage();
@@ -494,13 +498,6 @@ export default function HomePage() {
         console.error('Error al registrar Service Worker:', err);
       });
     }
-
-    try {
-      const changuitoGuardado = localStorage.getItem('bariahorra_changuito');
-      if (changuitoGuardado) setChanguito(JSON.parse(changuitoGuardado));
-      const tachadosGuardados = localStorage.getItem('bariahorra_tachados');
-      if (tachadosGuardados) setItemsTachados(JSON.parse(tachadosGuardados));
-    } catch (e) { }
 
     const {
       data: { subscription }
@@ -526,6 +523,22 @@ export default function HomePage() {
       window.removeEventListener('beforeinstallprompt', capturarPrompt);
     };
   }, []);
+
+  // Cargar changuito y tachados específicos del usuario conectado (soluciona la mezcla de listas)
+  useEffect(() => {
+    const uId = usuario?.id || null;
+    const cKey = getChanguitoKey(uId);
+    const tKey = getTachadosKey(uId);
+    try {
+      const cGuardado = localStorage.getItem(cKey);
+      setChanguito(cGuardado ? JSON.parse(cGuardado) : []);
+      const tGuardado = localStorage.getItem(tKey);
+      setItemsTachados(tGuardado ? JSON.parse(tGuardado) : []);
+    } catch (e) {
+      setChanguito([]);
+      setItemsTachados([]);
+    }
+  }, [usuario?.id]);
 
   useEffect(() => {
     setLimiteVisibles(CANTIDAD_POR_PAGINA);
@@ -649,7 +662,8 @@ export default function HomePage() {
       const existe = prev.includes(clave);
       const nuevo = existe ? prev.filter((item) => item !== clave) : [...prev, clave];
       try {
-        localStorage.setItem('bariahorra_changuito', JSON.stringify(nuevo));
+        const uId = usuario?.id || null;
+        localStorage.setItem(getChanguitoKey(uId), JSON.stringify(nuevo));
       } catch (e) { }
       return nuevo;
     });
@@ -660,7 +674,8 @@ export default function HomePage() {
       const existe = prev.includes(clave);
       const nuevo = existe ? prev.filter((k) => k !== clave) : [...prev, clave];
       try {
-        localStorage.setItem('bariahorra_tachados', JSON.stringify(nuevo));
+        const uId = usuario?.id || null;
+        localStorage.setItem(getTachadosKey(uId), JSON.stringify(nuevo));
       } catch (e) { }
       return nuevo;
     });
@@ -671,8 +686,9 @@ export default function HomePage() {
     setItemsTachados([]);
     setModoCompraActivo(false);
     try {
-      localStorage.removeItem('bariahorra_changuito');
-      localStorage.removeItem('bariahorra_tachados');
+      const uId = usuario?.id || null;
+      localStorage.removeItem(getChanguitoKey(uId));
+      localStorage.removeItem(getTachadosKey(uId));
     } catch (e) { }
   };
 
@@ -752,15 +768,17 @@ export default function HomePage() {
         return;
       }
 
-      const [resProd, resCom, resPerf] = await Promise.allSettled([
+      const [resProd, resCom, resPerf, resPromos] = await Promise.allSettled([
         supabase.from('productos').select('*'),
         supabase.from('comercios').select('*'),
-        supabase.from('perfiles').select('*')
+        supabase.from('perfiles').select('*'),
+        supabase.from('promociones').select('*').eq('activo', true)
       ]);
 
       const productosList = resProd.status === 'fulfilled' && resProd.value.data ? resProd.value.data : [];
       const comerciosList = resCom.status === 'fulfilled' && resCom.value.data ? resCom.value.data : [];
       const perfilesList = resPerf.status === 'fulfilled' && resPerf.value.data ? resPerf.value.data : [];
+      const promosList = resPromos.status === 'fulfilled' && resPromos.value.data ? resPromos.value.data : [];
 
       setComerciosRaw(comerciosList);
 
@@ -797,7 +815,6 @@ export default function HomePage() {
 
         let rubro = prodRel?.categoria || prodRel?.rubro || '';
 
-        // Purés y procesados siempre en Almacén
         const nombreLower = productoNombre.toLowerCase();
         if (
           nombreLower.includes('pure de tomate') ||
@@ -849,7 +866,8 @@ export default function HomePage() {
         const refUnitario = calcularPrecioPorUnidad(precioFinal, tamano, unidad, productoNombre);
         const presentacionFormateada = formatearPresentacion(tamano, unidad, productoNombre);
 
-        const promoInfo = calcularPrecioConPromo(precioFinal, comercioCadena, mediosActuales);
+        // Cruce dinámico con la tabla promociones de Supabase
+        const promoInfo = calcularPrecioConPromo(precioFinal, comercioCadena, mediosActuales, promosList);
 
         return {
           ...item,
@@ -1460,7 +1478,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* FILTRO DE SUPERMERCADOS LIMPIO (CADENAS MADRE) */}
+      {/* FILTRO DE SUPERMERCADOS */}
       <div
         ref={cadenasRef}
         onMouseDown={(e) => iniciarArrastre(e, cadenasRef)}
@@ -1597,9 +1615,8 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* BARRA DE HERRAMIENTAS PERSISTENTE (LIMPIA Y SIN TEXTOS REDUNDANTES) */}
+        {/* BARRA DE HERRAMIENTAS PERSISTENTE */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 pt-1 border-t border-[var(--border-card)]">
-          {/* Botón de GPS universal */}
           <button
             type="button"
             onClick={handleActivarUbicacion}
@@ -1613,7 +1630,6 @@ export default function HomePage() {
             <span>{pidiendoGps ? 'Buscando...' : userCoords ? 'GPS Activo' : 'Cerca mío'}</span>
           </button>
 
-          {/* Selector de orden específico para Góndola */}
           {modoVista === 'gondola' && (
             <select
               value={orden}

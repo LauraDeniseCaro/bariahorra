@@ -753,15 +753,32 @@ export default function HomePage() {
     }
   };
 
+  const fetchTodasLasFilas = async (tabla, ordenarPor = null) => {
+    let acumulado = [];
+    let desde = 0;
+    const paso = 1000;
+
+    while (true) {
+      let query = supabase.from(tabla).select('*').range(desde, desde + paso - 1);
+      if (ordenarPor) {
+        query = query.order(ordenarPor, { ascending: false });
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+
+      acumulado = acumulado.concat(data);
+      if (data.length < paso) break;
+      desde += paso;
+    }
+    return acumulado;
+  };
+
   const cargarOfertas = async (userActual = usuario, mediosActuales = mediosUsuario) => {
     setCargando(true);
     try {
-      const { data: rawOfertas, error: errOfertas } = await supabase
-        .from('ofertas')
-        .select('*')
-        .order('creado_en', { ascending: false });
+      const rawOfertas = await fetchTodasLasFilas('ofertas', 'creado_en');
 
-      if (errOfertas) throw errOfertas;
       if (!rawOfertas || rawOfertas.length === 0) {
         setOfertas([]);
         setCargando(false);
@@ -769,15 +786,15 @@ export default function HomePage() {
       }
 
       const [resProd, resCom, resPerf, resPromos] = await Promise.allSettled([
-        supabase.from('productos').select('*'),
-        supabase.from('comercios').select('*'),
-        supabase.from('perfiles').select('*'),
+        fetchTodasLasFilas('productos'),
+        fetchTodasLasFilas('comercios'),
+        fetchTodasLasFilas('perfiles'),
         supabase.from('promociones').select('*').eq('activo', true)
       ]);
 
-      const productosList = resProd.status === 'fulfilled' && resProd.value.data ? resProd.value.data : [];
-      const comerciosList = resCom.status === 'fulfilled' && resCom.value.data ? resCom.value.data : [];
-      const perfilesList = resPerf.status === 'fulfilled' && resPerf.value.data ? resPerf.value.data : [];
+      const productosList = resProd.status === 'fulfilled' && resProd.value ? resProd.value : [];
+      const comerciosList = resCom.status === 'fulfilled' && resCom.value ? resCom.value : [];
+      const perfilesList = resPerf.status === 'fulfilled' && resPerf.value ? resPerf.value : [];
       const promosList = resPromos.status === 'fulfilled' && resPromos.value.data ? resPromos.value.data : [];
 
       setComerciosRaw(comerciosList);

@@ -16,6 +16,7 @@ import {
   ArrowUpDown,
   Check
 } from 'lucide-react';
+import { obtenerLogoMarca } from '@/lib/logosMarcas';
 
 function limpiarTexto(str = '') {
   return String(str)
@@ -272,6 +273,10 @@ export default function ComparadorView({
         const confRubro = CONFIG_CATEGORIAS[rubroFinal] || CONFIG_CATEGORIAS.Almacén;
         const IconoRubro = confRubro.icono;
 
+        const tieneFotoReal = Boolean(grupo.foto);
+        const logoMarca = !tieneFotoReal && modoComparacion === 'exacto' ? obtenerLogoMarca(grupo.marca) : null;
+        const imagenFinal = grupo.foto || logoMarca;
+
         // Comprobación de estado en changuito
         const claveProdNormalizada = grupo.claveProd || generarClaveProducto(grupo.producto);
         const enChanguito = changuito.some((c) =>
@@ -305,19 +310,25 @@ export default function ComparadorView({
                 className={`w-13 h-13 sm:w-14 sm:h-14 rounded-xl border overflow-hidden shrink-0 flex items-center justify-center relative shadow-xs ${confRubro.cajaIcono}`}
               >
                 <IconoRubro className={`w-6 h-6 absolute ${confRubro.acento}`} />
-                {grupo.foto && (
+                {imagenFinal && (
                   <>
                     <img
-                      src={grupo.foto}
-                      alt={grupo.producto}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 relative z-10 bg-[var(--bg-card)]"
+                      src={imagenFinal}
+                      alt={tieneFotoReal ? grupo.producto : grupo.marca}
+                      className={`w-full h-full group-hover:scale-105 transition-transform duration-200 relative z-10 ${
+                        tieneFotoReal
+                          ? 'object-cover bg-[var(--bg-card)]'
+                          : 'object-contain p-1.5 bg-white'
+                      }`}
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                      <ZoomIn className="w-4 h-4 text-white drop-shadow" />
-                    </div>
+                    {tieneFotoReal && (
+                      <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+                        <ZoomIn className="w-4 h-4 text-white drop-shadow" />
+                      </div>
+                    )}
                   </>
                 )}
               </div>

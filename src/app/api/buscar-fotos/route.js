@@ -5,23 +5,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// 1. DICCIONARIOS CURADOS HD PARA FRESCOS
-const FOTOS_CARNICERIA = {
-  asado: 'https://images.unsplash.com/photo-1558030006-450675393462?w=400&q=80',
-  vacio: 'https://images.unsplash.com/photo-1558030006-450675393462?w=400&q=80',
-  matambre: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=400&q=80',
-  falda: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=400&q=80',
-  nalga: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=400&q=80',
-  peceto: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=400&q=80',
-  lomo: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=400&q=80',
-  bife: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=400&q=80',
-  picada: 'https://images.unsplash.com/photo-1588168333986-5078d3ae3976?w=400&q=80',
-  pollo: 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400&q=80',
-  pechuga: 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=400&q=80',
-  milanesa: 'https://images.unsplash.com/photo-1599921841143-819025a22b49?w=400&q=80',
-  bondiola: 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&q=80',
-  chorizo: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=80'
-};
+// 1. FOTOS FIJAS CURADAS POR TIPO DE FRESCO
+const FOTO_VACA = 'https://images.unsplash.com/photo-1558030006-450675393462?w=500&q=80';
+const FOTO_POLLO = 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=500&q=80';
+const FOTO_CERDO = 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=500&q=80';
+const FOTO_PESCADO = 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=500&q=80';
+const FOTO_QUESO = 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=500&q=80';
+const FOTO_FIAMBRE = 'https://images.unsplash.com/photo-1524438418049-ab2acb7aa48f?w=500&q=80';
 
 const FOTOS_VERDULERIA = {
   repollo: 'https://images.unsplash.com/photo-1594282486552-05b4d80fbb9f?w=400&q=80',
@@ -38,7 +28,9 @@ const FOTOS_VERDULERIA = {
   morron: 'https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=400&q=80',
   zapallo: 'https://images.unsplash.com/photo-1570586437263-ab629fccc818?w=400&q=80',
   espinaca: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&q=80',
-  acelga: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&q=80'
+  acelga: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400&q=80',
+  sandia: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&q=80',
+  brocoli: 'https://images.unsplash.com/photo-1459411621453-7b03977f4bfc?w=400&q=80'
 };
 
 function normalizar(texto = '') {
@@ -49,7 +41,6 @@ function normalizar(texto = '') {
     .trim();
 }
 
-// Búsqueda por palabra exacta (evita que repollo coincida con pollo o paño con pan)
 function contienePalabraExacta(texto, palabra) {
   const regex = new RegExp(`\\b${palabra}\\b`, 'i');
   return regex.test(texto);
@@ -62,45 +53,78 @@ function limpiarCadena(nombre = '', marca = '') {
     .replace(/\s+/g, ' ')
     .trim();
 
-  const m = marca && !['Genérica', 'S/M', 'Generica'].includes(marca) ? normalizar(marca) : '';
+  const m = marca && !['generica', 's/m', 'la anonima', 'carrefour', 'okey', 'best'].includes(normalizar(marca))
+    ? normalizar(marca)
+    : '';
   return { n, m };
 }
 
-async function buscarEnOFF(query, tipoBase = 'food') {
-  if (!query || query.length < 3) return null;
+function resolverFotoFija(nombreNorm, cat) {
+  // 1. Carnicería y Congelados diferenciados en Cerdo, Pollo y Vaca
+  if (cat === 'Carnicería' || cat === 'Congelados') {
+    if (/\b(cerdo|bondiola|pechito|solomillo|carre)\b/.test(nombreNorm)) {
+      return { url: FOTO_CERDO, origen: 'Fija Cerdo HD' };
+    }
+    if (/\b(pollo|suprema|pechuga|muslo|nuggets|patitas)\b/.test(nombreNorm)) {
+      return { url: FOTO_POLLO, origen: 'Fija Pollo HD' };
+    }
+    if (cat === 'Carnicería' && !/\b(salchicha|chorizo|morcilla)\b/.test(nombreNorm)) {
+      return { url: FOTO_VACA, origen: 'Fija Vaca HD' };
+    }
+  }
+
+  // 2. Pescados y Mariscos
+  if (cat === 'Pescados y Mariscos' || contienePalabraExacta(nombreNorm, 'merluza')) {
+    return { url: FOTO_PESCADO, origen: 'Fija Pescadería HD' };
+  }
+
+  // 3. Fiambrería y Quesos al peso
+  if (cat === 'Fiambrería') {
+    return { url: FOTO_FIAMBRE, origen: 'Fija Fiambrería HD' };
+  }
+  if (cat === 'Lácteos' && /\b(queso cremoso|queso danbo|queso barra|port salut|reggianito|sardo|mozzarella)\b/.test(nombreNorm)) {
+    return { url: FOTO_QUESO, origen: 'Fija Quesos HD' };
+  }
+
+  // 4. Verdulería y Huevos
+  if (cat === 'Verdulería') {
+    for (const [clave, urlGen] of Object.entries(FOTOS_VERDULERIA)) {
+      if (contienePalabraExacta(nombreNorm, clave)) {
+        return { url: urlGen, origen: 'Catálogo Verdulería HD' };
+      }
+    }
+  }
+  if (contienePalabraExacta(nombreNorm, 'huevo') && !nombreNorm.includes('fideo') && !nombreNorm.includes('pasta')) {
+    return { url: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80', origen: 'Huevos Granja HD' };
+  }
+
+  return null;
+}
+
+async function buscarEnOFFEstricto(query, marcaLimpia, tipoBase = 'food') {
+  if (!query || query.length < 4 || !marcaLimpia) return null;
   const dominio = tipoBase === 'beauty' ? 'world.openbeautyfacts.org' : 'world.openfoodfacts.org';
   try {
     const url = `https://${dominio}/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5`;
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'BariAhorra - AppPreciosBariloche - V3.0' },
+      headers: { 'User-Agent': 'BariAhorra - AppPreciosBariloche - V3.1' },
       next: { revalidate: 0 }
     });
     if (!res.ok) return null;
     const data = await res.json();
+
     const prod = data.products?.find((p) => {
-      const img = p.image_front_url || p.image_front_small_url || p.image_url;
+      const img = p.image_front_url || p.image_front_small_url;
       if (!img) return false;
       const lower = img.toLowerCase();
-      return !lower.includes('barcode') && !lower.includes('packaging') && !lower.includes('nutrition');
-    });
-    return prod?.image_front_url || prod?.image_front_small_url || prod?.image_url || null;
-  } catch {
-    return null;
-  }
-}
+      if (lower.includes('barcode') || lower.includes('packaging') || lower.includes('nutrition')) return false;
 
-// Rescate de artículos genéricos sin bloqueos de red
-async function buscarEnWikipedia(termino) {
-  if (!termino || termino.length < 3) return null;
-  try {
-    const url = `https://es.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&pithumbsize=500&titles=${encodeURIComponent(termino)}`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'BariAhorra/1.0' } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const pages = data.query?.pages;
-    if (!pages) return null;
-    const primerId = Object.keys(pages)[0];
-    return pages[primerId]?.thumbnail?.source || null;
+      const brands = normalizar(p.brands || '');
+      const primeraMarca = brands.split(',')[0]?.trim() || '___';
+      return brands.includes(marcaLimpia) || marcaLimpia.includes(primeraMarca);
+    });
+
+    return prod?.image_front_url || prod?.image_front_small_url || null;
   } catch {
     return null;
   }
@@ -152,66 +176,32 @@ export async function POST() {
         } catch {}
       }
 
-      // 2. Diccionarios curados por palabra exacta según rubro
+      // 2. Fotos fijas curadas (Cerdo, Pollo, Vaca, Pescado, Quesos, Fiambres, Verdulería)
       if (!fotoUrl) {
-        if (cat === 'Carnicería') {
-          for (const [clave, urlGen] of Object.entries(FOTOS_CARNICERIA)) {
-            if (contienePalabraExacta(nombreNorm, clave)) {
-              fotoUrl = urlGen;
-              origen = 'Catálogo Carnes HD';
-              break;
-            }
-          }
-        } else if (cat === 'Verdulería') {
-          for (const [clave, urlGen] of Object.entries(FOTOS_VERDULERIA)) {
-            if (contienePalabraExacta(nombreNorm, clave)) {
-              fotoUrl = urlGen;
-              origen = 'Catálogo Verdulería HD';
-              break;
-            }
-          }
-        } else if (contienePalabraExacta(nombreNorm, 'huevo') && !nombreNorm.includes('fideo') && !nombreNorm.includes('pasta')) {
-          fotoUrl = 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80';
-          origen = 'Huevos Granja HD';
+        const fija = resolverFotoFija(nombreNorm, cat);
+        if (fija) {
+          fotoUrl = fija.url;
+          origen = fija.origen;
         }
       }
 
-      // 3. Open Beauty Facts para Limpieza e Higiene
-      if (!fotoUrl && ['Limpieza', 'Higiene Personal'].includes(cat)) {
-        fotoUrl = await buscarEnOFF(`${nomLimpio} ${marcaLimpia}`.trim(), 'beauty');
-        if (!fotoUrl && marcaLimpia) {
-          fotoUrl = await buscarEnOFF(`${marcaLimpia} ${nomLimpio.split(' ')[0]}`.trim(), 'beauty');
-        }
+      // 3. Open Beauty Facts estricto para Limpieza e Higiene
+      if (!fotoUrl && ['Limpieza', 'Higiene Personal'].includes(cat) && marcaLimpia) {
+        fotoUrl = await buscarEnOFFEstricto(`${nomLimpio} ${marcaLimpia}`.trim(), marcaLimpia, 'beauty');
         if (fotoUrl) origen = 'Open Beauty Facts';
       }
 
-      // 4. Open Food Facts con términos escalonados
-      if (!fotoUrl && !['Carnicería', 'Verdulería'].includes(cat)) {
-        fotoUrl = await buscarEnOFF(`${nomLimpio} ${marcaLimpia}`.trim(), 'food');
-
-        if (!fotoUrl && marcaLimpia) {
-          const nucleo = nomLimpio.split(' ')[0] || '';
-          fotoUrl = await buscarEnOFF(`${marcaLimpia} ${nucleo}`.trim(), 'food');
-        }
-
+      // 4. Open Food Facts estricto para empaquetados con marca
+      if (!fotoUrl && !['Carnicería', 'Verdulería', 'Limpieza', 'Higiene Personal'].includes(cat) && marcaLimpia) {
+        fotoUrl = await buscarEnOFFEstricto(`${nomLimpio} ${marcaLimpia}`.trim(), marcaLimpia, 'food');
         if (!fotoUrl) {
-          const dosPalabras = nomLimpio.split(' ').slice(0, 2).join(' ');
-          fotoUrl = await buscarEnOFF(dosPalabras, 'food');
+          const nucleo = nomLimpio.split(' ')[0] || '';
+          fotoUrl = await buscarEnOFFEstricto(`${marcaLimpia} ${nucleo}`.trim(), marcaLimpia, 'food');
         }
-
-        if (fotoUrl) origen = 'Open Food Facts';
+        if (fotoUrl) origen = 'Open Food Facts Verificado';
       }
 
-      // 5. Wikipedia para verduras y genéricos
-      if (!fotoUrl) {
-        const palabraClave = nomLimpio.split(' ')[0];
-        if (palabraClave && palabraClave.length > 3) {
-          fotoUrl = await buscarEnWikipedia(palabraClave);
-          if (fotoUrl) origen = 'Wikipedia Oficial';
-        }
-      }
-
-      // 6. Guardar en Supabase
+      // 5. Guardar en Supabase (si no hay foto, queda con logo de marca o ícono limpio)
       const updatePayload = { foto_buscada: true };
       if (fotoUrl) updatePayload.foto_url = fotoUrl;
 
@@ -221,7 +211,7 @@ export async function POST() {
         actualizados++;
         detalles.push({ producto: `${prod.nombre} (${prod.marca || 'S/M'})`, estado: `asignada ✅ (${origen})` });
       } else {
-        detalles.push({ producto: `${prod.nombre} (${prod.marca || 'S/M'})`, estado: 'no encontrada (queda con ícono limpio)' });
+        detalles.push({ producto: `${prod.nombre} (${prod.marca || 'S/M'})`, estado: 'sin foto (usará logo de marca o ícono)' });
       }
     }
 

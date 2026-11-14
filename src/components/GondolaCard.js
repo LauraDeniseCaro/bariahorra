@@ -17,6 +17,7 @@ import {
   ArrowRight,
   ZoomIn
 } from 'lucide-react';
+import { obtenerLogoMarca } from '@/lib/logosMarcas';
 
 function WhatsAppIcon({ className = 'w-3.5 h-3.5' }) {
   return (
@@ -47,7 +48,10 @@ export default function GondolaCard({
   tiempoRelativo,
   obtenerEstiloComercio
 }) {
-  const tieneFoto = Boolean(item._foto);
+  const tieneFotoReal = Boolean(item._foto);
+  const logoMarca = !tieneFotoReal ? obtenerLogoMarca(item._marca) : null;
+  const imagenFinal = item._foto || logoMarca;
+
   const esAnonimo = String(item._usuario || '').toLowerCase().includes('anonimo');
   const formatoUsuario = esAnonimo
     ? 'Vecino anónimo'
@@ -89,7 +93,7 @@ export default function GondolaCard({
             : 'hover:border-slate-400'
       }`}
     >
-      {/* PISO 1: CABECERA LIMPIA (SIN PRECIO DE REFERENCIA ARRIBA) */}
+      {/* PISO 1: CABECERA LIMPIA */}
       <div className="flex items-center justify-between gap-1.5 border-b border-[var(--border-card)] pb-2.5">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <button
@@ -160,7 +164,7 @@ export default function GondolaCard({
         </div>
       </div>
 
-      {/* PISO 2: CUERPO (CLICK EN FOTO O TÍTULO ABRE EL MODAL AMPLIADO) */}
+      {/* PISO 2: CUERPO (FOTO REAL -> LOGO DE MARCA -> ÍCONO DEL RUBRO) */}
       <div
         onClick={abrirDetalleModal}
         className="flex gap-3 items-start flex-1 py-1 cursor-pointer group select-none rounded-xl p-1 -m-1 hover:bg-slate-500/5 transition"
@@ -172,20 +176,26 @@ export default function GondolaCard({
           {/* Ícono de respaldo vectorial */}
           <IconoRubro className={`w-7 h-7 stroke-[1.75] absolute ${confRubro.acento}`} />
 
-          {tieneFoto && (
+          {imagenFinal && (
             <>
               <img
-                src={item._foto}
-                alt={item._producto}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 relative z-10 bg-[var(--bg-card)]"
+                src={imagenFinal}
+                alt={tieneFotoReal ? item._producto : item._marca}
+                className={`w-full h-full group-hover:scale-105 transition-transform duration-200 relative z-10 ${
+                  tieneFotoReal
+                    ? 'object-cover bg-[var(--bg-card)]'
+                    : 'object-contain p-1.5 bg-white'
+                }`}
                 loading="lazy"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
-              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                <ZoomIn className="w-5 h-5 text-white drop-shadow" />
-              </div>
+              {tieneFotoReal && (
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+                  <ZoomIn className="w-5 h-5 text-white drop-shadow" />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -275,7 +285,7 @@ export default function GondolaCard({
               </p>
             )}
 
-            {/* SECTOR DE REFERENCIA UNIFICADA: NO DUPLICA Y CAMBIA SEGÚN VIGENCIA */}
+            {/* SECTOR DE REFERENCIA UNIFICADA */}
             <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
               {item._esCatalogo ? (
                 <span

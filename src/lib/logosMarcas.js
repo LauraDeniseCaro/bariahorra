@@ -9,6 +9,7 @@ const DOMINIOS_MARCAS = {
   'casancrem': 'laserenisima.com.ar',
   'yogurisimo': 'laserenisima.com.ar',
   'cindor': 'laserenisima.com.ar',
+  'danette': 'danone.com.ar',
   'arcor': 'arcor.com',
   'bagley': 'bagley.com.ar',
   'terrabusi': 'mondelezinternational.com',
@@ -16,6 +17,8 @@ const DOMINIOS_MARCAS = {
   'pepitos': 'mondelezinternational.com',
   'cofler': 'arcor.com',
   'bon o bon': 'arcor.com',
+  'mogul': 'arcor.com',
+  'aguila': 'arcor.com',
   'marolio': 'marolio.com.ar',
   'molto': 'marolio.com.ar',
   'lucchetti': 'molinos.com.ar',
@@ -31,11 +34,13 @@ const DOMINIOS_MARCAS = {
   'canuelas': 'molinocanuelas.com',
   'pureza': 'molinocanuelas.com',
   '9 de oro': 'molinocanuelas.com',
+  'mama cocina': 'molinocanuelas.com',
   'morixe': 'morixe.com.ar',
   'knorr': 'knorr.com',
   'hellmanns': 'hellmanns.com',
   'savora': 'unilever.com.ar',
   'maizena': 'unilever.com.ar',
+  'exquisita': 'molinos.com.ar',
   'playadito': 'yerbamateplayadito.com.ar',
   'taragui': 'lasmarias.com.ar',
   'union': 'lasmarias.com.ar',
@@ -50,9 +55,14 @@ const DOMINIOS_MARCAS = {
   'chamigo': 'molinos.com.ar',
   'la virginia': 'lavirginia.com.ar',
   'nescafe': 'nescafe.com',
+  'dolca': 'nescafe.com',
   'nesquik': 'nesquik.com',
   'cabrales': 'cabrales.com',
   'arlistan': 'lavirginia.com.ar',
+  'hileret': 'hileret.com.ar',
+  'ledesma': 'ledesma.com.ar',
+  'dos anclas': 'dosanclas.com.ar',
+  'celusal': 'celusal.com.ar',
   'coca cola': 'coca-cola.com',
   'sprite': 'sprite.com',
   'fanta': 'fanta.com',
@@ -65,6 +75,7 @@ const DOMINIOS_MARCAS = {
   'baggio': 'baggio.com.ar',
   'citric': 'jugoscitric.com',
   'terma': 'terma.com.ar',
+  'cunnington': 'cunnington.com.ar',
   'quilmes': 'quilmes.com.ar',
   'brahma': 'brahma.com.ar',
   'stella artois': 'stellaartois.com',
@@ -74,6 +85,7 @@ const DOMINIOS_MARCAS = {
   'schneider': 'cervezaschneider.com.ar',
   'heineken': 'heineken.com',
   'branca': 'fernetbranca.com',
+  '1882': 'porta.com.ar',
   'campari': 'campari.com',
   'gancia': 'gancia.com.ar',
   'skyy': 'skyy.com',
@@ -83,9 +95,12 @@ const DOMINIOS_MARCAS = {
   'santa julia': 'santajulia.com.ar',
   'alma mora': 'fincalasmoras.com.ar',
   'finca las moras': 'fincalasmoras.com.ar',
+  'familia gascon': 'escuela.com.ar',
+  'san telmo': 'bodegasantelmo.com',
   'colgate': 'colgate.com',
   'oral b': 'oralb.com',
   'sensodyne': 'sensodyne.com',
+  'listerine': 'listerine.com',
   'dove': 'dove.com',
   'sedal': 'sedal.com.ar',
   'pantene': 'pantene.com',
@@ -98,26 +113,37 @@ const DOMINIOS_MARCAS = {
   'hinds': 'hinds.com.ar',
   'plusbelle': 'plusbelle.com.ar',
   'lux': 'lux.com',
+  'gillette': 'gillette.com',
+  'prestobarba': 'gillette.com',
   'huggies': 'huggies.com.ar',
   'pampers': 'pampers.com.ar',
   'babysec': 'babysec.com.ar',
   'always': 'always.com',
+  'carefree': 'carefree.com',
+  'nosotras': 'nosotrasonline.com',
   'skip': 'skip.com.ar',
   'ala': 'ala.com.ar',
   'ariel': 'ariel.com',
+  'ace': 'ace.com',
   'vivere': 'vivere.com.ar',
   'comfort': 'comfort.com.ar',
+  'querubin': 'querubin.com.ar',
+  'zorro': 'alicorp.com.pe',
   'cif': 'cif.com.ar',
   'magistral': 'proctergamble.com',
   'ayudin': 'ayudin.com.ar',
+  'odex': 'odex.com.ar',
   'poett': 'poett.com.ar',
+  'mr musculo': 'scjohnson.com',
   'blem': 'scjohnson.com',
   'raid': 'raid.com',
+  'fuyi': 'scjohnson.com',
   'off': 'off.com',
   'glade': 'glade.com',
   'higienol': 'higienol.com.ar',
   'elite': 'elite.com.ar',
   'sussex': 'sussex.com.ar',
+  'virulana': 'virulana.com.ar',
   'paty': 'paty.com.ar',
   'swift': 'swift.com.ar',
   'paladini': 'paladini.com.ar',
@@ -127,8 +153,8 @@ const DOMINIOS_MARCAS = {
   'la saltena': 'lasaltena.com.ar',
   'pedigree': 'pedigree.com.ar',
   'whiskas': 'whiskas.com.ar',
-  'dog chow': 'purina.com.ar',
-  'cat chow': 'purina.com.ar',
+  'dogui': 'purina.com.ar',
+  'gati': 'purina.com.ar',
   'felix': 'purina.com.ar'
 };
 
@@ -141,19 +167,22 @@ export function obtenerLogoMarca(marcaRaw = '') {
     .replace(/['’.-]/g, '')
     .trim();
 
-  if (!norm || ['generica', 'la anonima', 'carrefour', 'okey', 'best'].includes(norm)) {
+  if (!norm || ['generica', 'la anonima', 'carrefour', 'okey', 'best', 's/m'].includes(norm)) {
     return null;
   }
 
-  if (DOMINIOS_MARCAS[norm]) {
-    return `https://logo.clearbit.com/${DOMINIOS_MARCAS[norm]}?size=128`;
-  }
+  let dominioEncontrado = DOMINIOS_MARCAS[norm] || null;
 
-  for (const [clave, dominio] of Object.entries(DOMINIOS_MARCAS)) {
-    if (norm.includes(clave) || clave.includes(norm)) {
-      return `https://logo.clearbit.com/${dominio}?size=128`;
+  if (!dominioEncontrado) {
+    for (const [clave, dominio] of Object.entries(DOMINIOS_MARCAS)) {
+      if (norm.includes(clave) || clave.includes(norm)) {
+        dominioEncontrado = dominio;
+        break;
+      }
     }
   }
 
-  return null;
+  if (!dominioEncontrado) return null;
+
+  return `https://www.google.com/s2/favicons?domain=${dominioEncontrado}&sz=128`;
 }

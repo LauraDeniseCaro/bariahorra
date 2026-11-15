@@ -6,7 +6,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 1. FOTOS FIJAS CURADAS SOLO PARA FRESCOS SIN ENVASE
-const FOTO_VACA_CRUDA = 'https://images.unsplash.com/photo-1615937657715-bc7b4b7962c1?w=500&q=80';
+const FOTO_VACA_CRUDA = 'https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?w=500&q=80';
+const FOTO_PICADA_CRUDA = 'https://images.unsplash.com/photo-1588168333986-5078d3ae3976?w=500&q=80';
 const FOTO_POLLO_CRUDO = 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=500&q=80';
 const FOTO_CERDO_CRUDO = 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=500&q=80';
 const FOTO_PESCADO = 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=500&q=80';
@@ -59,13 +60,15 @@ function limpiarCadena(nombre = '', marca = '') {
 }
 
 function resolverFotoFija(nombreNorm, cat) {
-  // Carnicería fresca (excluye nuggets, hamburguesas y embutidos con marca)
   if (cat === 'Carnicería' && !/\b(nuggets|patitas|hamburguesa|medallon|salchicha|chorizo|morcilla)\b/.test(nombreNorm)) {
     if (/\b(cerdo|bondiola|pechito|solomillo|carre)\b/.test(nombreNorm)) {
       return { url: FOTO_CERDO_CRUDO, origen: 'Fija Cerdo Crudo' };
     }
     if (/\b(pollo|suprema|pechuga|muslo)\b/.test(nombreNorm)) {
       return { url: FOTO_POLLO_CRUDO, origen: 'Fija Pollo Crudo' };
+    }
+    if (nombreNorm.includes('picada')) {
+      return { url: FOTO_PICADA_CRUDA, origen: 'Fija Picada Cruda' };
     }
     return { url: FOTO_VACA_CRUDA, origen: 'Fija Vaca Cruda' };
   }
@@ -97,25 +100,40 @@ function resolverFotoFija(nombreNorm, cat) {
   return null;
 }
 
-// Buscador en Catálogos Públicos VTEX Argentina (Fotos reales de paquetes argentinos)
-async function buscarEnVTEXArgentina(nomLimpio, marcaLimpia) {
+// Buscador multi-cadena en Catálogos Públicos VTEX Argentina
+async function buscarEnVTEXArgentina(nomLimpio, marcaLimpia, categoria) {
   const query = `${nomLimpio} ${marcaLimpia}`.trim();
   if (query.length < 4) return null;
 
   const palabraClave = nomLimpio.split(' ').find((w) => w.length > 3) || nomLimpio.split(' ')[0];
-  const tiendasVTEX = [
-    'https://www.carrefour.com.ar',
-    'https://diaonline.supermercadosdia.com.ar'
-  ];
 
-  for (const baseUrl of tiendasVTEX) {
+  // Si es Higiene Personal, prioriza Farmacity antes que los supermercados
+  const tiendasVTEX = ['Higiene Personal'].includes(categoria)
+    ? [
+        { nombre: 'Farmacity', url: 'https://www.farmacity.com' },
+        { nombre: 'Carrefour', url: 'https://www.carrefour.com.ar' },
+        { nombre: 'Jumbo', url: 'https://www.jumbo.com.ar' },
+        { nombre: 'ChangoMás', url: 'https://www.masonline.com.ar' }
+      ]
+    : [
+        { nombre: 'Carrefour', url: 'https://www.carrefour.com.ar' },
+        { nombre: 'Jumbo', url: 'https://www.jumbo.com.ar' },
+        { nombre: 'ChangoMás', url: 'https://www.masonline.com.ar' },
+        { nombre: 'Día', url: 'https://diaonline.supermercadosdia.com.ar' },
+        { nombre: 'Disco', url: 'https://www.disco.com.ar' },
+        { nombre: 'Vea', url: 'https://www.vea.com.ar' },
+        { nombre: 'Hiper Libertad', url: 'https://www.hiperlibertad.com.ar' }
+      ];
+
+  for (const tienda of tiendasVTEX) {
     try {
-      const url = `${baseUrl}/api/catalog_system/pub/products/search/${encodeURIComponent(query)}?_from=0&_to=3`;
-      const res = await fetch(url, {
+      const endpoint = `${tienda.url}/api/catalog_system/pub/products/search/${encodeURIComponent(query)}?_from=0&_to=3`;
+      const res = await fetch(endpoint, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
           'Accept': 'application/json'
         },
+        signal: AbortSignal.timeout(3500),
         next: { revalidate: 0 }
       });
 
@@ -123,7 +141,6 @@ async function buscarEnVTEXArgentina(nomLimpio, marcaLimpia) {
       const lista = await res.json();
       if (!Array.isArray(lista) || lista.length === 0) continue;
 
-      // Verificar que coincida la marca o la palabra principal del producto
       const match = lista.find((p) => {
         const titulo = normalizar(p.productName || '');
         const brand = normalizar(p.brand || '');
@@ -137,25 +154,28 @@ async function buscarEnVTEXArgentina(nomLimpio, marcaLimpia) {
 
       const imgUrl = match?.items?.[0]?.images?.[0]?.imageUrl;
       if (imgUrl) {
-        // Optimizar tamaño a 500x500 limpio
-        return imgUrl.replace(/-\d+-\d+\//, '-500-500/');
+        return {
+          url: imgUrl.replace(/-\d+-\d+\//, '-500-500/'),
+          origen: `Catálogo ${tienda.nombre}`
+        };
       }
     } catch {
-      // Continuar con la siguiente tienda
+      // Si una cadena tarda o no responde, pasa rápido a la siguiente
     }
   }
 
   return null;
 }
 
-// Respaldo en Open Food Facts
+// Respaldo en Open Food / Beauty Facts
 async function buscarEnOFFEstricto(query, marcaLimpia, tipoBase = 'food') {
   if (!query || query.length < 4 || !marcaLimpia) return null;
   const dominio = tipoBase === 'beauty' ? 'world.openbeautyfacts.org' : 'world.openfoodfacts.org';
   try {
     const url = `https://${dominio}/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5`;
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'BariAhorra - AppPreciosBariloche - V4.0' },
+      headers: { 'User-Agent': 'BariAhorra - AppPreciosBariloche - V5.0' },
+      signal: AbortSignal.timeout(3500),
       next: { revalidate: 0 }
     });
     if (!res.ok) return null;
@@ -185,7 +205,7 @@ export async function POST() {
       .select('id, nombre, marca, categoria, codigo_barras, foto_url')
       .or('foto_url.is.null,foto_url.eq.""')
       .eq('foto_buscada', false)
-      .limit(35);
+      .limit(30);
 
     if (errProd) throw errProd;
 
@@ -209,17 +229,20 @@ export async function POST() {
       let fotoUrl = null;
       let origen = '';
 
-      // 1. Frescos curados sin envase (Vaca cruda, Cerdo crudo, Pollo crudo, Verdulería)
+      // 1. Frescos curados sin envase
       const fija = resolverFotoFija(nombreNorm, cat);
       if (fija) {
         fotoUrl = fija.url;
         origen = fija.origen;
       }
 
-      // 2. Catálogo real VTEX Argentina (Envases argentinos con fondo blanco)
+      // 2. Catálogo multi-cadena VTEX Argentina (Carrefour, Jumbo, ChangoMás, Día, Disco, Vea, Libertad, Farmacity)
       if (!fotoUrl && !['Verdulería'].includes(cat)) {
-        fotoUrl = await buscarEnVTEXArgentina(nomLimpio, marcaLimpia);
-        if (fotoUrl) origen = 'Catálogo Súper Argentina';
+        const resVtex = await buscarEnVTEXArgentina(nomLimpio, marcaLimpia, cat);
+        if (resVtex) {
+          fotoUrl = resVtex.url;
+          origen = resVtex.origen;
+        }
       }
 
       // 3. Respaldo Open Food / Beauty Facts
@@ -238,7 +261,7 @@ export async function POST() {
         actualizados++;
         detalles.push({ producto: `${prod.nombre} (${prod.marca || 'S/M'})`, estado: `asignada ✅ (${origen})` });
       } else {
-        detalles.push({ producto: `${prod.nombre} (${prod.marca || 'S/M'})`, estado: 'usará logo de marca o ícono' });
+        detalles.push({ producto: `${prod.nombre} (${prod.marca || 'S/M'})`, estado: 'sin foto (usará logo o ícono)' });
       }
     }
 

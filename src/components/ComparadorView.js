@@ -277,6 +277,13 @@ export default function ComparadorView({
         const logoMarca = !tieneFotoReal && modoComparacion === 'exacto' ? obtenerLogoMarca(grupo.marca) : null;
         const imagenFinal = grupo.foto || logoMarca;
 
+        const esFotoEnvase =
+          tieneFotoReal &&
+          (grupo.foto.includes('vteximg.com.br') ||
+            grupo.foto.includes('vtexassets.com') ||
+            grupo.foto.includes('openfoodfacts.org') ||
+            grupo.foto.includes('openbeautyfacts.org'));
+
         // Comprobación de estado en changuito
         const claveProdNormalizada = grupo.claveProd || generarClaveProducto(grupo.producto);
         const enChanguito = changuito.some((c) =>
@@ -316,9 +323,9 @@ export default function ComparadorView({
                       src={imagenFinal}
                       alt={tieneFotoReal ? grupo.producto : grupo.marca}
                       className={`w-full h-full group-hover:scale-105 transition-transform duration-200 relative z-10 ${
-                        tieneFotoReal
-                          ? 'object-cover bg-[var(--bg-card)]'
-                          : 'object-contain p-1.5 bg-white'
+                        esFotoEnvase || !tieneFotoReal
+                          ? 'object-contain p-1.5 bg-white'
+                          : 'object-cover bg-[var(--bg-card)]'
                       }`}
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';

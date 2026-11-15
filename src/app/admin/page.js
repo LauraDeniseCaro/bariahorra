@@ -37,13 +37,10 @@ import {
   Clock,
   AlertOctagon,
   Layers,
-  HelpCircle,
   CreditCard,
-  Percent,
   Plus,
   ToggleLeft,
   ToggleRight,
-  Calendar,
   Link as LinkIcon
 } from 'lucide-react';
 
@@ -108,8 +105,9 @@ export default function AdminPage() {
   const [promociones, setPromociones] = useState([]);
   const [cargandoDatos, setCargandoDatos] = useState(false);
 
-  // Estados de Sincronización Open Food Facts
+  // Estados de Sincronización de Imágenes
   const [sincronizandoFotos, setSincronizandoFotos] = useState(false);
+  const [reseteandoBusqueda, setReseteandoBusqueda] = useState(false);
   const [resultadoFotos, setResultadoFotos] = useState(null);
 
   // Edición rápida de ofertas
@@ -203,23 +201,48 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Paginador para traer más de 1.000 filas sin recortes
+  const fetchTodasAdmin = async (tabla, selectStr = '*', ordenarPor = null, asc = false) => {
+    let acumulado = [];
+    let desde = 0;
+    const paso = 1000;
+
+    while (true) {
+      let query = supabase.from(tabla).select(selectStr).range(desde, desde + paso - 1);
+      if (ordenarPor) {
+        query = query.order(ordenarPor, { ascending: asc });
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+
+      acumulado = acumulado.concat(data);
+      if (data.length < paso) break;
+      desde += paso;
+    }
+    return acumulado;
+  };
+
   const cargarTodo = async () => {
     setCargandoDatos(true);
     try {
-      const [resOfertas, resComercios, resProductos, resPromos] = await Promise.all([
-        supabase.from('ofertas').select(`
-          id, precio, precio_propuesto, votos_propuesto, votos_positivos, votos_negativos, motivo_revision, es_catalogo, estado, foto_url, creado_en, usuario_id, vencimiento,
+      const [ofertasData, comerciosData, productosData, resPromos] = await Promise.all([
+        fetchTodasAdmin(
+          'ofertas',
+          `id, precio, precio_propuesto, votos_propuesto, votos_positivos, votos_negativos, motivo_revision, es_catalogo, estado, foto_url, creado_en, usuario_id, vencimiento,
           productos ( id, nombre, marca, categoria, tipo_generico, foto_url, creado_en ),
-          comercios ( id, nombre, direccion, latitud, longitud, creado_en )
-        `).order('creado_en', { ascending: false }),
-        supabase.from('comercios').select('*').order('nombre'),
-        supabase.from('productos').select('*').order('creado_en', { ascending: false }),
+          comercios ( id, nombre, direccion, latitud, longitud, creado_en )`,
+          'creado_en',
+          false
+        ),
+        fetchTodasAdmin('comercios', '*', 'nombre', true),
+        fetchTodasAdmin('productos', '*', 'creado_en', false),
         supabase.from('promociones').select('*').order('creado_en', { ascending: false })
       ]);
 
-      if (resOfertas.data) setOfertas(resOfertas.data);
-      if (resComercios.data) setComercios(resComercios.data);
-      if (resProductos.data) setProductos(resProductos.data);
+      setOfertas(ofertasData);
+      setComercios(comerciosData);
+      setProductos(productosData);
       if (resPromos.data) setPromociones(resPromos.data);
     } catch (err) {
       console.error('Error cargando datos de admin:', err);
@@ -267,6 +290,29 @@ export default function AdminPage() {
       setResultadoFotos({ exito: false, error: 'Ocurrió un error al conectar con la API.' });
     } finally {
       setSincronizandoFotos(false);
+    }
+  };
+
+  // Rehabilitar búsqueda en productos que siguen sin foto
+  const handleRehabilitarSinFoto = async () => {
+    setReseteandoBusqueda(true);
+    setResultadoFotos(null);
+    try {
+      const { error } = await supabase
+        .from('productos')
+        .update({ foto_buscada: false })
+        .or('foto_url.is.null,foto_url.eq.""');
+
+      if (error) throw error;
+      setResultadoFotos({
+        exito: true,
+        mensaje: '¡Listo! Se habilitaron todos los productos sin foto para volver a buscarlos en las nuevas cadenas.'
+      });
+      await cargarTodo();
+    } catch (err) {
+      setResultadoFotos({ exito: false, error: 'Error al rehabilitar búsqueda: ' + err.message });
+    } finally {
+      setReseteandoBusqueda(false);
     }
   };
 
@@ -512,7 +558,6 @@ export default function AdminPage() {
 
       setPromociones((prev) => [data, ...prev]);
 
-      // Limpiar formulario
       setNuevaPromoBanco('');
       setNuevaPromoCadena('Todos');
       setNuevaPromoDescuento('');
@@ -827,10 +872,15 @@ export default function AdminPage() {
   const metricasFotos = useMemo(() => {
     const total = productos.length;
     const con = productos.filter((p) => Boolean(p.foto_url && p.foto_url.trim().length > 5)).length;
+    const pendientesBuscar = productos.filter(
+      (p) => (!p.foto_url || p.foto_url.trim().length <= 5) && p.foto_buscada === false
+    ).length;
+
     return {
       total,
       con,
-      sin: Math.max(0, total - con)
+      sin: Math.max(0, total - con),
+      pendientesBuscar
     };
   }, [productos]);
 
@@ -1085,7 +1135,7 @@ export default function AdminPage() {
               )}
             </button>
 
-            {/* NUEVA PESTAÑA: PROMOCIONES BANCARIAS */}
+            {/* PESTAÑA: PROMOCIONES BANCARIAS */}
             <button
               onClick={() => { setVistaActual('promociones'); setBusqueda(''); }}
               className={`px-4 py-2.5 rounded-2xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 border relative ${
@@ -1153,7 +1203,7 @@ export default function AdminPage() {
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>Fotos Open Food Facts</span>
+              <span>Fotos Catálogo</span>
               {metricasFotos.sin > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                   {metricasFotos.sin}
@@ -1218,7 +1268,6 @@ export default function AdminPage() {
           ) : vistaActual === 'promociones' ? (
             /* --- PESTAÑA: GESTIÓN DE PROMOCIONES BANCARIAS --- */
             <div className="space-y-4">
-              {/* FORMULARIO DE ALTA DE PROMOCIÓN */}
               <form onSubmit={handleCrearPromocion} className="theme-card border-2 border-sky-500/30 rounded-3xl p-4 sm:p-5 shadow-xl space-y-3">
                 <div className="flex items-center justify-between border-b border-[var(--border-card)] pb-2.5">
                   <h3 className="text-xs sm:text-sm font-black theme-title flex items-center gap-2">
@@ -1327,7 +1376,6 @@ export default function AdminPage() {
                 </div>
               </form>
 
-              {/* LISTADO DE PROMOCIONES ACTIVAS Y PAUSADAS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {promocionesFiltradas.length === 0 ? (
                   <div className="col-span-full text-center py-12 theme-card rounded-2xl border text-xs theme-muted">
@@ -1452,7 +1500,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* GRILLA DINÁMICA DE SUCURSALES Y COMERCIOS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                 {monitorCatalogos.cadenas.map((cat) => {
                   const esUrgente = cat.estado === 'urgente';
@@ -1550,7 +1597,7 @@ export default function AdminPage() {
               </div>
             </div>
           ) : vistaActual === 'fotos' ? (
-            /* --- PESTAÑA: FOTOS OPEN FOOD FACTS --- */
+            /* --- PESTAÑA: BUSCADOR DE FOTOS MULTI-CADENA --- */
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="theme-card border rounded-2xl p-4 shadow-sm">
@@ -1569,7 +1616,7 @@ export default function AdminPage() {
 
                 <div className="theme-card border rounded-2xl p-4 shadow-sm">
                   <p className="text-xs theme-muted font-bold flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4 text-amber-500" /> Sin Foto
+                    <AlertTriangle className="w-4 h-4 text-amber-500" /> Sin Foto ({metricasFotos.pendientesBuscar} en cola)
                   </p>
                   <p className="text-xl font-black font-mono text-amber-500 mt-1">{metricasFotos.sin}</p>
                 </div>
@@ -1579,29 +1626,41 @@ export default function AdminPage() {
                 <div className="space-y-1">
                   <h3 className="text-sm font-black theme-title flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-cyan-400" />
-                    <span>Sincronizador Inteligente con Open Food Facts</span>
+                    <span>Sincronizador Multi-Cadena (Carrefour, Jumbo, ChangoMás, Día, Disco, Vea, Farmacity)</span>
                   </h3>
                   <p className="text-xs theme-muted leading-relaxed">
-                    Buscá en lotes de 30 productos para no saturar la red. Cuando termine cada tanda, podés volver a presionarlo para seguir completando el resto del catálogo sin repetir los que ya no existían.
+                    Busca en tandas de 30 productos en los catálogos públicos de supermercados argentinos para traer las fotos oficiales de envases con fondo blanco, más frescos curados y respaldo en Open Food/Beauty Facts.
                   </p>
                 </div>
 
-                <div className="pt-2 flex items-center gap-2 flex-wrap">
+                <div className="pt-2 flex items-center gap-2.5 flex-wrap">
                   <button
                     type="button"
-                    disabled={sincronizandoFotos || metricasFotos.sin === 0}
+                    disabled={sincronizandoFotos || metricasFotos.pendientesBuscar === 0}
                     onClick={ejecutarSincronizacionFotos}
                     className="bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-black text-xs px-6 py-3 rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20 active:scale-95 disabled:opacity-50"
                   >
                     <RefreshCw className={`w-4 h-4 ${sincronizandoFotos ? 'animate-spin' : ''}`} />
                     <span>
                       {sincronizandoFotos
-                        ? 'Buscando 30 imágenes en cascada...'
-                        : metricasFotos.sin === 0
-                        ? '¡Catálogo 100% completo con fotos!'
-                        : `Autocompletar siguientes 30 fotos (Quedan ${metricasFotos.sin})`}
+                        ? 'Buscando 30 envases en supermercados...'
+                        : metricasFotos.pendientesBuscar === 0
+                        ? 'Cola al día (0 pendientes)'
+                        : `Autocompletar siguientes 30 fotos (${metricasFotos.pendientesBuscar} en cola)`}
                     </span>
                   </button>
+
+                  {metricasFotos.sin > 0 && metricasFotos.pendientesBuscar === 0 && (
+                    <button
+                      type="button"
+                      disabled={reseteandoBusqueda}
+                      onClick={handleRehabilitarSinFoto}
+                      className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/40 font-black text-xs px-4 py-3 rounded-2xl transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    >
+                      <RotateCcw className={`w-3.5 h-3.5 ${reseteandoBusqueda ? 'animate-spin' : ''}`} />
+                      <span>Reintentar en los {metricasFotos.sin} sin foto</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -1737,7 +1796,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-                    {productosSinClasificar.map((prod) => {
+                    {productosSinClasificar.slice(0, 30).map((prod) => {
                       const valorInput = clasificacionesInputs[prod.id] ?? '';
                       const guardandoEste = guardandoClasificacionId === prod.id;
 
@@ -1784,7 +1843,6 @@ export default function AdminPage() {
                               </button>
                             </div>
 
-                            {/* Píldoras con sugerencias rápidas comunes */}
                             <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none pt-0.5">
                               {['Leche Fluida', 'Dulce de Leche', 'Crema de Leche', 'Aceite de Girasol', 'Yerba Mate'].map((sug) => (
                                 <button
@@ -2262,7 +2320,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y theme-card-sub/50 text-xs">
-                    {ofertasFiltradas.map((item) => (
+                    {ofertasFiltradas.slice(0, 150).map((item) => (
                       <tr key={item.id} className="hover:bg-slate-500/5 transition">
                         <td className="p-3 pl-4 text-center">
                           {item.foto_url ? (
@@ -2311,6 +2369,11 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
+              {ofertasFiltradas.length > 150 && (
+                <p className="text-center text-[11px] theme-muted">
+                  Mostrando las primeras 150 de {ofertasFiltradas.length} ofertas. Usá el buscador de arriba para filtrar cualquier producto específico.
+                </p>
+              )}
             </div>
           ) : vistaActual === 'comercios' ? (
             /* --- PESTAÑA COMERCIOS --- */
@@ -2517,8 +2580,14 @@ export default function AdminPage() {
               </form>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {productosFiltrados.map((prod) => {
+                {productosFiltrados.slice(0, 150).map((prod) => {
                   const estaEditandoFoto = editandoFotoProdId === prod.id;
+                  const esEnvase =
+                    prod.foto_url &&
+                    (prod.foto_url.includes('vteximg.com.br') ||
+                      prod.foto_url.includes('vtexassets.com') ||
+                      prod.foto_url.includes('openfoodfacts.org') ||
+                      prod.foto_url.includes('openbeautyfacts.org'));
 
                   return (
                     <div key={prod.id} className="theme-card p-3 rounded-2xl border flex flex-col justify-between shadow-sm space-y-2">
@@ -2526,7 +2595,11 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 min-w-0 pr-2">
                           <div className="w-10 h-10 rounded-xl border theme-card-sub shrink-0 overflow-hidden flex items-center justify-center relative group">
                             {prod.foto_url ? (
-                              <img src={prod.foto_url} alt={prod.nombre} className="w-full h-full object-cover" />
+                              <img
+                                src={prod.foto_url}
+                                alt={prod.nombre}
+                                className={`w-full h-full ${esEnvase ? 'object-contain p-1 bg-white' : 'object-cover'}`}
+                              />
                             ) : (
                               <Package className="w-5 h-5 text-slate-500" />
                             )}
@@ -2596,6 +2669,11 @@ export default function AdminPage() {
                   );
                 })}
               </div>
+              {productosFiltrados.length > 150 && (
+                <p className="text-center text-[11px] theme-muted">
+                  Mostrando los primeros 150 de {productosFiltrados.length} productos. Usá el buscador de arriba para filtrar.
+                </p>
+              )}
             </div>
           )}
         </div>

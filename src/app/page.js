@@ -43,12 +43,12 @@ import MiListaView from '@/components/MiListaView';
 const CANTIDAD_POR_PAGINA = 12;
 
 const TERMINOS_POPULARES = [
-  { label: 'Carnes', query: 'carne', Icono: Beef },
-  { label: 'Lácteos', query: 'leche', Icono: Milk },
+  { label: 'Carnes', categoria: 'Carnicería', Icono: Beef },
+  { label: 'Lácteos', categoria: 'Lácteos', Icono: Milk },
   { label: 'Aceites', query: 'aceite', Icono: Sparkles },
   { label: 'Yerba', query: 'yerba', Icono: Leaf },
-  { label: 'Sin TACC', query: 'gluten', Icono: Wheat },
-  { label: 'Verdulería', query: 'papa', Icono: Apple }
+  { label: 'Sin TACC', categoria: 'Sin TACC', Icono: Wheat },
+  { label: 'Verdulería', categoria: 'Verdulería', Icono: Apple }
 ];
 
 const CONFIG_CATEGORIAS = {
@@ -524,7 +524,7 @@ export default function HomePage() {
     };
   }, []);
 
-  // Cargar changuito y tachados específicos del usuario conectado (soluciona la mezcla de listas)
+  // Cargar changuito y tachados específicos del usuario conectado
   useEffect(() => {
     const uId = usuario?.id || null;
     const cKey = getChanguitoKey(uId);
@@ -838,9 +838,19 @@ export default function HomePage() {
           nombreLower.includes('tomate triturado') ||
           nombreLower.includes('extracto de tomate') ||
           nombreLower.includes('pure de papa') ||
-          nombreLower.includes('pure de papas')
+          nombreLower.includes('pure de papas') ||
+          nombreLower.includes('papas fritas') ||
+          nombreLower.includes('papa frita') ||
+          nombreLower.includes('lays') ||
+          nombreLower.includes("lay's") ||
+          nombreLower.includes('pringles')
         ) {
           rubro = 'Almacén';
+        } else if (
+          (nombreLower.includes('papa') || nombreLower.includes('papas')) &&
+          (nombreLower.includes('congelad') || nombreLower.includes('baston') || nombreLower.includes('noisette') || nombreLower.includes('mccain'))
+        ) {
+          rubro = 'Congelados';
         } else if (!rubro || limpiarTexto(rubro) === 'super') {
           const textoBusqueda = `${productoNombre} ${marca}`.toLowerCase();
           for (const [catNombre, keywords] of Object.entries(DICCIONARIO_RUBROS)) {
@@ -1481,7 +1491,13 @@ export default function HomePage() {
                   type="button"
                   onClick={() => {
                     if (dragInfoRef.current.hasMoved) return;
-                    setBusqueda(tp.query);
+                    if (tp.categoria) {
+                      setCategoriaActiva(tp.categoria);
+                      setBusqueda('');
+                    } else {
+                      setCategoriaActiva('Todos');
+                      setBusqueda(tp.query);
+                    }
                     setBuscadorFoco(false);
                   }}
                   className="text-[10px] font-bold px-2.5 py-1 rounded-lg theme-card border border-[var(--border-card)] theme-subtitle hover:border-amber-500 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"

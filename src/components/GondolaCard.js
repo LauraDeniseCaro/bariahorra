@@ -52,6 +52,13 @@ export default function GondolaCard({
   const logoMarca = !tieneFotoReal ? obtenerLogoMarca(item._marca) : null;
   const imagenFinal = item._foto || logoMarca;
 
+  const esFotoEnvase =
+    tieneFotoReal &&
+    (item._foto.includes('vteximg.com.br') ||
+      item._foto.includes('vtexassets.com') ||
+      item._foto.includes('openfoodfacts.org') ||
+      item._foto.includes('openbeautyfacts.org'));
+
   const esAnonimo = String(item._usuario || '').toLowerCase().includes('anonimo');
   const formatoUsuario = esAnonimo
     ? 'Vecino anónimo'
@@ -182,9 +189,9 @@ export default function GondolaCard({
                 src={imagenFinal}
                 alt={tieneFotoReal ? item._producto : item._marca}
                 className={`w-full h-full group-hover:scale-105 transition-transform duration-200 relative z-10 ${
-                  tieneFotoReal
-                    ? 'object-cover bg-[var(--bg-card)]'
-                    : 'object-contain p-1.5 bg-white'
+                  esFotoEnvase || !tieneFotoReal
+                    ? 'object-contain p-1.5 bg-white'
+                    : 'object-cover bg-[var(--bg-card)]'
                 }`}
                 loading="lazy"
                 onError={(e) => {

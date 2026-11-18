@@ -60,6 +60,28 @@ export const viewport = {
   initialScale: 1,
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "BariAhorra",
+  "url": "https://bariahorra.vercel.app",
+  "description": "Comparador comunitario de precios de supermercados y comercios en San Carlos de Bariloche.",
+  "applicationCategory": "ShoppingApplication",
+  "operatingSystem": "All",
+  "inLanguage": "es-AR",
+  "areaServed": {
+    "@type": "City",
+    "name": "San Carlos de Bariloche",
+    "addressRegion": "Río Negro",
+    "addressCountry": "AR"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "ARS"
+  }
+};
+
 export default function RootLayout({ children }) {
   return (
     <html
@@ -72,6 +94,10 @@ export default function RootLayout({ children }) {
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-full flex flex-col selection:bg-sky-500 selection:text-white">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         {/* Contenedor adaptativo según el tema activo */}
         <div className="flex-1 flex flex-col w-full max-w-4xl mx-auto border-x shadow-2xl theme-shell min-h-screen">
           <Header />

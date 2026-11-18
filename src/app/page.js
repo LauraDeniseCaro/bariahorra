@@ -148,7 +148,7 @@ const DICCIONARIO_RUBROS = {
   'Sin TACC': ['sin gluten', 'gluten', 'celiaco', 'schär', 'schar', 'tacc', 'blancaflor sin', 'premezcla pizza'],
   'Higiene Personal': ['dental', 'colgate', 'shampoo', 'desodorante', 'rexona', 'palmolive', 'toalla femenina', 'lina', 'jabón de tocador', 'jabon de tocador'],
   Limpieza: ['jabon liquido', 'detergente', 'lavandina', 'papel higienico', 'rollo', 'suavizante', 'desinfectante', 'cif', 'skip', 'ayudín', 'ayudin', 'odex', 'vileda', 'poett'],
-  Lácteos: ['leche', 'yogur', 'queso', 'manteca', 'crema', 'dulce de leche', 'sachet', 'untable', 'ricota', 'danbo', 'fiambre', 'jamon'],
+  Lácteos: ['leche', 'yogur', 'queso', 'manteca', 'crema', 'dulce de leche', 'sachet', 'untable', 'ricota', 'postrecito', 'danbo', 'fiambre', 'jamon'],
   Verdulería: ['zanahoria', 'manzana', 'banana', 'lechuga', 'palta', 'naranja', 'limon', 'zapallo', 'morron', 'acelga', 'sandia', 'kale', 'alcaucil', 'mandarina', 'verdeo', 'cebolla de verdeo'],
   Bebidas: ['agua', 'gaseosa', 'coca', 'pepsi', 'cerveza', 'vino', 'jugo', 'soda', 'fernet', 'aperitivo', 'levité', 'levite', 'schneider', 'andes', 'dr. lemon', 'clight'],
   Almacén: ['arroz', 'fideos', 'harina', 'yerba', 'aceite', 'galletitas', 'azucar', 'pure de tomate', 'tomate triturado', 'pure de papa', 'pure de papas', 'arvejas', 'lentejas', 'pan', 'tapas']
@@ -1212,17 +1212,6 @@ export default function HomePage() {
     return ofertasGondolaDesduplicadas.slice(0, limiteVisibles);
   }, [ofertasGondolaDesduplicadas, limiteVisibles]);
 
-  const ofertasBomba = useMemo(() => {
-    return [...ofertasGondolaDesduplicadas]
-      .filter((o) => o._precio > 0)
-      .sort((a, b) => {
-        const pesoA = (a._esCatalogo ? 2 : 1) * (a._votosPositivos + 1);
-        const pesoB = (b._esCatalogo ? 2 : 1) * (b._votosPositivos + 1);
-        return pesoB - pesoA;
-      })
-      .slice(0, 6);
-  }, [ofertasGondolaDesduplicadas]);
-
   const mejoresPreciosIds = useMemo(() => {
     const grupos = {};
     ofertas.forEach((o) => {
@@ -1242,6 +1231,73 @@ export default function HomePage() {
     });
     return ganadores;
   }, [ofertas]);
+
+  // PRECIOS DESTACADOS: Prioriza mejores precios y ahorro real, intercalando distintas cadenas
+  const ofertasBomba = useMemo(() => {
+    const candidatas = ofertasGondolaDesduplicadas.filter(
+      (o) => o._precio > 0 && o._estadoVenc?.tipo !== 'vencido' && o.estado !== 'en_revision'
+    );
+    if (candidatas.length === 0) return [];
+
+    // Calcular ahorro porcentual frente al máximo de ese mismo producto/presentación
+    const maxPorProducto = new Map();
+    candidatas.forEach((o) => {
+      const clave = `${o._claveProducto}_${limpiarTexto(o._presentacion)}`;
+      const actualMax = maxPorProducto.get(clave) || 0;
+      if (o._precio > actualMax) maxPorProducto.set(clave, o._precio);
+    });
+
+    const puntuadas = candidatas
+      .map((o) => {
+        const clave = `${o._claveProducto}_${limpiarTexto(o._presentacion)}`;
+        const maxPrecio = maxPorProducto.get(clave) || o._precio;
+        const pctAhorro = maxPrecio > o._precio ? ((maxPrecio - o._precio) / maxPrecio) * 100 : 0;
+
+        let puntaje = 0;
+        if (mejoresPreciosIds.has(o.id)) puntaje += 40;
+        puntaje += Math.min(pctAhorro * 1.5, 45);
+        if (!o._esCatalogo) puntaje += 15; // Impulsa aportes reales de vecinos
+        puntaje += Math.min((o._votosPositivos || 0) * 3, 20);
+        if (o._foto) puntaje += 8;
+
+        return { ...o, _puntajeBomba: puntaje };
+      })
+      .sort((a, b) => b._puntajeBomba - a._puntajeBomba);
+
+    // Agrupar por cadena para intercalar (1 de cada súper por ronda)
+    const porCadena = new Map();
+    puntuadas.forEach((item) => {
+      const cad = item._cadena || item._comercio || 'Otro';
+      if (!porCadena.has(cad)) porCadena.set(cad, []);
+      porCadena.get(cad).push(item);
+    });
+
+    const resultado = [];
+    const clavesUsadas = new Set();
+    const listasPorCadena = Array.from(porCadena.values());
+    let ronda = 0;
+
+    while (resultado.length < 8 && ronda < 10) {
+      let agregoEnRonda = false;
+      for (const lista of listasPorCadena) {
+        if (resultado.length >= 8) break;
+        while (lista.length > 0) {
+          const candidato = lista.shift();
+          const claveUnica = `${candidato._claveProducto}_${limpiarTexto(candidato._marca)}`;
+          if (!clavesUsadas.has(claveUnica)) {
+            clavesUsadas.add(claveUnica);
+            resultado.push(candidato);
+            agregoEnRonda = true;
+            break;
+          }
+        }
+      }
+      if (!agregoEnRonda) break;
+      ronda++;
+    }
+
+    return resultado;
+  }, [ofertasGondolaDesduplicadas, mejoresPreciosIds]);
 
   const productosComparados = useMemo(() => {
     const mapa = new Map();

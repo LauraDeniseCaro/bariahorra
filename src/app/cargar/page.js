@@ -136,6 +136,13 @@ export default function CargarPage() {
   const [enviando, setEnviando] = useState(false);
   const [errorMensaje, setErrorMensaje] = useState('');
 
+  // Arrastre horizontal con mouse/táctil para la barra de rubros
+  const rubrosRef = useRef(null);
+  const [isDraggingRubro, setIsDraggingRubro] = useState(false);
+  const [startXRubro, setStartXRubro] = useState(0);
+  const [scrollLeftRubro, setScrollLeftRubro] = useState(0);
+  const [arrastroRubro, setArrastroRubro] = useState(false);
+
   const abortControllerRef = useRef(null);
   const inputCamaraRef = useRef(null);
   const inputGaleriaRef = useRef(null);
@@ -152,6 +159,25 @@ export default function CargarPage() {
       setEsCatalogo(true);
     }
   }, []);
+
+  const handleMouseDownRubro = (e) => {
+    if (!rubrosRef.current) return;
+    setIsDraggingRubro(true);
+    setArrastroRubro(false);
+    setStartXRubro(e.pageX - rubrosRef.current.offsetLeft);
+    setScrollLeftRubro(rubrosRef.current.scrollLeft);
+  };
+
+  const handleMouseMoveRubro = (e) => {
+    if (!isDraggingRubro || !rubrosRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - rubrosRef.current.offsetLeft;
+    const walk = (x - startXRubro) * 1.5;
+    if (Math.abs(walk) > 5) setArrastroRubro(true);
+    rubrosRef.current.scrollLeft = scrollLeftRubro - walk;
+  };
+
+  const detenerDragRubro = () => setIsDraggingRubro(false);
 
   const comprobarUsuarioYDatos = async () => {
     try {
@@ -1188,12 +1214,26 @@ export default function CargarPage() {
               )}
             </div>
 
-            {/* PÍLDORAS DE LOS 11 RUBROS */}
+            {/* PÍLDORAS DE LOS 11 RUBROS CON ARRASTRE */}
             <div>
               <label className="block text-[11px] font-bold theme-muted mb-1.5">
                 Rubro
               </label>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div
+                ref={rubrosRef}
+                onMouseDown={handleMouseDownRubro}
+                onMouseLeave={detenerDragRubro}
+                onMouseUp={detenerDragRubro}
+                onMouseMove={handleMouseMoveRubro}
+                onWheel={(e) => {
+                  if (e.deltaY !== 0 && rubrosRef.current) {
+                    rubrosRef.current.scrollLeft += e.deltaY;
+                  }
+                }}
+                className={`flex gap-1.5 overflow-x-auto pb-1 scrollbar-none select-none ${
+                  isDraggingRubro ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
+              >
                 {Object.entries(CONFIG_RUBROS).map(([nombreRubro, conf]) => {
                   const Icono = conf.icono;
                   const activo = rubro === nombreRubro;
@@ -1201,8 +1241,10 @@ export default function CargarPage() {
                     <button
                       type="button"
                       key={nombreRubro}
-                      onClick={() => setRubro(nombreRubro)}
-                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer shrink-0 ${
+                      onClick={() => {
+                        if (!arrastroRubro) setRubro(nombreRubro);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 whitespace-nowrap transition shrink-0 ${
                         activo ? conf.color : 'theme-btn-sec border theme-muted hover:theme-title'
                       }`}
                     >
